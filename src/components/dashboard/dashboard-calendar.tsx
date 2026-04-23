@@ -628,7 +628,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                         startDate: event.target.value,
                       }))
                     }
-                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                    className="calendar-native-input block min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                   />
                 </div>
 
@@ -645,7 +645,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                         endDate: event.target.value,
                       }))
                     }
-                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                    className="calendar-native-input block min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                   />
                 </div>
 
@@ -662,7 +662,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                         startTime: event.target.value,
                       }))
                     }
-                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                    className="calendar-native-input block min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                   />
                 </div>
 
@@ -679,7 +679,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                         endTime: event.target.value,
                       }))
                     }
-                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                    className="calendar-native-input block min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                   />
                 </div>
               </div>

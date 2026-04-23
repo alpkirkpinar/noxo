@@ -52,6 +52,25 @@ select:-webkit-autofill {
   -webkit-text-fill-color: #0f172a;
 }
 
+.calendar-native-input {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  overflow: hidden;
+  font-size: 16px;
+}
+
+.calendar-native-input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+.calendar-native-input::-webkit-calendar-picker-indicator {
+  margin-left: 0;
+}
+
 .shadow-sm {
   box-shadow: var(--elevation-sm);
 }
