@@ -91,7 +91,7 @@ export default function MachinesPageClient() {
   }
 
   if (loading) {
-    return <ListLoadingPanel message="Makineler yukleniyor..." />
+    return <ListLoadingPanel message="Makineler yükleniyor..." />
   }
 
   return <MachinesListClient initialMachines={machines} permissions={permissions} />

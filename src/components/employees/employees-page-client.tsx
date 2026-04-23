@@ -63,7 +63,7 @@ export default function EmployeesPageClient() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Calisanlar</h1>
           <p className="mt-1 text-sm text-slate-500">Calisan bilgileri, giris hesaplari ve yetkileri</p>
         </div>
-        <ListLoadingPanel message="Calisanlar yukleniyor..." />
+        <ListLoadingPanel message="Çalışanlar yükleniyor..." />
       </div>
     )
   }

@@ -136,7 +136,7 @@ export default function TicketsPageClient() {
   }
 
   if (loading || !payload) {
-    return <ListLoadingPanel message="Ticketlar yukleniyor..." />
+    return <ListLoadingPanel message="Ticketlar yükleniyor..." />
   }
 
   return (

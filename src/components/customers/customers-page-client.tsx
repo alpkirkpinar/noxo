@@ -91,7 +91,7 @@ export default function CustomersPageClient() {
   }
 
   if (loading) {
-    return <ListLoadingPanel message="Musteriler yukleniyor..." />
+    return <ListLoadingPanel message="Müşteriler yükleniyor..." />
   }
 
   return <CustomerList customers={customers} permissions={permissions} />
