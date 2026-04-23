@@ -160,14 +160,14 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
         const data = await response.json()
 
         if (!response.ok) {
-          throw new Error(data?.error || "Takvim verisi alınamadı.")
+          throw new Error(data?.error || "Takvim verisi alÄ±namadÄ±.")
         }
 
         if (!active) return
         setEvents(data?.events ?? [])
       } catch (error: unknown) {
         if (!active) return
-        setErrorMessage(error instanceof Error ? error.message : "Takvim verisi alınamadı.")
+        setErrorMessage(error instanceof Error ? error.message : "Takvim verisi alÄ±namadÄ±.")
       } finally {
         if (active) {
           setLoading(false)
@@ -304,7 +304,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.error || "Etkinlik güncellenemedi.")
+        throw new Error(data?.error || "Etkinlik gÃ¼ncellenemedi.")
       }
 
       const updated = data?.event as CalendarEvent
@@ -328,7 +328,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
       setSelectedDate(updated.start_date)
       closeForm()
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Etkinlik güncellenemedi.")
+      setErrorMessage(error instanceof Error ? error.message : "Etkinlik gÃ¼ncellenemedi.")
     } finally {
       setSaving(false)
     }
@@ -371,7 +371,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
             Takvim
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Ortak şirket planı ve geçmiş etkinlikler
+            Ortak ÅŸirket planÄ± ve geÃ§miÅŸ etkinlikler
           </p>
         </div>
 
@@ -385,7 +385,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
             }
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
-            ←
+            â†
           </button>
 
           <div className="min-w-[180px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-center text-sm font-semibold capitalize text-slate-800">
@@ -401,7 +401,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
             }
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
-            →
+            â†’
           </button>
         </div>
       </div>
@@ -413,7 +413,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
               CW
             </div>
 
-            {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map((day) => (
+            {["Pzt", "Sal", "Ã‡ar", "Per", "Cum", "Cmt", "Paz"].map((day) => (
               <div
                 key={day}
                 className="rounded-lg bg-slate-50 px-1 py-2 text-center text-[9px] font-semibold uppercase text-slate-500 sm:rounded-xl sm:px-2 sm:text-[11px] sm:tracking-[0.16em]"
@@ -476,11 +476,6 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                             {date.getDate()}
                           </span>
 
-                          {dayEvents.length > 0 ? (
-                            <span className="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 sm:ml-2 sm:px-2.5 sm:py-1 sm:text-xs">
-                              {dayEvents.length}
-                            </span>
-                          ) : null}
                         </div>
 
                         <div className="mt-8 space-y-1 sm:mt-10 2xl:mt-12">
@@ -507,11 +502,6 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                             </div>
                           ))}
 
-                          {dayEvents.length > 2 ? (
-                            <div className="truncate text-[9px] font-medium text-slate-500 sm:text-[10px]">
-                              +{dayEvents.length - 2} daha
-                            </div>
-                          ) : null}
                         </div>
                       </button>
                     )
@@ -524,7 +514,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <div className="mb-4">
-            <h3 className="text-base font-semibold text-slate-900">Gün Detayı</h3>
+            <h3 className="text-base font-semibold text-slate-900">GÃ¼n DetayÄ±</h3>
             <p className="mt-1 text-sm text-slate-500">
               {formatDateLabel(selectedDate)}
             </p>
@@ -550,16 +540,16 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
 
               <div>
                 <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Seçilen Gün Etkinlikleri
+                  SeÃ§ilen GÃ¼n Etkinlikleri
                 </h4>
 
                 {loading ? (
                   <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
-                    Takvim yükleniyor...
+                    Takvim yÃ¼kleniyor...
                   </div>
                 ) : selectedDateEvents.length === 0 ? (
                   <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
-                    Bu gün için etkinlik yok.
+                    Bu gÃ¼n iÃ§in etkinlik yok.
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -605,11 +595,10 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
           ) : (
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="text-sm font-semibold text-slate-800">
-                {isEditMode ? "Etkinliği Düzenle" : "Etkinlik Oluştur"}
+                {isEditMode ? "EtkinliÄŸi DÃ¼zenle" : "Etkinlik OluÅŸtur"}
               </div>
-
               <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <label className="mb-2 block text-sm font-medium text-slate-600">
                   Başlık
                 </label>
                 <input
@@ -621,47 +610,47 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                     }))
                   }
                   placeholder="Örn: Demo firmasında çalışma"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                  className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                 />
               </div>
 
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Başlangıç Tarihi
-                </label>
-                <input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      startDate: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
-                />
-              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <label className="mb-2 block text-sm font-medium text-slate-600">
+                    Başlangıç Tarihi
+                  </label>
+                  <input
+                    type="date"
+                    value={form.startDate}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        startDate: event.target.value,
+                      }))
+                    }
+                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                  />
+                </div>
 
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Bitiş Tarihi
-                </label>
-                <input
-                  type="date"
-                  value={form.endDate}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      endDate: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
-                />
-              </div>
+                <div className="min-w-0">
+                  <label className="mb-2 block text-sm font-medium text-slate-600">
+                    Bitiş Tarihi
+                  </label>
+                  <input
+                    type="date"
+                    value={form.endDate}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        endDate: event.target.value,
+                      }))
+                    }
+                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                  />
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <div className="min-w-0">
+                  <label className="mb-2 block text-sm font-medium text-slate-600">
                     Başlangıç Saati
                   </label>
                   <input
@@ -673,12 +662,12 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                         startTime: event.target.value,
                       }))
                     }
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                   />
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <div className="min-w-0">
+                  <label className="mb-2 block text-sm font-medium text-slate-600">
                     Bitiş Saati
                   </label>
                   <input
@@ -690,13 +679,13 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                         endTime: event.target.value,
                       }))
                     }
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                    className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <label className="mb-2 block text-sm font-medium text-slate-600">
                   Açıklama
                 </label>
                 <textarea
@@ -709,10 +698,9 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                     }))
                   }
                   placeholder="Etkinlik ile ilgili not veya detay"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+                  className="block min-w-0 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
                 />
               </div>
-
               {errorMessage ? (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {errorMessage}
@@ -726,7 +714,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                   disabled={saving}
                   className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? "Kaydediliyor..." : isEditMode ? "Güncelle" : "Kaydet"}
+                  {saving ? "Kaydediliyor..." : isEditMode ? "GÃ¼ncelle" : "Kaydet"}
                 </button>
 
                 {isEditMode ? (
@@ -736,7 +724,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                     disabled={saving}
                     className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Etkinliği Sil
+                    EtkinliÄŸi Sil
                   </button>
                 ) : null}
 
@@ -745,7 +733,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                   onClick={closeForm}
                   className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
                 >
-                  İptal
+                  Ä°ptal
                 </button>
               </div>
             </div>
@@ -755,3 +743,4 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
     </div>
   )
 }
+
