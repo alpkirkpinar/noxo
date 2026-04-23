@@ -268,8 +268,9 @@ export default function Sidebar({
         <div className="fixed left-0 top-0 h-screen w-[304px] p-4">
           <div className="elevated-sidebar flex h-full w-full flex-col overflow-hidden rounded-3xl bg-[linear-gradient(180deg,#22345d_0%,#1e2c50_45%,#1b2746_100%)] text-white ring-1 ring-white/20">
             <div className="border-b border-white/10 px-5 py-4">
-              <Link href="/dashboard" className="flex items-center">
+              <Link href="/dashboard" className="flex items-center gap-3">
                 <NoxoMark className="h-14 w-14 drop-shadow-md" />
+                <div className="text-[30px] font-black leading-none tracking-normal">noxo</div>
               </Link>
             </div>
 

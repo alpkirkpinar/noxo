@@ -43,8 +43,9 @@ export default function LoginPage() {
     >
       <div className="absolute inset-0 bg-slate-950/35" />
       <div className="relative w-full max-w-md rounded-[28px] border border-white/25 bg-white/90 p-8 shadow-2xl ring-1 ring-white/20 backdrop-blur-md">
-        <div className="mb-8 flex items-center justify-center">
-          <NoxoMark className="h-32 w-32 drop-shadow-xl" />
+        <div className="mb-8 flex items-center justify-center gap-5">
+          <NoxoMark className="h-28 w-28 shrink-0 drop-shadow-xl sm:h-32 sm:w-32" />
+          <h1 className="text-5xl font-black tracking-normal text-slate-950 sm:text-6xl">noxo</h1>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
