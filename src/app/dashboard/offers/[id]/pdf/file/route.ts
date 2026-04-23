@@ -26,6 +26,7 @@ type OfferItemRow = {
   id: string;
   item_code: string | null;
   item_name: string;
+  description: string | null;
   quantity: number | null;
   unit: string;
   unit_price: number | null;
@@ -89,7 +90,7 @@ export async function GET(
     );
   }
 
-  const [{ data: customer }, { data: items, error: itemsError }] = await Promise.all([
+  const [{ data: customer }, { data: settings }, { data: items, error: itemsError }] = await Promise.all([
     offer.customer_id
       ? supabase
           .from("customers")
@@ -99,12 +100,18 @@ export async function GET(
           .single()
       : Promise.resolve({ data: null }),
     supabase
+      .from("system_settings")
+      .select("company_name, logo_url")
+      .eq("company_id", appUser.company_id)
+      .maybeSingle(),
+    supabase
       .from("offer_items")
       .select(
         `
         id,
         item_code,
         item_name,
+        description,
         quantity,
         unit,
         unit_price,
@@ -137,10 +144,12 @@ export async function GET(
           notes: (offer as OfferRow).notes,
         },
         customer: customer ?? null,
+        settings: settings ?? null,
         items: ((items ?? []) as OfferItemRow[]).map((item) => ({
           id: item.id,
           item_code: item.item_code,
           item_name: item.item_name,
+          description: item.description,
           quantity: Number(item.quantity ?? 0),
           unit: item.unit,
           unit_price: Number(item.unit_price ?? 0),
