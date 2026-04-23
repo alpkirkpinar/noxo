@@ -78,6 +78,10 @@ function getPageTitle(pathname: string) {
     return "Müşteriler"
   }
 
+  if (/^\/dashboard\/offers\/[^/]+(?:\/edit|\/pdf)?$/.test(pathname)) {
+    return "Teklifler"
+  }
+
   if (/^\/dashboard\/machines\/[^/]+(?:\/edit)?$/.test(pathname)) {
     return "Makineler"
   }
