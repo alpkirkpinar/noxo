@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useTouchContextMenu } from "@/hooks/use-touch-context-menu"
 
 export type Employee = {
   id: string
@@ -148,6 +149,9 @@ export default function EmployeeCards({ employees }: Props) {
   const [search, setSearch] = useState("")
   const [rowsState, setRowsState] = useState<Employee[]>(employees)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
+  const { activeId, bindRow } = useTouchContextMenu((employeeId, x, y) => {
+    setContextMenu({ employeeId, x, y })
+  })
   const [newEmployeeOpen, setNewEmployeeOpen] = useState(false)
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null)
   const [permissionsEmployeeId, setPermissionsEmployeeId] = useState<string | null>(null)
@@ -461,15 +465,10 @@ export default function EmployeeCards({ employees }: Props) {
               return (
                 <div
                   key={employee.id}
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    setContextMenu({
-                      employeeId: employee.id,
-                      x: event.clientX,
-                      y: event.clientY,
-                    })
-                  }}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                  {...bindRow(employee.id)}
+                  className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md ${
+                    activeId === employee.id ? "bg-slate-100 ring-1 ring-slate-300" : ""
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>

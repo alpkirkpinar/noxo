@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type MachineListItem = {
   id: string;
@@ -225,6 +226,9 @@ function MaintenanceDueIndicator({ machine, fullWidth = false }: { machine: Mach
 export default function MachinesListClient({ initialMachines, permissions }: Props) {
   const router = useRouter();
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((machineId, x, y) => {
+    setContextMenu({ x, y, machineId });
+  });
 
   const [rows, setRows] = useState(initialMachines);
   const [search, setSearch] = useState("");
@@ -564,6 +568,8 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
                   <tr
                     key={machine.id}
                     onClick={() => {
+                      if (shouldSuppressClick()) return;
+
                       if (selectionMode) {
                         toggleMachineSelection(machine.id);
                         return;
@@ -571,15 +577,10 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
 
                       router.push(`/dashboard/machines/${machine.id}`);
                     }}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      setContextMenu({
-                        x: event.clientX,
-                        y: event.clientY,
-                        machineId: machine.id,
-                      });
-                    }}
-                    className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
+                    {...bindRow(machine.id)}
+                    className={`cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] ${
+                      activeId === machine.id ? "bg-slate-300/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14)]" : ""
+                    }`}
                   >
                     {selectionMode ? (
                       <td className="px-4 py-3">

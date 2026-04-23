@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
 
@@ -335,6 +336,9 @@ export default function OffersPage() {
 
   const itemCodeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((offerId, x, y) => {
+    setContextMenu({ x, y, offerId });
+  });
 
   useEffect(() => {
     void initialize();
@@ -1147,6 +1151,8 @@ export default function OffersPage() {
                   <tr
                     key={offer.id}
                     onClick={() => {
+                      if (shouldSuppressClick()) return;
+
                       if (selectionMode) {
                         toggleOfferSelection(offer.id);
                         return;
@@ -1154,15 +1160,10 @@ export default function OffersPage() {
 
                       router.push(`/dashboard/offers/${offer.id}`);
                     }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setContextMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        offerId: offer.id,
-                      });
-                    }}
-                    className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
+                    {...bindRow(offer.id)}
+                    className={`cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] ${
+                      activeId === offer.id ? "bg-slate-300/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14)]" : ""
+                    }`}
                   >
                     {selectionMode ? (
                       <td className="px-4 py-3">

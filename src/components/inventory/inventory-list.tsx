@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
 
@@ -344,6 +345,9 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((itemId, x, y) => {
+    setContextMenu({ x, y, itemId });
+  });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const codeListId = "inventory-item-codes";
@@ -1408,19 +1412,16 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
                       <tr
                         key={item.id}
                         onClick={() => {
+                          if (shouldSuppressClick()) return;
+
                           if (selectionMode) {
                             toggleItemSelection(item.id);
                           }
                         }}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          setContextMenu({
-                            x: e.clientX,
-                            y: e.clientY,
-                            itemId: item.id,
-                          });
-                        }}
-                        className="border-b border-slate-100 last:border-b-0 transition-colors hover:bg-slate-300"
+                        {...bindRow(item.id)}
+                        className={`border-b border-slate-100 last:border-b-0 transition-colors hover:bg-slate-300 ${
+                          activeId === item.id ? "bg-slate-300/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14)]" : ""
+                        }`}
                       >
                         {selectionMode ? (
                           <td className="px-4 py-3">

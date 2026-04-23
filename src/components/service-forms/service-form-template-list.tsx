@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type TemplateField = {
   id: string;
@@ -71,18 +72,6 @@ type ColumnPointerDragState = {
   lastTargetId: string;
   longPressTimer: number | null;
   contextMenuOpened: boolean;
-  moved: boolean;
-};
-
-type RowLongPressState = {
-  formId: string;
-  pointerId: number;
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastY: number;
-  longPressTimer: number | null;
-  menuOpened: boolean;
   moved: boolean;
 };
 
@@ -184,9 +173,11 @@ export default function ServiceFormTemplateList({
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const columnContextMenuRef = useRef<HTMLDivElement | null>(null);
   const columnPointerDragRef = useRef<ColumnPointerDragState | null>(null);
-  const rowLongPressRef = useRef<RowLongPressState | null>(null);
-  const suppressRowClickUntilRef = useRef(0);
   const columnHeaderRefs = useRef(new Map<string, HTMLTableCellElement>());
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((formId, x, y) => {
+    setColumnContextMenu(null);
+    setContextMenu({ x, y, formId });
+  });
 
   const columns = useMemo<Column[]>(
     () => [
@@ -378,14 +369,6 @@ export default function ServiceFormTemplateList({
     dragState.longPressTimer = null;
   }
 
-  function clearRowLongPressTimer() {
-    const rowPressState = rowLongPressRef.current;
-    if (!rowPressState?.longPressTimer) return;
-
-    window.clearTimeout(rowPressState.longPressTimer);
-    rowPressState.longPressTimer = null;
-  }
-
   function openColumnContextMenu(columnId: string, x: number, y: number) {
     setContextMenu(null);
     setColumnContextMenu({ x, y, columnId });
@@ -529,67 +512,6 @@ export default function ServiceFormTemplateList({
       (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1);
 
     return isWebKit && isSafari && isTouchAppleDevice;
-  }
-
-  function handleRowPointerDown(event: PointerEvent<HTMLTableRowElement>, formId: string) {
-    if (event.pointerType === "mouse" || !event.isPrimary) return;
-
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const longPressTimer = window.setTimeout(() => {
-      const rowPressState = rowLongPressRef.current;
-      if (!rowPressState || rowPressState.pointerId !== event.pointerId || rowPressState.moved) return;
-
-      rowPressState.menuOpened = true;
-      suppressRowClickUntilRef.current = Date.now() + 800;
-      setColumnContextMenu(null);
-      setContextMenu({
-        x: rowPressState.lastX,
-        y: rowPressState.lastY,
-        formId,
-      });
-    }, 550);
-
-    rowLongPressRef.current = {
-      formId,
-      pointerId: event.pointerId,
-      startX,
-      startY,
-      lastX: startX,
-      lastY: startY,
-      longPressTimer,
-      menuOpened: false,
-      moved: false,
-    };
-  }
-
-  function handleRowPointerMove(event: PointerEvent<HTMLTableRowElement>) {
-    const rowPressState = rowLongPressRef.current;
-    if (!rowPressState || rowPressState.pointerId !== event.pointerId) return;
-
-    rowPressState.lastX = event.clientX;
-    rowPressState.lastY = event.clientY;
-
-    const deltaX = Math.abs(event.clientX - rowPressState.startX);
-    const deltaY = Math.abs(event.clientY - rowPressState.startY);
-
-    if (deltaX < 10 && deltaY < 10) return;
-
-    rowPressState.moved = true;
-    clearRowLongPressTimer();
-  }
-
-  function handleRowPointerEnd(event: PointerEvent<HTMLTableRowElement>) {
-    const rowPressState = rowLongPressRef.current;
-    if (!rowPressState || rowPressState.pointerId !== event.pointerId) return;
-
-    clearRowLongPressTimer();
-
-    if (rowPressState.menuOpened) {
-      event.preventDefault();
-    }
-
-    rowLongPressRef.current = null;
   }
 
   function renderCell(row: FormRow, column: Column) {
@@ -764,18 +686,9 @@ export default function ServiceFormTemplateList({
 
       if (
         isAppleMobileSafari() &&
-        typeof navigator !== "undefined" &&
-        "canShare" in navigator &&
-        typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [pdfFile] }) &&
-        "share" in navigator &&
-        typeof navigator.share === "function"
+        typeof window !== "undefined"
       ) {
-        await navigator.share({
-          title: fileName,
-          files: [pdfFile],
-        });
-        setSuccessText("PDF dosyası paylaşım olarak hazırlandı.");
+        window.open(`/api/service-forms/${formId}/pdf`, "_blank", "noopener,noreferrer");
         return;
       }
 
@@ -1026,10 +939,7 @@ export default function ServiceFormTemplateList({
                   <tr
                     key={row.id}
                     onClick={() => {
-                      if (suppressRowClickUntilRef.current > Date.now()) {
-                        suppressRowClickUntilRef.current = 0;
-                        return;
-                      }
+                      if (shouldSuppressClick()) return;
 
                       if (selectionMode) {
                         toggleFormSelection(row.id);
@@ -1038,20 +948,10 @@ export default function ServiceFormTemplateList({
 
                       router.push(`/dashboard/service-forms/${row.id}`);
                     }}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      setColumnContextMenu(null);
-                      setContextMenu({
-                        x: event.clientX,
-                        y: event.clientY,
-                        formId: row.id,
-                      });
-                    }}
-                    onPointerDown={(event) => handleRowPointerDown(event, row.id)}
-                    onPointerMove={handleRowPointerMove}
-                    onPointerUp={handleRowPointerEnd}
-                    onPointerCancel={handleRowPointerEnd}
-                    className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
+                    {...bindRow(row.id)}
+                    className={`cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] ${
+                      activeId === row.id ? "bg-slate-300/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14)]" : ""
+                    }`}
                   >
                     {selectionMode ? (
                       <td className="px-4 py-3">

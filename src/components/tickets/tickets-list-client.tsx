@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import NewTicketForm from "@/components/tickets/new-ticket-form";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type TicketStatus =
   | "new"
@@ -196,6 +197,9 @@ export default function TicketsListClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((ticketId, x, y) => {
+    setContextMenu({ x, y, ticketId });
+  });
 
   const [rows, setRows] = useState<TicketRow[]>(initialTickets);
   const [search, setSearch] = useState("");
@@ -660,6 +664,8 @@ export default function TicketsListClient({
                   <tr
                     key={ticket.id}
                     onClick={() => {
+                      if (shouldSuppressClick()) return;
+
                       if (selectionMode) {
                         toggleTicketSelection(ticket.id);
                         return;
@@ -667,15 +673,10 @@ export default function TicketsListClient({
 
                       router.push(`/dashboard/tickets/${ticket.id}`);
                     }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setContextMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        ticketId: ticket.id,
-                      });
-                    }}
-                    className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
+                    {...bindRow(ticket.id)}
+                    className={`cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] ${
+                      activeId === ticket.id ? "bg-slate-300/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14)]" : ""
+                    }`}
                   >
                     {selectionMode ? (
                       <td className="px-4 py-3">

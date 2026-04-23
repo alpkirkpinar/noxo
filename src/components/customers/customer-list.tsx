@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type Customer = {
   id: string;
@@ -73,6 +74,9 @@ function sortIndicator(active: boolean, direction: SortDirection) {
 export default function CustomerList({ customers, permissions }: Props) {
   const router = useRouter();
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((customerId, x, y) => {
+    setContextMenu({ x, y, customerId });
+  });
 
   const [search, setSearch] = useState("");
   const [localCustomers, setLocalCustomers] = useState(customers);
@@ -314,6 +318,8 @@ export default function CustomerList({ customers, permissions }: Props) {
                   <tr
                     key={customer.id}
                     onClick={() => {
+                      if (shouldSuppressClick()) return;
+
                       if (selectionMode) {
                         toggleCustomerSelection(customer.id);
                         return;
@@ -321,15 +327,10 @@ export default function CustomerList({ customers, permissions }: Props) {
 
                       router.push(`/dashboard/customers/${customer.id}`);
                     }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setContextMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        customerId: customer.id,
-                      });
-                    }}
-                    className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
+                    {...bindRow(customer.id)}
+                    className={`cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] ${
+                      activeId === customer.id ? "bg-slate-300/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14)]" : ""
+                    }`}
                   >
                     {selectionMode ? (
                       <td className="px-4 py-3">
