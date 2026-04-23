@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import NewTicketForm from "@/components/tickets/new-ticket-form";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
 
@@ -194,6 +194,7 @@ export default function TicketsListClient({
   permissions,
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [rows, setRows] = useState<TicketRow[]>(initialTickets);
@@ -212,6 +213,15 @@ export default function TicketsListClient({
   useEffect(() => {
     setRows(initialTickets);
   }, [initialTickets]);
+
+  useEffect(() => {
+    if (!permissions.canCreate) return;
+
+    if (searchParams.get("new") === "1") {
+      setShowNewTicketModal(true);
+      router.replace("/dashboard/tickets");
+    }
+  }, [permissions.canCreate, router, searchParams]);
 
   useEffect(() => {
     function closeMenu(event: MouseEvent) {
@@ -235,6 +245,14 @@ export default function TicketsListClient({
       document.body.style.overflow = previousOverflow;
     };
   }, [showNewTicketModal]);
+
+  function openNewTicketModal() {
+    setShowNewTicketModal(true);
+  }
+
+  function closeNewTicketModal() {
+    setShowNewTicketModal(false);
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -537,7 +555,7 @@ export default function TicketsListClient({
           {permissions.canCreate ? (
             <button
               type="button"
-              onClick={() => setShowNewTicketModal(true)}
+              onClick={openNewTicketModal}
               className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
             >
               Yeni
@@ -768,7 +786,7 @@ export default function TicketsListClient({
 
               <button
                 type="button"
-                onClick={() => setShowNewTicketModal(false)}
+                onClick={closeNewTicketModal}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
               >
                 ×
@@ -784,9 +802,9 @@ export default function TicketsListClient({
                 employees={employees}
                 canCreate={permissions.canCreate}
                 compact
-                onCancel={() => setShowNewTicketModal(false)}
+                onCancel={closeNewTicketModal}
                 onSuccess={() => {
-                  setShowNewTicketModal(false);
+                  closeNewTicketModal();
                   setSuccessText("Ticket oluşturuldu.");
                   setErrorText("");
                   router.push("/dashboard/tickets");
