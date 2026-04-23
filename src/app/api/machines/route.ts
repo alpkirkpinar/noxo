@@ -2,6 +2,20 @@ import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
 import { PERMISSIONS } from "@/lib/permissions"
 
+type MachineRow = {
+  id: string
+  machine_code: string
+  machine_name: string
+  brand: string | null
+  model: string | null
+  serial_number: string | null
+  maintenance_period_days: number | null
+  last_maintenance_date: string | null
+  next_maintenance_date: string | null
+  status: string | null
+  customers: { company_name: string } | { company_name: string }[] | null
+}
+
 function normalizeMachinePayload(body: Record<string, unknown>, companyId: string) {
   return {
     company_id: companyId,
@@ -20,6 +34,56 @@ function normalizeMachinePayload(body: Record<string, unknown>, companyId: strin
     notes: String(body?.notes ?? "").trim() || null,
     status: String(body?.status ?? "").trim() || "active",
   }
+}
+
+function getCustomerName(relation: { company_name: string } | { company_name: string }[] | null) {
+  if (!relation) return null
+  if (Array.isArray(relation)) return relation[0]?.company_name ?? null
+  return relation.company_name ?? null
+}
+
+export async function GET() {
+  const auth = await getServerIdentity(PERMISSIONS.machines)
+
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  const { data, error } = await auth.supabase
+    .from("machines")
+    .select(`
+      id,
+      machine_code,
+      machine_name,
+      brand,
+      model,
+      serial_number,
+      maintenance_period_days,
+      last_maintenance_date,
+      next_maintenance_date,
+      status,
+      customers(company_name)
+    `)
+    .eq("company_id", auth.identity.companyId)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  const machines = ((data ?? []) as MachineRow[]).map((machine) => ({
+    id: machine.id,
+    machine_code: machine.machine_code,
+    machine_name: machine.machine_name,
+    customer_name: getCustomerName(machine.customers),
+    brand_model: [machine.brand ?? "", machine.model ?? ""].join(" ").trim() || "-",
+    serial_number: machine.serial_number,
+    maintenance_period_days: machine.maintenance_period_days,
+    last_maintenance_date: machine.last_maintenance_date,
+    next_maintenance_date: machine.next_maintenance_date,
+    status: machine.status,
+  }))
+
+  return NextResponse.json({ machines })
 }
 
 export async function POST(request: Request) {

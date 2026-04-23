@@ -10,6 +10,68 @@ type EmployeePayload = {
   title?: string
 }
 
+export async function GET() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Oturum bulunamadi." }, { status: 401 })
+    }
+
+    if (
+      !hasPermission(
+        {
+          role: user.app_metadata?.role,
+          super_user: user.app_metadata?.super_user,
+          company_modules: Array.isArray(user.app_metadata?.company_modules)
+            ? user.app_metadata.company_modules.map(String)
+            : undefined,
+          company_active: user.app_metadata?.company_active === false ? false : undefined,
+          permissions: Array.isArray(user.app_metadata?.permissions)
+            ? user.app_metadata.permissions.map(String)
+            : [],
+        },
+        PERMISSIONS.employees
+      )
+    ) {
+      return NextResponse.json({ error: "Calisan goruntuleme yetkiniz yok." }, { status: 403 })
+    }
+
+    const { data: currentAppUser, error: appUserError } = await supabase
+      .from("app_users")
+      .select("company_id")
+      .eq("auth_user_id", user.id)
+      .single()
+
+    if (appUserError || !currentAppUser?.company_id) {
+      return NextResponse.json(
+        { error: appUserError?.message || "company_id bulunamadi." },
+        { status: 400 }
+      )
+    }
+
+    const { data: employees, error: employeesError } = await supabase
+      .from("app_users")
+      .select("id, auth_user_id, full_name, email, phone, title")
+      .eq("company_id", currentAppUser.company_id)
+      .order("full_name", { ascending: true })
+
+    if (employeesError) {
+      return NextResponse.json({ error: employeesError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ employees: employees ?? [] })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Calisanlar alinamadi."
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   let createdAuthUserId: string | null = null
 

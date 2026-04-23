@@ -28,6 +28,49 @@ function normalizeItem(body: Record<string, unknown>, companyId: string) {
   }
 }
 
+export async function GET() {
+  const auth = await getServerIdentity(PERMISSIONS.inventory)
+
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  const { data, error } = await auth.supabase
+    .from("inventory_items")
+    .select(`
+      id,
+      company_id,
+      warehouse_id,
+      item_code,
+      item_name,
+      description,
+      category,
+      unit,
+      cost_price,
+      sale_price,
+      min_stock,
+      current_stock,
+      currency_code,
+      location_text,
+      is_active,
+      created_at,
+      updated_at,
+      unit_price,
+      currency
+    `)
+    .eq("company_id", auth.identity.companyId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    companyId: auth.identity.companyId,
+    items: data ?? [],
+  })
+}
+
 export async function POST(request: Request) {
   const body = (await request.json()) as Record<string, unknown>
   const permission = body?.mode === "import" ? PERMISSIONS.csvImport : PERMISSIONS.stockCreate
