@@ -359,8 +359,10 @@ export async function GET(_request: Request, context: RouteContext) {
     return new Response(Buffer.from(finalBytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
         "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-Download-Options": "noopen",
       },
     });
   } catch (error) {
