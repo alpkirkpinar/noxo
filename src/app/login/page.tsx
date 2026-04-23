@@ -1,0 +1,106 @@
+﻿"use client";
+
+import Image from "next/image";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+const LOGIN_BACKGROUND_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/public-assets/login/noxo-login-bg.jpg`;
+
+export default function LoginPage() {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [email, setEmail] = useState("admin@noxo.local");
+  const [password, setPassword] = useState("Admin12345!");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>("");
+
+  async function handleLogin(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  return (
+    <main
+      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 bg-cover bg-center p-6"
+      style={{ backgroundImage: `url(${LOGIN_BACKGROUND_URL})` }}
+    >
+      <div className="absolute inset-0 bg-slate-950/35" />
+      <div className="relative w-full max-w-md rounded-[28px] border border-white/25 bg-white/90 p-8 shadow-2xl ring-1 ring-white/20 backdrop-blur-md">
+        <div className="mb-8 flex items-center justify-center gap-5">
+          <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-[28px] border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-slate-900/5">
+            <Image
+              src="/noxo-logo.png"
+              alt="noxo"
+              width={112}
+              height={112}
+              priority
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <h1 className="text-5xl font-black tracking-tight text-slate-950">noxo</h1>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              E-posta
+            </label>
+            <input
+              type="email"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="E-posta"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Şifre
+            </label>
+            <input
+              type="password"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Şifre"
+              required
+            />
+          </div>
+
+          {error ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {error}
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-slate-900 px-4 py-3 text-white font-medium transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}

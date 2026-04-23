@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --elevation-border: rgba(148, 163, 184, 0.34);
+  --elevation-sm: 0 10px 24px rgba(15, 23, 42, 0.10), 0 2px 6px rgba(15, 23, 42, 0.06);
+  --elevation-md: 0 18px 42px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.08);
+  --elevation-lg: 0 26px 70px rgba(15, 23, 42, 0.18), 0 8px 20px rgba(15, 23, 42, 0.10);
+  --elevation-xl: 0 34px 90px rgba(15, 23, 42, 0.22), 0 12px 26px rgba(15, 23, 42, 0.12);
+  --elevation-sidebar: 28px 0 90px rgba(15, 23, 42, 0.32), 10px 0 28px rgba(15, 23, 42, 0.18);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.shadow-sm {
+  box-shadow: var(--elevation-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--elevation-md);
+}
+
+.shadow-xl {
+  box-shadow: var(--elevation-lg);
+}
+
+.shadow-2xl {
+  box-shadow: var(--elevation-xl);
+}
+
+.elevated-page-bg {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 34rem),
+    linear-gradient(135deg, #eef3f8 0%, #e5ebf2 48%, #dce4ed 100%);
+}
+
+.elevated-surface {
+  border-color: var(--elevation-border);
+  box-shadow: var(--elevation-md);
+}
+
+.elevated-surface:hover {
+  box-shadow: var(--elevation-lg);
+}
+
+.elevated-sidebar {
+  box-shadow: var(--elevation-sidebar);
+}
+
+.elevated-topbar {
+  box-shadow: var(--elevation-lg);
+}
+
+.context-menu-layer {
+  z-index: 2147483000;
+}
+
+main :where(
+  div[class*="bg-white"][class*="rounded"][class*="border"],
+  form[class*="bg-white"][class*="rounded"][class*="border"],
+  section[class*="bg-white"][class*="rounded"][class*="border"]
+) {
+  border-color: var(--elevation-border);
+  box-shadow: var(--elevation-sm);
+}
+
+main :where(
+  div[class*="bg-white"][class*="rounded"][class*="border"],
+  form[class*="bg-white"][class*="rounded"][class*="border"],
+  section[class*="bg-white"][class*="rounded"][class*="border"]
+):hover {
+  box-shadow: var(--elevation-md);
+}
