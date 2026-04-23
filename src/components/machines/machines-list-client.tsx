@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type MachineListItem = {
@@ -229,6 +230,7 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((machineId, x, y) => {
     setContextMenu({ x, y, machineId });
   });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   const [rows, setRows] = useState(initialMachines);
   const [search, setSearch] = useState("");
@@ -244,18 +246,6 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
   useEffect(() => {
     setRows(initialMachines);
   }, [initialMachines]);
-
-  useEffect(() => {
-    function closeMenu(event: MouseEvent) {
-      if (contextMenuRef.current && event.target instanceof Node) {
-        if (contextMenuRef.current.contains(event.target)) return;
-      }
-      setContextMenu(null);
-    }
-
-    window.addEventListener("click", closeMenu);
-    return () => window.removeEventListener("click", closeMenu);
-  }, []);
 
   function toggleSort(key: SortField) {
     if (sortKey === key) {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type Customer = {
@@ -77,6 +78,7 @@ export default function CustomerList({ customers, permissions }: Props) {
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((customerId, x, y) => {
     setContextMenu({ x, y, customerId });
   });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   const [search, setSearch] = useState("");
   const [localCustomers, setLocalCustomers] = useState(customers);

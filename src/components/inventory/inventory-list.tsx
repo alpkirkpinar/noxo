@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
@@ -348,6 +349,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((itemId, x, y) => {
     setContextMenu({ x, y, itemId });
   });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const codeListId = "inventory-item-codes";

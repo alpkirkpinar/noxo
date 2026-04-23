@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import NewTicketForm from "@/components/tickets/new-ticket-form";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type TicketStatus =
@@ -200,6 +201,7 @@ export default function TicketsListClient({
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((ticketId, x, y) => {
     setContextMenu({ x, y, ticketId });
   });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   const [rows, setRows] = useState<TicketRow[]>(initialTickets);
   const [search, setSearch] = useState("");
@@ -226,18 +228,6 @@ export default function TicketsListClient({
       router.replace("/dashboard/tickets");
     }
   }, [permissions.canCreate, router, searchParams]);
-
-  useEffect(() => {
-    function closeMenu(event: MouseEvent) {
-      if (contextMenuRef.current && event.target instanceof Node) {
-        if (contextMenuRef.current.contains(event.target)) return;
-      }
-      setContextMenu(null);
-    }
-
-    window.addEventListener("click", closeMenu);
-    return () => window.removeEventListener("click", closeMenu);
-  }, []);
 
   useEffect(() => {
     if (!showNewTicketModal) return;

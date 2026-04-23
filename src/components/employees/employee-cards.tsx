@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer"
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu"
 
 export type Employee = {
@@ -146,12 +147,14 @@ function normalizePermissions(permissions: string[]) {
 }
 
 export default function EmployeeCards({ employees }: Props) {
+  const contextMenuRef = useRef<HTMLDivElement | null>(null)
   const [search, setSearch] = useState("")
   const [rowsState, setRowsState] = useState<Employee[]>(employees)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
   const { activeId, bindRow } = useTouchContextMenu((employeeId, x, y) => {
     setContextMenu({ employeeId, x, y })
   })
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null))
   const [newEmployeeOpen, setNewEmployeeOpen] = useState(false)
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null)
   const [permissionsEmployeeId, setPermissionsEmployeeId] = useState<string | null>(null)
@@ -546,6 +549,7 @@ export default function EmployeeCards({ employees }: Props) {
 
       {contextMenu && menuEmployee ? (
         <div
+          ref={contextMenuRef}
           className="context-menu-layer fixed w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(event) => event.stopPropagation()}

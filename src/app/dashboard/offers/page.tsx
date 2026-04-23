@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
@@ -339,6 +340,7 @@ export default function OffersPage() {
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((offerId, x, y) => {
     setContextMenu({ x, y, offerId });
   });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   useEffect(() => {
     void initialize();
@@ -354,18 +356,6 @@ export default function OffersPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, router, loading, permissions.canCreate]);
-
-  useEffect(() => {
-    function closeMenu(event: MouseEvent) {
-      if (contextMenuRef.current && event.target instanceof Node) {
-        if (contextMenuRef.current.contains(event.target)) return;
-      }
-      setContextMenu(null);
-    }
-
-    window.addEventListener("click", closeMenu);
-    return () => window.removeEventListener("click", closeMenu);
-  }, []);
 
   async function initialize() {
     setLoading(true);

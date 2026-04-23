@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
 type TemplateField = {
@@ -178,6 +179,10 @@ export default function ServiceFormTemplateList({
     setColumnContextMenu(null);
     setContextMenu({ x, y, formId });
   });
+  useDismissFloatingLayer([contextMenuRef, columnContextMenuRef], () => {
+    setContextMenu(null);
+    setColumnContextMenu(null);
+  });
 
   const columns = useMemo<Column[]>(
     () => [
@@ -299,22 +304,6 @@ export default function ServiceFormTemplateList({
     mediaQuery.addEventListener("change", updateTouchMode);
 
     return () => mediaQuery.removeEventListener("change", updateTouchMode);
-  }, []);
-
-  useEffect(() => {
-    function closeMenu(event: MouseEvent) {
-      if (contextMenuRef.current && event.target instanceof Node) {
-        if (contextMenuRef.current.contains(event.target)) return;
-      }
-      if (columnContextMenuRef.current && event.target instanceof Node) {
-        if (columnContextMenuRef.current.contains(event.target)) return;
-      }
-      setContextMenu(null);
-      setColumnContextMenu(null);
-    }
-
-    window.addEventListener("click", closeMenu);
-    return () => window.removeEventListener("click", closeMenu);
   }, []);
 
   function toggleSort(key: string) {
