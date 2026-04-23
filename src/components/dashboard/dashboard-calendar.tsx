@@ -160,14 +160,14 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
         const data = await response.json()
 
         if (!response.ok) {
-          throw new Error(data?.error || "Takvim verisi alÄ±namadÄ±.")
+          throw new Error(data?.error || "Takvim verisi alınamadı.")
         }
 
         if (!active) return
         setEvents(data?.events ?? [])
       } catch (error: unknown) {
         if (!active) return
-        setErrorMessage(error instanceof Error ? error.message : "Takvim verisi alÄ±namadÄ±.")
+        setErrorMessage(error instanceof Error ? error.message : "Takvim verisi alınamadı.")
       } finally {
         if (active) {
           setLoading(false)
@@ -304,7 +304,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.error || "Etkinlik gÃ¼ncellenemedi.")
+        throw new Error(data?.error || "Etkinlik güncellenemedi.")
       }
 
       const updated = data?.event as CalendarEvent
@@ -328,7 +328,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
       setSelectedDate(updated.start_date)
       closeForm()
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Etkinlik gÃ¼ncellenemedi.")
+      setErrorMessage(error instanceof Error ? error.message : "Etkinlik güncellenemedi.")
     } finally {
       setSaving(false)
     }
@@ -371,7 +371,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
             Takvim
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Ortak ÅŸirket planÄ± ve geÃ§miÅŸ etkinlikler
+            Ortak şirket planı ve geçmiş etkinlikler
           </p>
         </div>
 
@@ -385,7 +385,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
             }
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
-            â†
+            ←
           </button>
 
           <div className="min-w-[180px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-center text-sm font-semibold capitalize text-slate-800">
@@ -401,7 +401,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
             }
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
-            â†’
+            →
           </button>
         </div>
       </div>
@@ -413,7 +413,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
               CW
             </div>
 
-            {["Pzt", "Sal", "Ã‡ar", "Per", "Cum", "Cmt", "Paz"].map((day) => (
+            {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map((day) => (
               <div
                 key={day}
                 className="rounded-lg bg-slate-50 px-1 py-2 text-center text-[9px] font-semibold uppercase text-slate-500 sm:rounded-xl sm:px-2 sm:text-[11px] sm:tracking-[0.16em]"
@@ -514,7 +514,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <div className="mb-4">
-            <h3 className="text-base font-semibold text-slate-900">GÃ¼n DetayÄ±</h3>
+            <h3 className="text-base font-semibold text-slate-900">Gün Detayı</h3>
             <p className="mt-1 text-sm text-slate-500">
               {formatDateLabel(selectedDate)}
             </p>
@@ -540,16 +540,16 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
 
               <div>
                 <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  SeÃ§ilen GÃ¼n Etkinlikleri
+                  Seçilen Gün Etkinlikleri
                 </h4>
 
                 {loading ? (
                   <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
-                    Takvim yÃ¼kleniyor...
+                    Takvim yükleniyor...
                   </div>
                 ) : selectedDateEvents.length === 0 ? (
                   <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
-                    Bu gÃ¼n iÃ§in etkinlik yok.
+                    Bu gün için etkinlik yok.
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -595,7 +595,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
           ) : (
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="text-sm font-semibold text-slate-800">
-                {isEditMode ? "EtkinliÄŸi DÃ¼zenle" : "Etkinlik OluÅŸtur"}
+                {isEditMode ? "Etkinliği Düzenle" : "Etkinlik Oluştur"}
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-600">
@@ -714,7 +714,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                   disabled={saving}
                   className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? "Kaydediliyor..." : isEditMode ? "GÃ¼ncelle" : "Kaydet"}
+                  {saving ? "Kaydediliyor..." : isEditMode ? "Güncelle" : "Kaydet"}
                 </button>
 
                 {isEditMode ? (
@@ -724,7 +724,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                     disabled={saving}
                     className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    EtkinliÄŸi Sil
+                    Etkinliği Sil
                   </button>
                 ) : null}
 
@@ -733,7 +733,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                   onClick={closeForm}
                   className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
                 >
-                  Ä°ptal
+                  İptal
                 </button>
               </div>
             </div>
