@@ -38,6 +38,10 @@ type Props = {
   templates: TemplateItem[];
   initialForm?: InitialServiceForm;
   initialFields?: FormFieldValue[];
+  pageTitle: string;
+  backHref: string;
+  canDelete?: boolean;
+  deleteAction?: ((formData: FormData) => void | Promise<void>) | undefined;
 };
 
 export default function ServiceFormEditorClient(props: Props) {

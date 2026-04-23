@@ -1,4 +1,3 @@
-﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/supabase/app-user";
 import ServiceFormEditorClient from "@/components/service-forms/service-form-editor-client";
@@ -29,24 +28,13 @@ export default async function NewServiceFormPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Yeni Servis Formu</h1>
-        </div>
-
-        <Link
-          href="/dashboard/service-forms"
-          className="rounded-lg border px-4 py-2 text-sm font-medium"
-        >
-          Geri
-        </Link>
-      </div>
-
       <ServiceFormEditorClient
         companyId={String(appUser.company_id)}
         userId={String(appUser.id)}
         mode="create"
         templates={(templates ?? []) as TemplateItem[]}
+        pageTitle="Yeni Servis Formu"
+        backHref="/dashboard/service-forms"
       />
     </div>
   );

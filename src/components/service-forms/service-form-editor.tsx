@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -93,6 +94,10 @@ type Props = {
   templates: TemplateItem[];
   initialForm?: InitialServiceForm;
   initialFields?: FormFieldValue[];
+  pageTitle: string;
+  backHref: string;
+  canDelete?: boolean;
+  deleteAction?: ((formData: FormData) => void | Promise<void>) | undefined;
 };
 
 const STORAGE_BUCKET = "template-pdfs";
@@ -268,6 +273,10 @@ export default function ServiceFormEditor({
   templates,
   initialForm,
   initialFields,
+  pageTitle,
+  backHref,
+  canDelete = false,
+  deleteAction,
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -901,8 +910,52 @@ export default function ServiceFormEditor({
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">{pageTitle}</h1>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={backHref}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Geri
+          </Link>
+
+          {canDelete && deleteAction ? (
+            <form action={deleteAction}>
+              <button
+                type="submit"
+                className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:border-red-300 hover:bg-red-50"
+              >
+                Formu Sil
+              </button>
+            </form>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={exportingPdf || !pdfUrl}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            {exportingPdf ? "Hazırlanıyor..." : "PDF İndir"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            {saving ? "Kaydediliyor..." : mode === "create" ? "Formu Kaydet" : "Formu Güncelle"}
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-xl border bg-white p-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,360px)]">
+        <div className="inline-grid gap-3 md:grid-cols-[minmax(280px,360px)]">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Form Seçimi
             <select
@@ -918,28 +971,6 @@ export default function ServiceFormEditor({
               ))}
             </select>
           </label>
-        </div>
-
-        <div className="mt-4 flex items-center justify-end gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleExportPdf}
-              disabled={exportingPdf || !pdfUrl}
-              className="rounded-lg border px-4 py-2 text-sm font-medium disabled:opacity-60"
-            >
-              {exportingPdf ? "Hazırlanıyor..." : "PDF İndir"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            >
-              {saving ? "Kaydediliyor..." : mode === "create" ? "Formu Kaydet" : "Formu Güncelle"}
-            </button>
-          </div>
         </div>
       </div>
 

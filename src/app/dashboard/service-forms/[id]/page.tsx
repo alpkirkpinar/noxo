@@ -1,4 +1,3 @@
-﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getServerIdentity } from "@/lib/authz";
@@ -53,20 +52,19 @@ export default async function ServiceFormDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const [{ data: templates }, { data: values }] =
-    await Promise.all([
-      supabase
-        .from("pdf_templates")
-        .select("id, template_name, template_code, file_path, page_count")
-        .eq("company_id", appUser.company_id)
-        .eq("is_active", true)
-        .order("template_name", { ascending: true }),
+  const [{ data: templates }, { data: values }] = await Promise.all([
+    supabase
+      .from("pdf_templates")
+      .select("id, template_name, template_code, file_path, page_count")
+      .eq("company_id", appUser.company_id)
+      .eq("is_active", true)
+      .order("template_name", { ascending: true }),
 
-      supabase
-        .from("service_form_field_values")
-        .select("template_field_id, field_key, value_text")
-        .eq("service_form_id", id),
-    ]);
+    supabase
+      .from("service_form_field_values")
+      .select("template_field_id, field_key, value_text")
+      .eq("service_form_id", id),
+  ]);
 
   async function deleteServiceForm() {
     "use server";
@@ -129,32 +127,6 @@ export default async function ServiceFormDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Servis Formu Düzenle</h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard/service-forms"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Geri
-          </Link>
-
-          {canDelete ? (
-          <form action={deleteServiceForm}>
-            <button
-              type="submit"
-              className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600"
-            >
-              Formu Sil
-            </button>
-          </form>
-          ) : null}
-        </div>
-      </div>
-
       <ServiceFormEditorClient
         companyId={String(appUser.company_id)}
         userId={String(appUser.id)}
@@ -162,6 +134,10 @@ export default async function ServiceFormDetailPage({ params }: PageProps) {
         templates={(templates ?? []) as TemplateItem[]}
         initialForm={form}
         initialFields={(values ?? []) as FieldValueItem[]}
+        pageTitle="Servis Formu Düzenle"
+        backHref="/dashboard/service-forms"
+        canDelete={canDelete}
+        deleteAction={deleteServiceForm}
       />
     </div>
   );
