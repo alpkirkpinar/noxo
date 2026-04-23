@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import TicketsListClient from "@/components/tickets/tickets-list-client"
 import ListLoadingPanel from "@/components/ui/list-loading-panel"
+import { createClient } from "@/lib/supabase/client"
+import { hasPermission, PERMISSIONS } from "@/lib/permissions"
 
 type TicketStatus =
   | "new"
@@ -46,14 +48,6 @@ type EmployeeItem = {
   full_name: string
 }
 
-type Props = {
-  permissions: {
-    canCreate: boolean
-    canDelete: boolean
-    canUpdateStatus: boolean
-  }
-}
-
 type TicketsPayload = {
   companyId: string
   openedBy: string
@@ -63,10 +57,16 @@ type TicketsPayload = {
   tickets: TicketRow[]
 }
 
-export default function TicketsPageClient({ permissions }: Props) {
+export default function TicketsPageClient() {
+  const supabase = createClient()
   const [payload, setPayload] = useState<TicketsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorText, setErrorText] = useState("")
+  const [permissions, setPermissions] = useState({
+    canCreate: false,
+    canDelete: false,
+    canUpdateStatus: false,
+  })
 
   useEffect(() => {
     let active = true
@@ -75,6 +75,29 @@ export default function TicketsPageClient({ permissions }: Props) {
       try {
         setLoading(true)
         setErrorText("")
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          throw new Error("Kullanici bulunamadi.")
+        }
+
+        const identity = {
+          permissions: Array.isArray(user.app_metadata?.permissions)
+            ? user.app_metadata.permissions.map(String)
+            : [],
+          role: typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null,
+          super_user: user.app_metadata?.super_user === true,
+        }
+
+        if (!active) return
+        setPermissions({
+          canCreate: hasPermission(identity, PERMISSIONS.ticketCreate),
+          canDelete: hasPermission(identity, PERMISSIONS.ticketDelete),
+          canUpdateStatus: hasPermission(identity, PERMISSIONS.ticketEdit),
+        })
 
         const response = await fetch("/api/tickets", { cache: "no-store" })
         const data = await response.json().catch(() => ({}))
@@ -105,6 +128,7 @@ export default function TicketsPageClient({ permissions }: Props) {
     return () => {
       active = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (errorText) {

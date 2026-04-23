@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import MachinesListClient from "@/components/machines/machines-list-client"
 import ListLoadingPanel from "@/components/ui/list-loading-panel"
+import { createClient } from "@/lib/supabase/client"
+import { hasPermission, PERMISSIONS } from "@/lib/permissions"
 
 type MachineListItem = {
   id: string
@@ -17,18 +19,16 @@ type MachineListItem = {
   status: string | null
 }
 
-type Props = {
-  permissions: {
-    canCreate: boolean
-    canEdit: boolean
-    canDelete: boolean
-  }
-}
-
-export default function MachinesPageClient({ permissions }: Props) {
+export default function MachinesPageClient() {
+  const supabase = createClient()
   const [machines, setMachines] = useState<MachineListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [errorText, setErrorText] = useState("")
+  const [permissions, setPermissions] = useState({
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+  })
 
   useEffect(() => {
     let active = true
@@ -37,6 +37,29 @@ export default function MachinesPageClient({ permissions }: Props) {
       try {
         setLoading(true)
         setErrorText("")
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          throw new Error("Kullanici bulunamadi.")
+        }
+
+        const identity = {
+          permissions: Array.isArray(user.app_metadata?.permissions)
+            ? user.app_metadata.permissions.map(String)
+            : [],
+          role: typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null,
+          super_user: user.app_metadata?.super_user === true,
+        }
+
+        if (!active) return
+        setPermissions({
+          canCreate: hasPermission(identity, PERMISSIONS.machineCreate),
+          canEdit: hasPermission(identity, PERMISSIONS.machineEdit),
+          canDelete: hasPermission(identity, PERMISSIONS.machineDelete),
+        })
 
         const response = await fetch("/api/machines", { cache: "no-store" })
         const data = await response.json().catch(() => ({}))
@@ -60,6 +83,7 @@ export default function MachinesPageClient({ permissions }: Props) {
     return () => {
       active = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (errorText) {
