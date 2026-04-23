@@ -137,7 +137,7 @@ export default async function ServiceFormDetailPage({ params }: PageProps) {
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/service-forms"
-            className="rounded-lg border px-4 py-2 text-sm font-medium"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Geri
           </Link>

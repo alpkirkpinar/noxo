@@ -96,14 +96,14 @@ export default async function MachineDetailPage({ params }: PageProps) {
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/machines"
-            className="inline-flex rounded-lg border px-4 py-2 text-sm font-medium"
+            className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Geri
           </Link>
 
           <Link
             href={`/dashboard/machines/${machine.id}/edit`}
-            className="inline-flex rounded-lg border px-4 py-2 text-sm font-medium"
+            className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Düzenle
           </Link>
