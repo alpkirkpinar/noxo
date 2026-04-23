@@ -50,8 +50,8 @@ export default async function NewMachinePage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Yeni Makine</h1>
-        <p className="text-sm text-gray-500">Yeni makine kaydı oluşturun</p>
+        <h1 className="text-2xl font-semibold text-foreground">Yeni Makine</h1>
+        <p className="text-sm text-slate-600 dark:text-slate-300">Yeni makine kaydı oluşturun</p>
       </div>
 
       <MachineForm
