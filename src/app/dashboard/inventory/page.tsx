@@ -1,26 +1,16 @@
-﻿import InventoryList from "@/components/inventory/inventory-list";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
-import { createClient } from "@/lib/supabase/server";
+import InventoryList from "@/components/inventory/inventory-list"
+import { hasPermission, PERMISSIONS } from "@/lib/permissions"
+import { getDashboardContext } from "@/lib/dashboard-context"
 
 export default async function InventoryPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user, companyId, identity } = await getDashboardContext()
 
   if (!user) {
-    return <div className="text-sm text-red-600">Kullanıcı bulunamadı.</div>;
+    return <div className="text-sm text-red-600">Kullanici bulunamadi.</div>
   }
 
-  const { data: appUser } = await supabase
-    .from("app_users")
-    .select("company_id")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (!appUser?.company_id) {
-    return <div className="text-sm text-red-600">company_id bulunamadı.</div>;
+  if (!companyId) {
+    return <div className="text-sm text-red-600">company_id bulunamadi.</div>
   }
 
   const { data: items, error } = await supabase
@@ -46,43 +36,35 @@ export default async function InventoryPage() {
       unit_price,
       currency
     `)
-    .eq("company_id", appUser.company_id)
-    .order("created_at", { ascending: false });
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
 
   if (error) {
-    return <div className="text-sm text-red-600">{error.message}</div>;
+    return <div className="text-sm text-red-600">{error.message}</div>
   }
-
-  const permissionIdentity = {
-    permissions: Array.isArray(user.app_metadata?.permissions)
-      ? user.app_metadata.permissions.map(String)
-      : [],
-    role: typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null,
-    super_user: user.app_metadata?.super_user === true,
-  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Depo</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Parça, stok, fiyat ve filtreleme yönetimi
+          Parca, stok, fiyat ve filtreleme yonetimi
         </p>
       </div>
 
       <InventoryList
-        companyId={appUser.company_id}
+        companyId={companyId}
         items={items ?? []}
         permissions={{
-          canCreate: hasPermission(permissionIdentity, PERMISSIONS.stockCreate),
-          canEdit: hasPermission(permissionIdentity, PERMISSIONS.stockEdit),
-          canDelete: hasPermission(permissionIdentity, PERMISSIONS.stockDelete),
-          canStockIn: hasPermission(permissionIdentity, PERMISSIONS.stockIn),
-          canStockOut: hasPermission(permissionIdentity, PERMISSIONS.stockOut),
-          canImport: hasPermission(permissionIdentity, PERMISSIONS.csvImport),
-          canExport: hasPermission(permissionIdentity, PERMISSIONS.csvExport),
+          canCreate: hasPermission(identity, PERMISSIONS.stockCreate),
+          canEdit: hasPermission(identity, PERMISSIONS.stockEdit),
+          canDelete: hasPermission(identity, PERMISSIONS.stockDelete),
+          canStockIn: hasPermission(identity, PERMISSIONS.stockIn),
+          canStockOut: hasPermission(identity, PERMISSIONS.stockOut),
+          canImport: hasPermission(identity, PERMISSIONS.csvImport),
+          canExport: hasPermission(identity, PERMISSIONS.csvExport),
         }}
       />
     </div>
-  );
+  )
 }

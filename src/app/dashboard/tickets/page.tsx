@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import TicketsListClient from "@/components/tickets/tickets-list-client";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { redirect } from "next/navigation"
+import TicketsListClient from "@/components/tickets/tickets-list-client"
+import { hasPermission, PERMISSIONS } from "@/lib/permissions"
+import { getDashboardContext } from "@/lib/dashboard-context"
 
 type TicketStatus =
   | "new"
@@ -11,81 +11,59 @@ type TicketStatus =
   | "waiting_parts"
   | "in_progress"
   | "completed"
-  | "cancelled";
+  | "cancelled"
 
-type TicketPriority = "low" | "medium" | "high" | "critical" | null;
+type TicketPriority = "low" | "medium" | "high" | "critical" | null
 
 type RelatedCustomer = {
-  company_name: string;
-} | null;
+  company_name: string
+} | null
 
 type RelatedMachine = {
-  machine_name: string;
-} | null;
+  machine_name: string
+} | null
 
 type EmployeeItem = {
-  id: string;
-  full_name: string;
-};
+  id: string
+  full_name: string
+}
 
 type RawTicketRow = {
-  id: string;
-  ticket_no: string;
-  title: string;
-  status: TicketStatus;
-  priority: TicketPriority;
-  created_at: string;
-  customers: RelatedCustomer | RelatedCustomer[];
-  machines: RelatedMachine | RelatedMachine[];
-};
+  id: string
+  ticket_no: string
+  title: string
+  status: TicketStatus
+  priority: TicketPriority
+  created_at: string
+  customers: RelatedCustomer | RelatedCustomer[]
+  machines: RelatedMachine | RelatedMachine[]
+}
 
 type StatusHistoryRow = {
-  ticket_id: string;
-  note: string | null;
-  changed_at: string;
-};
+  ticket_id: string
+  note: string | null
+  changed_at: string
+}
 
 function getCustomerName(relation: RelatedCustomer | RelatedCustomer[]) {
-  if (!relation) return null;
-  if (Array.isArray(relation)) return relation[0]?.company_name ?? null;
-  return relation.company_name ?? null;
+  if (!relation) return null
+  if (Array.isArray(relation)) return relation[0]?.company_name ?? null
+  return relation.company_name ?? null
 }
 
 function getMachineName(relation: RelatedMachine | RelatedMachine[]) {
-  if (!relation) return null;
-  if (Array.isArray(relation)) return relation[0]?.machine_name ?? null;
-  return relation.machine_name ?? null;
+  if (!relation) return null
+  if (Array.isArray(relation)) return relation[0]?.machine_name ?? null
+  return relation.machine_name ?? null
 }
 
 export default async function TicketsPage() {
-  const supabase = await createClient();
+  const { supabase, user, appUserId, companyId, identity } = await getDashboardContext()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
+  if (!user) redirect("/login")
+  if (!companyId || !appUserId) {
+    throw new Error("Kullanicinin sirket bilgisi bulunamadi.")
   }
-
-  const { data: appUser, error: appUserError } = await supabase
-    .from("app_users")
-    .select("id, company_id")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (appUserError || !appUser?.company_id) {
-    throw new Error("Kullanıcının şirket bilgisi bulunamadı.");
-  }
-
-  const companyId = appUser.company_id;
-  const permissionIdentity = {
-    role: user.app_metadata?.role,
-    super_user: user.app_metadata?.super_user,
-    permissions: Array.isArray(user.app_metadata?.permissions)
-      ? user.app_metadata.permissions.map(String)
-      : [],
-  };
 
   const [ticketsResult, historyResult, customersResult, machinesResult, employeesResult] = await Promise.all([
     supabase
@@ -128,39 +106,25 @@ export default async function TicketsPage() {
       .select("id, full_name")
       .eq("company_id", companyId)
       .order("full_name", { ascending: true }),
-  ]);
+  ])
 
-  if (ticketsResult.error) {
-    throw new Error(ticketsResult.error.message);
-  }
+  if (ticketsResult.error) throw new Error(ticketsResult.error.message)
+  if (historyResult.error) throw new Error(historyResult.error.message)
+  if (customersResult.error) throw new Error(customersResult.error.message)
+  if (machinesResult.error) throw new Error(machinesResult.error.message)
+  if (employeesResult.error) throw new Error(employeesResult.error.message)
 
-  if (historyResult.error) {
-    throw new Error(historyResult.error.message);
-  }
-
-  if (customersResult.error) {
-    throw new Error(customersResult.error.message);
-  }
-
-  if (machinesResult.error) {
-    throw new Error(machinesResult.error.message);
-  }
-
-  if (employeesResult.error) {
-    throw new Error(employeesResult.error.message);
-  }
-
-  const latestHistoryNoteByTicket = new Map<string, string>();
-  const latestStatusChangedAtByTicket = new Map<string, string>();
+  const latestHistoryNoteByTicket = new Map<string, string>()
+  const latestStatusChangedAtByTicket = new Map<string, string>()
 
   for (const item of (historyResult.data ?? []) as StatusHistoryRow[]) {
     if (!latestStatusChangedAtByTicket.has(item.ticket_id)) {
-      latestStatusChangedAtByTicket.set(item.ticket_id, item.changed_at);
+      latestStatusChangedAtByTicket.set(item.ticket_id, item.changed_at)
     }
 
-    if (!item.note?.trim()) continue;
+    if (!item.note?.trim()) continue
     if (!latestHistoryNoteByTicket.has(item.ticket_id)) {
-      latestHistoryNoteByTicket.set(item.ticket_id, item.note.trim());
+      latestHistoryNoteByTicket.set(item.ticket_id, item.note.trim())
     }
   }
 
@@ -175,21 +139,21 @@ export default async function TicketsPage() {
     machine_name: getMachineName(row.machines),
     status_note: latestHistoryNoteByTicket.get(row.id) ?? null,
     status_changed_at: latestStatusChangedAtByTicket.get(row.id) ?? row.created_at,
-  }));
+  }))
 
   return (
     <TicketsListClient
       companyId={companyId}
-      openedBy={appUser.id}
+      openedBy={appUserId}
       customers={customersResult.data ?? []}
       machines={machinesResult.data ?? []}
       employees={(employeesResult.data ?? []) as EmployeeItem[]}
       initialTickets={rows}
       permissions={{
-        canCreate: hasPermission(permissionIdentity, PERMISSIONS.ticketCreate),
-        canDelete: hasPermission(permissionIdentity, PERMISSIONS.ticketDelete),
-        canUpdateStatus: hasPermission(permissionIdentity, PERMISSIONS.ticketEdit),
+        canCreate: hasPermission(identity, PERMISSIONS.ticketCreate),
+        canDelete: hasPermission(identity, PERMISSIONS.ticketDelete),
+        canUpdateStatus: hasPermission(identity, PERMISSIONS.ticketEdit),
       }}
     />
-  );
+  )
 }

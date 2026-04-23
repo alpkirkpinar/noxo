@@ -15,6 +15,12 @@ import { usePathname, useRouter } from "next/navigation"
 type TopbarProps = {
   fullName?: string | null
   email?: string | null
+  phone?: string | null
+  title?: string | null
+  avatarUrl?: string | null
+  avatarScale?: number | null
+  avatarOffsetX?: number | null
+  avatarOffsetY?: number | null
   mustChangePassword?: boolean
 }
 
@@ -39,20 +45,6 @@ type PasswordForm = {
   currentPassword: string
   newPassword: string
   confirmPassword: string
-}
-
-type ProfileResponse = {
-  profile?: {
-    fullName?: string
-    email?: string
-    phone?: string
-    title?: string
-    avatarUrl?: string
-    avatarScale?: number
-    avatarOffsetX?: number
-    avatarOffsetY?: number
-  }
-  error?: string
 }
 
 const PAGE_META: Record<string, { title: string }> = {
@@ -151,7 +143,17 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
-export default function Topbar({ fullName, email, mustChangePassword = false }: TopbarProps) {
+export default function Topbar({
+  fullName,
+  email,
+  phone,
+  title,
+  avatarUrl,
+  avatarScale,
+  avatarOffsetX,
+  avatarOffsetY,
+  mustChangePassword = false,
+}: TopbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const fallbackPageTitle = useMemo(() => getPageTitle(pathname), [pathname])
@@ -175,22 +177,22 @@ export default function Topbar({ fullName, email, mustChangePassword = false }: 
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     fullName: fullName?.trim() || "",
     email: email?.trim() || "",
-    phone: "",
-    title: "",
-    avatarUrl: "",
-    avatarScale: 1,
-    avatarOffsetX: 50,
-    avatarOffsetY: 50,
+    phone: phone?.trim() || "",
+    title: title?.trim() || "",
+    avatarUrl: avatarUrl?.trim() || "",
+    avatarScale: Number(avatarScale ?? 1),
+    avatarOffsetX: Number(avatarOffsetX ?? 50),
+    avatarOffsetY: Number(avatarOffsetY ?? 50),
   })
   const [savedProfileForm, setSavedProfileForm] = useState<ProfileForm>({
     fullName: fullName?.trim() || "",
     email: email?.trim() || "",
-    phone: "",
-    title: "",
-    avatarUrl: "",
-    avatarScale: 1,
-    avatarOffsetX: 50,
-    avatarOffsetY: 50,
+    phone: phone?.trim() || "",
+    title: title?.trim() || "",
+    avatarUrl: avatarUrl?.trim() || "",
+    avatarScale: Number(avatarScale ?? 1),
+    avatarOffsetX: Number(avatarOffsetX ?? 50),
+    avatarOffsetY: Number(avatarOffsetY ?? 50),
   })
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
     currentPassword: "",
@@ -337,45 +339,20 @@ export default function Topbar({ fullName, email, mustChangePassword = false }: 
   }, [])
 
   useEffect(() => {
-    let active = true
-
-    const loadProfile = async () => {
-      try {
-        const response = await fetch("/api/profile", {
-          method: "GET",
-          cache: "no-store",
-        })
-
-        const data = (await response.json()) as ProfileResponse
-
-        if (!response.ok) {
-          throw new Error(data?.error || "Profil alınamadı.")
-        }
-
-        if (!active) return
-
-        const nextProfileForm = {
-          fullName: data?.profile?.fullName ?? fullName?.trim() ?? "",
-          email: data?.profile?.email ?? email?.trim() ?? "",
-          phone: data?.profile?.phone ?? "",
-          title: data?.profile?.title ?? "",
-          avatarUrl: data?.profile?.avatarUrl ?? "",
-          avatarScale: Number(data?.profile?.avatarScale ?? 1),
-          avatarOffsetX: Number(data?.profile?.avatarOffsetX ?? 50),
-          avatarOffsetY: Number(data?.profile?.avatarOffsetY ?? 50),
-        }
-
-        setProfileForm(nextProfileForm)
-        setSavedProfileForm(nextProfileForm)
-      } catch {}
+    const nextProfileForm = {
+      fullName: fullName?.trim() || "",
+      email: email?.trim() || "",
+      phone: phone?.trim() || "",
+      title: title?.trim() || "",
+      avatarUrl: avatarUrl?.trim() || "",
+      avatarScale: Number(avatarScale ?? 1),
+      avatarOffsetX: Number(avatarOffsetX ?? 50),
+      avatarOffsetY: Number(avatarOffsetY ?? 50),
     }
 
-    loadProfile()
-
-    return () => {
-      active = false
-    }
-  }, [fullName, email])
+    setProfileForm(nextProfileForm)
+    setSavedProfileForm(nextProfileForm)
+  }, [fullName, email, phone, title, avatarUrl, avatarScale, avatarOffsetX, avatarOffsetY])
 
   useEffect(() => {
     if (rates.length <= 1) return

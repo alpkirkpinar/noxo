@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
+const CACHE_TTL_MS = 10 * 60 * 1000
+
+type ExchangeRatesPayload = {
+  base: string
+  amount: number
+  updatedAt: string
+  source: string
+  rates: LiveRate[]
+  warning?: string
+}
+
+let exchangeRatesCache: { payload: ExchangeRatesPayload; expiresAt: number } | null = null
 
 type LiveRate = {
   code: string
@@ -143,21 +155,32 @@ async function fetchFallbackRates() {
 }
 
 export async function GET() {
+  const now = Date.now()
+
+  if (exchangeRatesCache && exchangeRatesCache.expiresAt > now) {
+    return NextResponse.json(exchangeRatesCache.payload)
+  }
+
   try {
     const rates = await fetchTcmbRates()
-
-    return NextResponse.json({
+    const payload: ExchangeRatesPayload = {
       base: "TRY",
       amount: 1,
       updatedAt: new Date().toISOString(),
       source: "TCMB",
       rates,
-    })
+    }
+
+    exchangeRatesCache = {
+      payload,
+      expiresAt: now + CACHE_TTL_MS,
+    }
+
+    return NextResponse.json(payload)
   } catch (primaryError) {
     try {
       const rates = await fetchFallbackRates()
-
-      return NextResponse.json({
+      const payload: ExchangeRatesPayload = {
         base: "TRY",
         amount: 1,
         updatedAt: new Date().toISOString(),
@@ -167,7 +190,14 @@ export async function GET() {
           primaryError instanceof Error
             ? primaryError.message
             : "Primary exchange rate source failed.",
-      })
+      }
+
+      exchangeRatesCache = {
+        payload,
+        expiresAt: now + CACHE_TTL_MS,
+      }
+
+      return NextResponse.json(payload)
     } catch (fallbackError) {
       const message =
         fallbackError instanceof Error ? fallbackError.message : "Exchange rates could not be loaded."

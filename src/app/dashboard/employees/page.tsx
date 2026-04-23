@@ -1,36 +1,22 @@
 import EmployeeCards, { type Employee } from "@/components/employees/employee-cards"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { getDashboardContext } from "@/lib/dashboard-context"
 
 export default async function EmployeesPage() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { supabase, user, companyId } = await getDashboardContext()
 
   if (!user) {
-    return <div className="text-sm text-red-600">Kullanıcı bulunamadı.</div>
+    return <div className="text-sm text-red-600">Kullanici bulunamadi.</div>
   }
 
-  const { data: appUser, error: appUserError } = await supabase
-    .from("app_users")
-    .select("company_id")
-    .eq("auth_user_id", user.id)
-    .single()
-
-  if (appUserError || !appUser?.company_id) {
-    return (
-      <div className="text-sm text-red-600">
-        {appUserError?.message || "company_id bulunamadı."}
-      </div>
-    )
+  if (!companyId) {
+    return <div className="text-sm text-red-600">company_id bulunamadi.</div>
   }
 
   const { data: employees, error: employeesError } = await supabase
     .from("app_users")
     .select("id, auth_user_id, full_name, email, phone, title")
-    .eq("company_id", appUser.company_id)
+    .eq("company_id", companyId)
     .order("full_name", { ascending: true })
 
   if (employeesError) {
@@ -40,9 +26,9 @@ export default async function EmployeesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Çalışanlar</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Calisanlar</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Çalışan bilgileri, giriş hesapları ve yetkileri
+          Calisan bilgileri, giris hesaplari ve yetkileri
         </p>
       </div>
 

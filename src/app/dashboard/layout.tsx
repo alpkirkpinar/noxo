@@ -2,44 +2,26 @@ import { redirect } from "next/navigation";
 import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import FloatingActions from "@/components/ui/floating-actions";
-import { createClient } from "@/lib/supabase/server";
+import { getDashboardContext } from "@/lib/dashboard-context";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, appUser, identity } = await getDashboardContext();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { data: appUser } = await supabase
-    .from("app_users")
-    .select("full_name, company_id")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  const permissions = Array.isArray(user.app_metadata?.permissions)
-    ? user.app_metadata.permissions.map(String)
-    : [];
-  const companyModules = Array.isArray(user.app_metadata?.company_modules)
-    ? user.app_metadata.company_modules.map(String)
-    : undefined;
-  const companyActive = user.app_metadata?.company_active === false ? false : undefined;
-
   return (
     <div className="elevated-page-bg min-h-screen">
       <Sidebar
-        permissions={permissions}
-        companyModules={companyModules}
-        companyActive={companyActive}
-        role={String(user.app_metadata?.role ?? "")}
+        permissions={identity.permissions ?? []}
+        companyModules={identity.company_modules}
+        companyActive={identity.company_active ?? undefined}
+        role={String(identity.role ?? "")}
         superUser={user.app_metadata?.super_user === true}
       />
 
@@ -47,7 +29,13 @@ export default async function DashboardLayout({
         <main className="min-h-screen overflow-x-hidden px-3 py-3 pb-28 sm:px-4 md:px-6 2xl:px-8 2xl:py-4 2xl:pb-4">
           <Topbar
             fullName={appUser?.full_name ?? null}
-            email={user.email ?? null}
+            email={appUser?.email ?? user.email ?? null}
+            phone={appUser?.phone ?? null}
+            title={appUser?.title ?? null}
+            avatarUrl={appUser?.avatar_url ?? null}
+            avatarScale={Number(appUser?.avatar_scale ?? 1)}
+            avatarOffsetX={Number(appUser?.avatar_offset_x ?? 50)}
+            avatarOffsetY={Number(appUser?.avatar_offset_y ?? 50)}
             mustChangePassword={user.user_metadata?.must_change_password === true}
           />
           <div className="pt-3">

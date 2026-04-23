@@ -1,47 +1,37 @@
-import SystemSettings from "@/components/settings/system-settings";
-import { createClient } from "@/lib/supabase/server";
+import SystemSettings from "@/components/settings/system-settings"
+import { getDashboardContext } from "@/lib/dashboard-context"
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user, companyId } = await getDashboardContext()
 
   if (!user) {
-    return <div className="text-sm text-red-600">Kullanıcı bulunamadı.</div>;
+    return <div className="text-sm text-red-600">Kullanici bulunamadi.</div>
   }
 
-  const { data: appUser } = await supabase
-    .from("app_users")
-    .select("company_id")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (!appUser?.company_id) {
-    return <div className="text-sm text-red-600">company_id bulunamadı.</div>;
+  if (!companyId) {
+    return <div className="text-sm text-red-600">company_id bulunamadi.</div>
   }
 
   const { data: settings } = await supabase
     .from("system_settings")
     .select("company_name, logo_url")
-    .eq("company_id", appUser.company_id)
-    .maybeSingle();
+    .eq("company_id", companyId)
+    .maybeSingle()
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Sistem Ayarları</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Sistem Ayarlari</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Şirket adı ve tekliflerde kullanılacak logo ayarları
+          Sirket adi ve tekliflerde kullanilacak logo ayarlari
         </p>
       </div>
 
       <SystemSettings
-        companyId={appUser.company_id}
+        companyId={companyId}
         initialCompanyName={settings?.company_name ?? ""}
         initialLogoUrl={settings?.logo_url ?? ""}
       />
     </div>
-  );
+  )
 }
