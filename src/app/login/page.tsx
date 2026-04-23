@@ -46,7 +46,7 @@ export default function LoginPage() {
         <div className="mb-8 flex items-center justify-center gap-5">
           <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-[28px] border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-slate-900/5">
             <Image
-              src="/noxo-logo.png"
+              src="/noxo-logo-refined.png"
               alt="noxo"
               width={112}
               height={112}

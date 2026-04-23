@@ -10,6 +10,8 @@ type MachineRow = {
   brand: string | null;
   model: string | null;
   serial_number: string | null;
+  maintenance_period_days: number | null;
+  last_maintenance_date: string | null;
   next_maintenance_date: string | null;
   status: string | null;
   customers: { company_name: string } | { company_name: string }[] | null;
@@ -89,6 +91,8 @@ async function getMachines(companyId: string) {
       brand,
       model,
       serial_number,
+      maintenance_period_days,
+      last_maintenance_date,
       next_maintenance_date,
       status,
       customers(company_name)
@@ -104,6 +108,8 @@ async function getMachines(companyId: string) {
     customer_name: getCustomerName(machine.customers),
     brand_model: [machine.brand ?? "", machine.model ?? ""].join(" ").trim() || "-",
     serial_number: machine.serial_number,
+    maintenance_period_days: machine.maintenance_period_days,
+    last_maintenance_date: machine.last_maintenance_date,
     next_maintenance_date: machine.next_maintenance_date,
     status: machine.status,
   }));

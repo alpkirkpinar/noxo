@@ -11,6 +11,8 @@ type MachineListItem = {
   customer_name: string | null;
   brand_model: string;
   serial_number: string | null;
+  maintenance_period_days: number | null;
+  last_maintenance_date: string | null;
   next_maintenance_date: string | null;
   status: string | null;
 };
@@ -119,6 +121,107 @@ function sortIndicator(active: boolean, direction: SortOrder) {
   return direction === "asc" ? " ↑" : " ↓";
 }
 
+function parseLocalDate(value: string | null) {
+  if (!value) return null;
+
+  const [datePart] = value.split("T");
+  const parts = datePart.split("-").map(Number);
+
+  if (parts.length === 3 && parts.every(Number.isFinite)) {
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function startOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function maintenanceProgress(machine: MachineListItem) {
+  const nextDate = parseLocalDate(machine.next_maintenance_date);
+  if (!nextDate) return null;
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const today = startOfToday();
+  const daysRemaining = Math.ceil((nextDate.getTime() - today.getTime()) / dayMs);
+
+  let startDate = parseLocalDate(machine.last_maintenance_date);
+
+  if (!startDate && machine.maintenance_period_days && machine.maintenance_period_days > 0) {
+    startDate = new Date(nextDate);
+    startDate.setDate(nextDate.getDate() - machine.maintenance_period_days);
+  }
+
+  if (!startDate || startDate >= nextDate) {
+    startDate = new Date(nextDate);
+    startDate.setDate(nextDate.getDate() - 30);
+  }
+
+  const totalDays = Math.max(1, Math.ceil((nextDate.getTime() - startDate.getTime()) / dayMs));
+  const elapsedDays = Math.max(0, Math.ceil((today.getTime() - startDate.getTime()) / dayMs));
+  const percent = daysRemaining < 0 ? 100 : Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
+
+  return {
+    percent,
+    daysRemaining,
+  };
+}
+
+function maintenanceBarClass(percent: number, daysRemaining: number) {
+  if (daysRemaining < 0 || percent >= 90) return "bg-red-600";
+  if (percent >= 70) return "bg-orange-500";
+  if (percent >= 45) return "bg-amber-500";
+  return "bg-emerald-500";
+}
+
+function maintenanceBarTrackClass(percent: number, daysRemaining: number) {
+  if (daysRemaining < 0 || percent >= 90) return "bg-red-100";
+  if (percent >= 70) return "bg-orange-100";
+  if (percent >= 45) return "bg-amber-100";
+  return "bg-emerald-100";
+}
+
+function MaintenanceDueIndicator({ machine, fullWidth = false }: { machine: MachineListItem; fullWidth?: boolean }) {
+  if (!machine.next_maintenance_date) return <span>-</span>;
+
+  const progress = maintenanceProgress(machine);
+
+  return (
+    <div className="space-y-1.5">
+      <div>{new Date(machine.next_maintenance_date).toLocaleDateString("tr-TR")}</div>
+      {progress ? (
+        <div
+          role="progressbar"
+          aria-label="Bakım tarihi yaklaşma oranı"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress.percent}
+          className={`${fullWidth ? "w-full" : "w-32"} h-2 overflow-hidden rounded-full ${maintenanceBarTrackClass(
+            progress.percent,
+            progress.daysRemaining
+          )}`}
+          title={
+            progress.daysRemaining < 0
+              ? `${Math.abs(progress.daysRemaining)} gün gecikmiş`
+              : `${progress.daysRemaining} gün kaldı`
+          }
+        >
+          <div
+            className={`h-full rounded-full transition-all ${maintenanceBarClass(
+              progress.percent,
+              progress.daysRemaining
+            )}`}
+            style={{ width: `${progress.percent}%` }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function MachinesListClient({ initialMachines, permissions }: Props) {
   const router = useRouter();
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -129,6 +232,8 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
   const [sortKey, setSortKey] = useState<SortField>("machine_code");
   const [sortDirection, setSortDirection] = useState<SortOrder>("asc");
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
 
@@ -156,6 +261,28 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
 
     setSortKey(key);
     setSortDirection("asc");
+  }
+
+  function startSelection(machineId: string) {
+    setSelectionMode(true);
+    setSelectedIds([machineId]);
+    setContextMenu(null);
+  }
+
+  function toggleMachineSelection(machineId: string) {
+    setSelectedIds((prev) =>
+      prev.includes(machineId) ? prev.filter((id) => id !== machineId) : [...prev, machineId]
+    );
+  }
+
+  function toggleVisibleSelection() {
+    const visibleIds = filteredRows.map((machine) => machine.id);
+    const visibleIdSet = new Set(visibleIds);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+    setSelectedIds((prev) =>
+      allVisibleSelected ? prev.filter((id) => !visibleIdSet.has(id)) : Array.from(new Set([...prev, ...visibleIds]))
+    );
   }
 
   async function deleteMachine(machineId: string) {
@@ -186,6 +313,63 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
     setRows((prev) => prev.filter((row) => row.id !== machineId));
     setContextMenu(null);
     setSuccessText("Makine silindi.");
+    router.refresh();
+  }
+
+  async function bulkDeleteMachines(machineIds: string[]) {
+    if (machineIds.length === 0) {
+      setErrorText("Silmek için en az bir makine seçin.");
+      return;
+    }
+
+    const confirmed = window.confirm(`${machineIds.length} makine silinsin mi?`);
+    if (!confirmed) return;
+
+    for (const machineId of machineIds) {
+      const response = await fetch(`/api/machines/${machineId}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setErrorText(result.error ?? "Seçili makineler silinemedi.");
+        return;
+      }
+    }
+
+    setRows((prev) => prev.filter((row) => !machineIds.includes(row.id)));
+    setSelectedIds([]);
+    setSelectionMode(false);
+    setContextMenu(null);
+    setSuccessText("Seçili makineler silindi.");
+    router.refresh();
+  }
+
+  async function markMaintenanceDone(machineIds: string[]) {
+    if (!permissions.canEdit) {
+      setErrorText("Makine düzenleme yetkiniz yok.");
+      return;
+    }
+
+    if (machineIds.length === 0) {
+      setErrorText("Bakım için en az bir makine seçin.");
+      return;
+    }
+
+    const response = await fetch("/api/machines/maintenance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: machineIds }),
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setErrorText(result.error ?? "Bakım bilgisi güncellenemedi.");
+      return;
+    }
+
+    setSelectedIds([]);
+    setSelectionMode(false);
+    setContextMenu(null);
+    setSuccessText("Bakım yapıldı olarak işaretlendi.");
     router.refresh();
   }
 
@@ -241,7 +425,7 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
         </div>
       ) : null}
 
-      <CompactFilterActionBar>
+      <CompactFilterActionBar className="!p-3 sm:!p-5">
           <div className="min-w-0 flex-1">
             <label className="sr-only">Ara</label>
             <input
@@ -249,7 +433,7 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Makine adı, kod veya seri no ara"
-              className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
             />
           </div>
 
@@ -258,7 +442,7 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm sm:h-11"
             >
               <option value="">Tümü</option>
               <option value="active">Aktif</option>
@@ -268,32 +452,82 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
             </select>
           </div>
 
-          <div className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Toplam Makine</div>
-            <div className="text-lg font-semibold text-slate-900">{totalCount}</div>
-          </div>
+          <div
+            className={`grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max sm:grid-cols-none ${
+              permissions.canCreate ? "grid-cols-3" : "grid-cols-2"
+            }`}
+          >
+            <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+              <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
+                Toplam
+              </div>
+              <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{totalCount}</div>
+            </div>
 
-          <div className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Aktif Makine</div>
-            <div className="text-lg font-semibold text-slate-900">{activeCount}</div>
-          </div>
+            <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+              <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
+                Aktif
+              </div>
+              <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{activeCount}</div>
+            </div>
 
-          {permissions.canCreate ? (
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard/machines/new")}
-              className="flex h-11 shrink-0 items-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
-            >
-              Yeni Makine
+            {permissions.canCreate ? (
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/machines/new")}
+                className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
+              >
+                Yeni
+              </button>
+            ) : null}
+          </div>
+      </CompactFilterActionBar>
+
+      {selectionMode ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-sm font-semibold text-slate-800">{selectedIds.length} kayıt seçildi</div>
+          <button type="button" onClick={toggleVisibleSelection} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Görünenleri Seç / Bırak
+          </button>
+          {permissions.canEdit ? (
+            <button type="button" onClick={() => void markMaintenanceDone(selectedIds)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+              Bakım Yapıldı
             </button>
           ) : null}
-      </CompactFilterActionBar>
+          {permissions.canDelete ? (
+            <button type="button" onClick={() => void bulkDeleteMachines(selectedIds)} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100">
+              Sil
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionMode(false);
+              setSelectedIds([]);
+            }}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Seçimi Kapat
+          </button>
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="border-b bg-slate-50">
               <tr>
+                {selectionMode ? (
+                  <th className="w-12 px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={filteredRows.length > 0 && filteredRows.every((machine) => selectedIds.includes(machine.id))}
+                      onChange={toggleVisibleSelection}
+                      aria-label="Görünen kayıtları seç"
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </th>
+                ) : null}
                 <th className={sortableHeaderClass} onClick={() => toggleSort("machine_code")}>
                   Makine Kodu{sortIndicator(sortKey === "machine_code", sortDirection)}
                 </th>
@@ -321,7 +555,7 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={selectionMode ? 8 : 7} className="px-4 py-12 text-center text-sm text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -329,7 +563,14 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
                 filteredRows.map((machine) => (
                   <tr
                     key={machine.id}
-                    onClick={() => router.push(`/dashboard/machines/${machine.id}`)}
+                    onClick={() => {
+                      if (selectionMode) {
+                        toggleMachineSelection(machine.id);
+                        return;
+                      }
+
+                      router.push(`/dashboard/machines/${machine.id}`);
+                    }}
                     onContextMenu={(event) => {
                       event.preventDefault();
                       setContextMenu({
@@ -340,15 +581,25 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
                     }}
                     className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
                   >
+                    {selectionMode ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(machine.id)}
+                          onChange={() => toggleMachineSelection(machine.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${machine.machine_code} seç`}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">{machine.machine_code}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{machine.machine_name}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{machine.customer_name ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{machine.brand_model}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{machine.serial_number ?? "-"}</td>
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      {machine.next_maintenance_date
-                        ? new Date(machine.next_maintenance_date).toLocaleDateString("tr-TR")
-                        : "-"}
+                    <td className="min-w-40 px-4 py-3 text-sm text-slate-700">
+                      <MaintenanceDueIndicator machine={machine} />
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span
@@ -371,6 +622,24 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
           className="context-menu-layer fixed min-w-[220px] overflow-hidden rounded-xl border border-slate-300 bg-white shadow-2xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          <button
+            type="button"
+            onClick={() => startSelection(contextMenu.machineId)}
+            className="block w-full border-b border-slate-100 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            Seç
+          </button>
+
+          {permissions.canEdit ? (
+            <button
+              type="button"
+              onClick={() => void markMaintenanceDone([contextMenu.machineId])}
+              className="block w-full px-4 py-2.5 text-left text-sm text-emerald-700 transition-colors hover:bg-emerald-50"
+            >
+              Bakım Yapıldı
+            </button>
+          ) : null}
+
           {permissions.canEdit ? (
             <button
               type="button"

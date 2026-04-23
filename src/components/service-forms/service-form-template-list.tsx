@@ -11,6 +11,7 @@ type TemplateField = {
   field_key: string;
   field_label: string;
   field_type: string;
+  options_json?: string[] | null;
   sort_order?: number | null;
 };
 
@@ -73,6 +74,8 @@ type ColumnPointerDragState = {
   moved: boolean;
 };
 
+const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
+
 function compareValues(a: string, b: string, dir: SortDirection) {
   const aNum = Number(a);
   const bNum = Number(b);
@@ -108,6 +111,25 @@ function truncateText(value: string, maxLength = 32) {
   return `${text.slice(0, maxLength).trimEnd()}...`;
 }
 
+function isMultiSelectField(field: TemplateField) {
+  return field.field_type === "select" && (field.options_json ?? []).includes(MULTI_SELECT_OPTION_MARKER);
+}
+
+function formatFieldValue(field: TemplateField, value: string) {
+  if (!isMultiSelectField(field) || !value.trim()) return value;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.map(String).filter(Boolean).join(", ");
+    }
+  } catch {
+    return value;
+  }
+
+  return value;
+}
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleDateString("tr-TR");
@@ -137,6 +159,8 @@ export default function ServiceFormTemplateList({
   const [contextMenu, setContextMenu] = useState<RowContextMenuState | null>(null);
   const [columnContextMenu, setColumnContextMenu] = useState<ColumnContextMenuState | null>(null);
   const [localForms, setLocalForms] = useState<FormRow[]>(forms);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
@@ -474,13 +498,15 @@ export default function ServiceFormTemplateList({
 
   function renderCell(row: FormRow, column: Column) {
     if (column.type === "field") {
+      const value = formatFieldValue(column.field, row.values[column.field.id] || "");
+
       return (
         <td
           key={column.id}
           className="max-w-[220px] whitespace-nowrap px-4 py-3 text-sm text-slate-700"
-          title={row.values[column.field.id] || "-"}
+          title={value || "-"}
         >
-          {truncateText(row.values[column.field.id] || "-")}
+          {truncateText(value || "-")}
         </td>
       );
     }
@@ -536,7 +562,7 @@ export default function ServiceFormTemplateList({
           row.customer_name,
           row.machine_name,
           row.service_date ?? "",
-          ...fields.map((field) => row.values[field.id] ?? ""),
+          ...fields.map((field) => formatFieldValue(field, row.values[field.id] ?? "")),
         ]
           .join(" ")
           .toLocaleLowerCase("tr-TR");
@@ -546,6 +572,7 @@ export default function ServiceFormTemplateList({
     }
 
     filtered.sort((left, right) => {
+      const sortField = fields.find((field) => field.id === sortKey) ?? null;
       const leftValue =
         sortKey === "form_no"
           ? left.form_no ?? ""
@@ -554,9 +581,11 @@ export default function ServiceFormTemplateList({
             : sortKey === "machine_name"
               ? left.machine_name
               : sortKey === "service_date"
-                ? left.service_date ?? ""
-                : sortKey === "created_at"
-                  ? left.created_at ?? ""
+              ? left.service_date ?? ""
+              : sortKey === "created_at"
+                ? left.created_at ?? ""
+                : sortField
+                  ? formatFieldValue(sortField, left.values[sortKey] ?? "")
                   : left.values[sortKey] ?? "";
 
       const rightValue =
@@ -567,9 +596,11 @@ export default function ServiceFormTemplateList({
             : sortKey === "machine_name"
               ? right.machine_name
               : sortKey === "service_date"
-                ? right.service_date ?? ""
-                : sortKey === "created_at"
-                  ? right.created_at ?? ""
+              ? right.service_date ?? ""
+              : sortKey === "created_at"
+                ? right.created_at ?? ""
+                : sortField
+                  ? formatFieldValue(sortField, right.values[sortKey] ?? "")
                   : right.values[sortKey] ?? "";
 
       return compareValues(String(leftValue), String(rightValue), sortDirection);
@@ -584,6 +615,26 @@ export default function ServiceFormTemplateList({
   function handleEdit(formId: string) {
     setContextMenu(null);
     router.push(`/dashboard/service-forms/${formId}`);
+  }
+
+  function startSelection(formId: string) {
+    setSelectionMode(true);
+    setSelectedIds([formId]);
+    setContextMenu(null);
+  }
+
+  function toggleFormSelection(formId: string) {
+    setSelectedIds((prev) => (prev.includes(formId) ? prev.filter((id) => id !== formId) : [...prev, formId]));
+  }
+
+  function toggleVisibleSelection() {
+    const visibleIds = rows.map((form) => form.id);
+    const visibleIdSet = new Set(visibleIds);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+    setSelectedIds((prev) =>
+      allVisibleSelected ? prev.filter((id) => !visibleIdSet.has(id)) : Array.from(new Set([...prev, ...visibleIds]))
+    );
   }
 
   function getFileNameFromDisposition(disposition: string | null) {
@@ -649,9 +700,47 @@ export default function ServiceFormTemplateList({
     router.refresh();
   }
 
+  async function bulkDownloadPdf() {
+    if (selectedIds.length === 0) {
+      setErrorText("PDF indirmek için en az bir servis formu seçin.");
+      return;
+    }
+
+    for (const formId of selectedIds) {
+      await handleDownloadPdf(formId);
+    }
+  }
+
+  async function bulkDeleteForms() {
+    if (selectedIds.length === 0) {
+      setErrorText("Silmek için en az bir servis formu seçin.");
+      return;
+    }
+
+    const confirmed = window.confirm(`${selectedIds.length} servis formu silinsin mi?`);
+    if (!confirmed) return;
+
+    for (const formId of selectedIds) {
+      const response = await fetch(`/api/service-forms/${formId}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setErrorText(result.error ?? "Seçili servis formları silinemedi.");
+        return;
+      }
+    }
+
+    setLocalForms((prev) => prev.filter((form) => !selectedIds.includes(form.id)));
+    setSelectedIds([]);
+    setSelectionMode(false);
+    setContextMenu(null);
+    setSuccessText("Seçili servis formları silindi.");
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
-      <CompactFilterActionBar>
+      <CompactFilterActionBar className="!p-3 sm:!p-5">
         <div className="min-w-0 flex-1">
           <label className="sr-only">Ara</label>
           <input
@@ -659,21 +748,22 @@ export default function ServiceFormTemplateList({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={`${templateName} içinde ara`}
-            className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+            className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
           />
         </div>
 
-        <div className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Toplam Kayıt</div>
-          <div className="text-lg font-semibold text-slate-900">{rows.length}</div>
+        <div className="flex w-full gap-2 sm:w-auto">
+        <div className="flex h-10 min-w-0 flex-1 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-none sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+          <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">Toplam</div>
+          <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{rows.length}</div>
         </div>
 
         {backHref || newFormHref ? (
-          <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
+          <div className="grid min-w-0 flex-1 shrink-0 grid-flow-col auto-cols-fr gap-2 sm:w-auto sm:flex-none sm:auto-cols-max sm:justify-end">
             {backHref ? (
               <Link
                 href={backHref}
-                className="flex h-11 items-center rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                className="flex h-10 items-center justify-center rounded-xl border border-slate-300 px-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 sm:h-11 sm:px-4 sm:text-sm"
               >
                 Geri
               </Link>
@@ -682,13 +772,14 @@ export default function ServiceFormTemplateList({
             {newFormHref ? (
               <Link
                 href={newFormHref}
-                className="flex h-11 items-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+                className="flex h-10 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
               >
-                Yeni Form
+                Yeni
               </Link>
             ) : null}
           </div>
         ) : null}
+        </div>
       </CompactFilterActionBar>
 
       {errorText ? (
@@ -703,11 +794,47 @@ export default function ServiceFormTemplateList({
         </div>
       ) : null}
 
+      {selectionMode ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-sm font-semibold text-slate-800">{selectedIds.length} kayıt seçildi</div>
+          <button type="button" onClick={toggleVisibleSelection} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Görünenleri Seç / Bırak
+          </button>
+          <button type="button" onClick={() => void bulkDownloadPdf()} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            PDF İndir
+          </button>
+          <button type="button" onClick={() => void bulkDeleteForms()} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100">
+            Sil
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionMode(false);
+              setSelectedIds([]);
+            }}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Seçimi Kapat
+          </button>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="border-b bg-slate-50">
               <tr>
+                {selectionMode ? (
+                  <th className="w-12 px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={rows.length > 0 && rows.every((form) => selectedIds.includes(form.id))}
+                      onChange={toggleVisibleSelection}
+                      aria-label="Görünen kayıtları seç"
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </th>
+                ) : null}
                 {visibleColumns.map((column) => (
                   <th
                     key={column.id}
@@ -771,7 +898,7 @@ export default function ServiceFormTemplateList({
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={selectionMode ? visibleColumns.length + 1 : visibleColumns.length} className="px-4 py-12 text-center text-sm text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -779,7 +906,14 @@ export default function ServiceFormTemplateList({
                 rows.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() => router.push(`/dashboard/service-forms/${row.id}`)}
+                    onClick={() => {
+                      if (selectionMode) {
+                        toggleFormSelection(row.id);
+                        return;
+                      }
+
+                      router.push(`/dashboard/service-forms/${row.id}`);
+                    }}
                     onContextMenu={(event) => {
                       event.preventDefault();
                       setColumnContextMenu(null);
@@ -791,6 +925,18 @@ export default function ServiceFormTemplateList({
                     }}
                     className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
                   >
+                    {selectionMode ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.id)}
+                          onChange={() => toggleFormSelection(row.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${row.form_no ?? "Servis formu"} seç`}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                      </td>
+                    ) : null}
                     {visibleColumns.map((column) => renderCell(row, column))}
                   </tr>
                 ))
@@ -834,6 +980,14 @@ export default function ServiceFormTemplateList({
           className="context-menu-layer fixed min-w-[220px] overflow-hidden rounded-xl border border-slate-300 bg-white shadow-2xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          <button
+            type="button"
+            onClick={() => startSelection(contextMenu.formId)}
+            className="block w-full border-b border-slate-100 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            Seç
+          </button>
+
           <button
             type="button"
             onClick={() => handleEdit(contextMenu.formId)}

@@ -101,6 +101,7 @@ const MIN_ZOOM = 50;
 const MAX_ZOOM = 150;
 const MOBILE_MIN_ZOOM = 26;
 const PDF_FONT_PATH = "/fonts/arial.ttf";
+const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
 
 function normalizeExistingValues(initialFields: FormFieldValue[] | undefined): Record<string, string> {
   const map: Record<string, string> = {};
@@ -112,9 +113,49 @@ function normalizeExistingValues(initialFields: FormFieldValue[] | undefined): R
   return map;
 }
 
+function getVisibleSelectOptions(values: string[]) {
+  return values.filter((value) => value !== MULTI_SELECT_OPTION_MARKER);
+}
+
+function isMultiSelectField(field: Pick<TemplateField, "field_type" | "options_json">) {
+  return field.field_type === "select" && field.options_json.includes(MULTI_SELECT_OPTION_MARKER);
+}
+
+function withMultiSelectMarker(values: string[], enabled: boolean) {
+  const visibleOptions = sortOptions(getVisibleSelectOptions(values));
+  return enabled ? [MULTI_SELECT_OPTION_MARKER, ...visibleOptions] : visibleOptions;
+}
+
+function parseMultiSelectValue(value: string) {
+  if (!value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.map(String).filter(Boolean);
+    }
+  } catch {
+    // Older saved values may be plain text.
+  }
+
+  return [value].filter(Boolean);
+}
+
+function serializeMultiSelectValue(values: string[]) {
+  return JSON.stringify(Array.from(new Set(values.filter(Boolean))));
+}
+
+function formatMultiSelectValue(value: string) {
+  return parseMultiSelectValue(value).join(", ");
+}
+
 function formatPdfText(field: TemplateField, rawValue: string) {
   if (field.field_type === "checkbox") {
     return rawValue === "true" ? "X" : "";
+  }
+
+  if (field.field_type === "select" && isMultiSelectField(field)) {
+    return formatMultiSelectValue(rawValue);
   }
 
   if (field.field_type === "date" && rawValue) {
@@ -461,7 +502,7 @@ export default function ServiceFormEditor({
 
         return {
           ...field,
-          options_json: selectSourceOptions[dataSource],
+          options_json: withMultiSelectMarker(selectSourceOptions[dataSource], isMultiSelectField(field)),
         };
       })
     );
@@ -626,7 +667,10 @@ export default function ServiceFormEditor({
     let ticketId = initialForm?.ticket_id ?? null;
 
     for (const field of templateFields) {
-      const value = fieldValues[field.id] ?? "";
+      const value =
+        field.field_type === "select" && isMultiSelectField(field)
+          ? parseMultiSelectValue(fieldValues[field.id] ?? "")[0] ?? ""
+          : fieldValues[field.id] ?? "";
       const lookupValue = normalizeLookupValue(value);
       if (!lookupValue) continue;
 
@@ -977,21 +1021,46 @@ export default function ServiceFormEditor({
                                 title={field.field_label}
                               >
                                 {field.field_type === "select" ? (
-                                  <select
-                                    value={fieldValues[field.id] ?? ""}
-                                    onChange={(event) => setFieldValue(field.id, event.target.value)}
-                                    className={getOverlayEditableControlClass("overflow-hidden whitespace-nowrap border-0 bg-transparent text-slate-900 outline-none")}
-                                    style={getOverlayFieldTextStyle(field)}
-                                  >
-                                    <option value="">Seçin</option>
-                                    {[...field.options_json]
-                                      .sort((a, b) => a.localeCompare(b, "tr", { sensitivity: "base" }))
-                                      .map((opt) => (
-                                        <option key={opt} value={opt}>
-                                          {opt}
-                                        </option>
-                                      ))}
-                                  </select>
+                                  isMultiSelectField(field) ? (
+                                    <select
+                                      multiple
+                                      value={parseMultiSelectValue(fieldValues[field.id] ?? "")}
+                                      onChange={(event) =>
+                                        setFieldValue(
+                                          field.id,
+                                          serializeMultiSelectValue(
+                                            Array.from(event.target.selectedOptions, (option) => option.value)
+                                          )
+                                        )
+                                      }
+                                      className={getOverlayEditableControlClass("overflow-auto border-0 bg-transparent text-slate-900 outline-none")}
+                                      style={getOverlayFieldTextStyle(field)}
+                                    >
+                                      {getVisibleSelectOptions(field.options_json)
+                                        .sort((a, b) => a.localeCompare(b, "tr", { sensitivity: "base" }))
+                                        .map((opt) => (
+                                          <option key={opt} value={opt}>
+                                            {opt}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  ) : (
+                                    <select
+                                      value={fieldValues[field.id] ?? ""}
+                                      onChange={(event) => setFieldValue(field.id, event.target.value)}
+                                      className={getOverlayEditableControlClass("overflow-hidden whitespace-nowrap border-0 bg-transparent text-slate-900 outline-none")}
+                                      style={getOverlayFieldTextStyle(field)}
+                                    >
+                                      <option value="">Seçin</option>
+                                      {getVisibleSelectOptions(field.options_json)
+                                        .sort((a, b) => a.localeCompare(b, "tr", { sensitivity: "base" }))
+                                        .map((opt) => (
+                                          <option key={opt} value={opt}>
+                                            {opt}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  )
                                 ) : field.field_type === "checkbox" ? (
                                   <button
                                     type="button"

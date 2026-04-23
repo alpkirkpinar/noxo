@@ -203,6 +203,8 @@ export default function TicketsListClient({
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
   const [showNewTicketModal, setShowNewTicketModal] = useState(false);
@@ -242,6 +244,28 @@ export default function TicketsListClient({
 
     setSortKey(key);
     setSortDirection("asc");
+  }
+
+  function startSelection(ticketId: string) {
+    setSelectionMode(true);
+    setSelectedIds([ticketId]);
+    setContextMenu(null);
+  }
+
+  function toggleTicketSelection(ticketId: string) {
+    setSelectedIds((prev) =>
+      prev.includes(ticketId) ? prev.filter((id) => id !== ticketId) : [...prev, ticketId]
+    );
+  }
+
+  function toggleVisibleSelection() {
+    const visibleIds = filteredRows.map((ticket) => ticket.id);
+    const visibleIdSet = new Set(visibleIds);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+    setSelectedIds((prev) =>
+      allVisibleSelected ? prev.filter((id) => !visibleIdSet.has(id)) : Array.from(new Set([...prev, ...visibleIds]))
+    );
   }
 
   async function markCompleted(ticketId: string) {
@@ -313,6 +337,46 @@ export default function TicketsListClient({
     setRows((prev) => prev.filter((row) => row.id !== ticketId));
     setContextMenu(null);
     setSuccessText("Ticket silindi.");
+    router.refresh();
+  }
+
+  async function bulkMarkCompleted() {
+    if (selectedIds.length === 0) {
+      setErrorText("İşlem için en az bir ticket seçin.");
+      return;
+    }
+
+    for (const ticketId of selectedIds) {
+      await markCompleted(ticketId);
+    }
+
+    setSelectedIds([]);
+    setSelectionMode(false);
+  }
+
+  async function bulkDeleteTickets() {
+    if (selectedIds.length === 0) {
+      setErrorText("Silmek için en az bir ticket seçin.");
+      return;
+    }
+
+    const confirmed = window.confirm(`${selectedIds.length} ticket silinsin mi?`);
+    if (!confirmed) return;
+
+    for (const ticketId of selectedIds) {
+      const response = await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setErrorText(data?.error || "Seçili ticketlar silinemedi.");
+        return;
+      }
+    }
+
+    setRows((prev) => prev.filter((row) => !selectedIds.includes(row.id)));
+    setSelectedIds([]);
+    setSelectionMode(false);
+    setSuccessText("Seçili ticketlar silindi.");
     router.refresh();
   }
 
@@ -405,7 +469,7 @@ export default function TicketsListClient({
         </div>
       ) : null}
 
-      <CompactFilterActionBar className="relative z-10 elevated-topbar">
+      <CompactFilterActionBar className="relative z-10 elevated-topbar !p-3 sm:!p-5">
           <div className="min-w-0 flex-1">
             <label className="sr-only">Ara</label>
             <input
@@ -413,7 +477,7 @@ export default function TicketsListClient({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Ticket no, başlık, müşteri..."
-              className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
             />
           </div>
 
@@ -422,7 +486,7 @@ export default function TicketsListClient({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm sm:h-11"
             >
               <option value="">Tümü</option>
               <option value="new">Yeni</option>
@@ -441,7 +505,7 @@ export default function TicketsListClient({
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm sm:h-11"
             >
               <option value="">Tümü</option>
               <option value="low">Düşük</option>
@@ -451,32 +515,94 @@ export default function TicketsListClient({
             </select>
           </div>
 
-        <div className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Toplam Ticket</div>
-          <div className="text-lg font-semibold text-slate-900">{totalCount}</div>
-        </div>
+        <div
+          className={`grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max sm:grid-cols-none ${
+            permissions.canCreate ? "grid-cols-3" : "grid-cols-2"
+          }`}
+        >
+          <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+            <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
+              Toplam
+            </div>
+            <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{totalCount}</div>
+          </div>
 
-        <div className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Aktif Ticket</div>
-          <div className="text-lg font-semibold text-slate-900">{activeCount}</div>
-        </div>
+          <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+            <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
+              Aktif
+            </div>
+            <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{activeCount}</div>
+          </div>
 
-        {permissions.canCreate ? (
+          {permissions.canCreate ? (
+            <button
+              type="button"
+              onClick={() => setShowNewTicketModal(true)}
+              className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
+            >
+              Yeni
+            </button>
+          ) : null}
+        </div>
+      </CompactFilterActionBar>
+
+      {selectionMode ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-sm font-semibold text-slate-800">{selectedIds.length} kayıt seçildi</div>
           <button
             type="button"
-            onClick={() => setShowNewTicketModal(true)}
-            className="flex h-11 shrink-0 items-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+            onClick={toggleVisibleSelection}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            Yeni Ticket
+            Görünenleri Seç / Bırak
           </button>
-        ) : null}
-      </CompactFilterActionBar>
+          {permissions.canUpdateStatus ? (
+            <button
+              type="button"
+              onClick={() => void bulkMarkCompleted()}
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+            >
+              Tamamlandı İşaretle
+            </button>
+          ) : null}
+          {permissions.canDelete ? (
+            <button
+              type="button"
+              onClick={() => void bulkDeleteTickets()}
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100"
+            >
+              Sil
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionMode(false);
+              setSelectedIds([]);
+            }}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Seçimi Kapat
+          </button>
+        </div>
+      ) : null}
 
       <div className="elevated-topbar overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="border-b bg-slate-50">
               <tr>
+                {selectionMode ? (
+                  <th className="w-12 px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={filteredRows.length > 0 && filteredRows.every((ticket) => selectedIds.includes(ticket.id))}
+                      onChange={toggleVisibleSelection}
+                      aria-label="Görünen kayıtları seç"
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </th>
+                ) : null}
                 <th className={sortableHeaderClass} onClick={() => toggleSort("ticket_no")}>
                   Ticket No{sortIndicator(sortKey === "ticket_no", sortDirection)}
                 </th>
@@ -507,7 +633,7 @@ export default function TicketsListClient({
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={selectionMode ? 9 : 8} className="px-4 py-12 text-center text-sm text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -515,7 +641,14 @@ export default function TicketsListClient({
                 filteredRows.map((ticket) => (
                   <tr
                     key={ticket.id}
-                    onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}
+                    onClick={() => {
+                      if (selectionMode) {
+                        toggleTicketSelection(ticket.id);
+                        return;
+                      }
+
+                      router.push(`/dashboard/tickets/${ticket.id}`);
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setContextMenu({
@@ -526,6 +659,18 @@ export default function TicketsListClient({
                     }}
                     className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
                   >
+                    {selectionMode ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(ticket.id)}
+                          onChange={() => toggleTicketSelection(ticket.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${ticket.ticket_no} seç`}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">{ticket.ticket_no}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">
                       <div className="font-medium text-slate-900">{ticket.title}</div>
@@ -571,6 +716,14 @@ export default function TicketsListClient({
           className="context-menu-layer fixed min-w-[240px] overflow-hidden rounded-xl border border-slate-300 bg-white shadow-2xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          <button
+            type="button"
+            onClick={() => startSelection(contextMenu.ticketId)}
+            className="block w-full border-b border-slate-100 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            Seç
+          </button>
+
           <button
             type="button"
             onClick={() => {

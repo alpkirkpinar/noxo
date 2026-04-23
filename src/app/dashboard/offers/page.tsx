@@ -46,6 +46,16 @@ type OfferRow = {
   line_total: number;
 };
 
+type OfferPrefillItem = {
+  item_id: string;
+  item_code: string;
+  item_name: string;
+  description?: string | null;
+  unit?: string | null;
+  unit_price?: number | null;
+  currency?: string | null;
+};
+
 type OfferListRow = {
   id: string;
   offer_no?: string | null;
@@ -240,6 +250,32 @@ function generateOfferNo() {
   return `Q${yy}${month}${day}${random}`;
 }
 
+function offerRowFromPrefillItem(item: OfferPrefillItem): OfferRow {
+  return recalcOfferRow({
+    ...emptyOfferRow(),
+    item_id: item.item_id,
+    item_code: item.item_code,
+    item_name: item.item_name,
+    description: item.description ?? "",
+    unit: item.unit?.trim() || "pcs",
+    base_unit_price: Number(item.unit_price ?? 0),
+    currency: normalizeCurrency(item.currency),
+  });
+}
+
+function recalcOfferRow(row: OfferRow): OfferRow {
+  const quantity = toNumber(row.quantity);
+  const multiplier = toNumber(row.multiplier);
+  const offerUnitPrice = Number((row.base_unit_price * multiplier).toFixed(2));
+  const lineTotal = Number((quantity * offerUnitPrice).toFixed(2));
+
+  return {
+    ...row,
+    offer_unit_price: offerUnitPrice,
+    line_total: lineTotal,
+  };
+}
+
 function sortIndicator(active: boolean, direction: SortDirection) {
   if (!active) return "";
   return direction === "asc" ? " ↑" : " ↓";
@@ -287,6 +323,8 @@ export default function OffersPage() {
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [permissions, setPermissions] = useState({
     canCreate: false,
     canEdit: false,
@@ -304,12 +342,14 @@ export default function OffersPage() {
   }, []);
 
   useEffect(() => {
+    if (loading) return;
+
     if (searchParams.get("new") === "1") {
       openNewOfferModal();
       router.replace("/dashboard/offers");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, router]);
+  }, [searchParams, router, loading, permissions.canCreate]);
 
   useEffect(() => {
     function closeMenu(event: MouseEvent) {
@@ -482,7 +522,27 @@ export default function OffersPage() {
     setSalesRepEmail("");
     setSalesRepPhone("");
     setNotes(DEFAULT_NOTES);
-    setRows([emptyOfferRow()]);
+    const prefillRows = (() => {
+      if (typeof window === "undefined") return null;
+
+      const raw = window.localStorage.getItem("noxo_offer_prefill_items");
+      if (!raw) return null;
+
+      window.localStorage.removeItem("noxo_offer_prefill_items");
+
+      try {
+        const items = JSON.parse(raw) as OfferPrefillItem[];
+        const validItems = Array.isArray(items)
+          ? items.filter((item) => item.item_id && item.item_code && item.item_name)
+          : [];
+
+        return validItems.length > 0 ? validItems.map(offerRowFromPrefillItem) : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    setRows(prefillRows ?? [emptyOfferRow()]);
     setActiveSuggestionRowId(null);
     setPendingNewItemRowId(null);
     setShowNewOfferModal(true);
@@ -833,6 +893,74 @@ export default function OffersPage() {
     router.refresh();
   }
 
+  function startSelection(offerId: string) {
+    setSelectionMode(true);
+    setSelectedIds([offerId]);
+    setContextMenu(null);
+  }
+
+  function toggleOfferSelection(offerId: string) {
+    setSelectedIds((prev) =>
+      prev.includes(offerId) ? prev.filter((id) => id !== offerId) : [...prev, offerId]
+    );
+  }
+
+  function toggleVisibleSelection() {
+    const visibleIds = filteredOffers.map((offer) => offer.id);
+    const visibleIdSet = new Set(visibleIds);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+    setSelectedIds((prev) =>
+      allVisibleSelected ? prev.filter((id) => !visibleIdSet.has(id)) : Array.from(new Set([...prev, ...visibleIds]))
+    );
+  }
+
+  function downloadOfferPdf(offerId: string) {
+    const anchor = document.createElement("a");
+    anchor.href = `/dashboard/offers/${offerId}/pdf/file`;
+    anchor.target = "_blank";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+
+  function bulkDownloadPdf() {
+    if (selectedIds.length === 0) {
+      setErrorText("PDF indirmek için en az bir teklif seçin.");
+      return;
+    }
+
+    selectedIds.forEach((offerId, index) => {
+      window.setTimeout(() => downloadOfferPdf(offerId), index * 250);
+    });
+  }
+
+  async function bulkDeleteOffers() {
+    if (selectedIds.length === 0) {
+      setErrorText("Silmek için en az bir teklif seçin.");
+      return;
+    }
+
+    const confirmed = window.confirm(`${selectedIds.length} teklif silinsin mi?`);
+    if (!confirmed) return;
+
+    for (const offerId of selectedIds) {
+      const response = await fetch(`/api/offers/${offerId}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setErrorText(result.error ?? "Seçili teklifler silinemedi.");
+        return;
+      }
+    }
+
+    setOffers((prev) => prev.filter((offer) => !selectedIds.includes(offer.id)));
+    setSelectedIds([]);
+    setSelectionMode(false);
+    setSuccessText("Seçili teklifler silindi.");
+    router.refresh();
+  }
+
   const filteredOffers = (() => {
     let data = [...offers];
 
@@ -902,7 +1030,7 @@ export default function OffersPage() {
         </div>
       ) : null}
 
-      <CompactFilterActionBar>
+      <CompactFilterActionBar className="!p-3 sm:!p-5">
         <div className="min-w-0 flex-1">
           <label className="sr-only">{TR.search}</label>
           <input
@@ -910,31 +1038,79 @@ export default function OffersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={TR.searchPlaceholder}
-            className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+            className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
           />
         </div>
 
-        <div className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{TR.totalOffers}</div>
-          <div className="text-lg font-semibold text-slate-900">{offers.length}</div>
-        </div>
-
-        {permissions.canCreate ? (
-        <button
-          type="button"
-          onClick={openNewOfferModal}
-          className="flex h-11 shrink-0 items-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+        <div
+          className={`grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max sm:grid-cols-none ${
+            permissions.canCreate ? "grid-cols-2" : "grid-cols-1"
+          }`}
         >
-          {TR.newOffer}
-        </button>
-        ) : null}
+          <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+            <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
+              {TR.total}
+            </div>
+            <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{offers.length}</div>
+          </div>
+
+          {permissions.canCreate ? (
+          <button
+            type="button"
+            onClick={openNewOfferModal}
+            className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
+          >
+            Yeni
+          </button>
+          ) : null}
+        </div>
       </CompactFilterActionBar>
+
+      {selectionMode ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-sm font-semibold text-slate-800">{selectedIds.length} kayıt seçildi</div>
+          <button type="button" onClick={toggleVisibleSelection} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Görünenleri Seç / Bırak
+          </button>
+          {permissions.canPdf ? (
+            <button type="button" onClick={bulkDownloadPdf} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              PDF İndir
+            </button>
+          ) : null}
+          {permissions.canDelete ? (
+            <button type="button" onClick={() => void bulkDeleteOffers()} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100">
+              Sil
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionMode(false);
+              setSelectedIds([]);
+            }}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Seçimi Kapat
+          </button>
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="border-b bg-slate-50">
               <tr>
+                {selectionMode ? (
+                  <th className="w-12 px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={filteredOffers.length > 0 && filteredOffers.every((offer) => selectedIds.includes(offer.id))}
+                      onChange={toggleVisibleSelection}
+                      aria-label="Görünen kayıtları seç"
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </th>
+                ) : null}
                 <th className={sortableHeaderClass} onClick={() => toggleSort("offer_no")}>
                   {TR.offerNo}{sortIndicator(sortKey === "offer_no", sortDirection)}
                 </th>
@@ -956,7 +1132,7 @@ export default function OffersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={selectionMode ? 6 : 5} className="px-4 py-12 text-center text-sm text-slate-500">
                     {TR.loading}
                   </td>
                 </tr>
@@ -970,7 +1146,14 @@ export default function OffersPage() {
                 filteredOffers.map((offer) => (
                   <tr
                     key={offer.id}
-                    onClick={() => router.push(`/dashboard/offers/${offer.id}`)}
+                    onClick={() => {
+                      if (selectionMode) {
+                        toggleOfferSelection(offer.id);
+                        return;
+                      }
+
+                      router.push(`/dashboard/offers/${offer.id}`);
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setContextMenu({
@@ -981,6 +1164,18 @@ export default function OffersPage() {
                     }}
                     className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
                   >
+                    {selectionMode ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(offer.id)}
+                          onChange={() => toggleOfferSelection(offer.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${offer.offer_no ?? "Teklif"} seç`}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">{offer.offer_no ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{getCustomerName(offer.customer_id)}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">
@@ -1006,6 +1201,14 @@ export default function OffersPage() {
           className="context-menu-layer fixed min-w-[220px] overflow-hidden rounded-xl border border-slate-300 bg-white shadow-2xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          <button
+            type="button"
+            onClick={() => startSelection(contextMenu.offerId)}
+            className="block w-full border-b border-slate-100 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            Seç
+          </button>
+
           <button
             type="button"
             onClick={() => {

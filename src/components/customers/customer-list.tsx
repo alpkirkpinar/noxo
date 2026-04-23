@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
@@ -23,6 +23,7 @@ type Props = {
   permissions: {
     canCreate: boolean;
     canEdit: boolean;
+    canDelete: boolean;
   };
 };
 
@@ -74,12 +75,19 @@ export default function CustomerList({ customers, permissions }: Props) {
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [search, setSearch] = useState("");
+  const [localCustomers, setLocalCustomers] = useState(customers);
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setLocalCustomers(customers);
+  }, [customers]);
 
   const rows = useMemo(() => {
-    let filtered = [...customers];
+    let filtered = [...localCustomers];
 
     if (search.trim()) {
       const q = search.toLocaleLowerCase("tr-TR");
@@ -135,7 +143,7 @@ export default function CustomerList({ customers, permissions }: Props) {
     });
 
     return filtered;
-  }, [customers, search, sortKey, sortDirection]);
+  }, [localCustomers, search, sortKey, sortDirection]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -147,9 +155,50 @@ export default function CustomerList({ customers, permissions }: Props) {
     setSortDirection("asc");
   }
 
+  function startSelection(customerId: string) {
+    setSelectionMode(true);
+    setSelectedIds([customerId]);
+    setContextMenu(null);
+  }
+
+  function toggleCustomerSelection(customerId: string) {
+    setSelectedIds((prev) =>
+      prev.includes(customerId) ? prev.filter((id) => id !== customerId) : [...prev, customerId]
+    );
+  }
+
+  function toggleVisibleSelection() {
+    const visibleIds = rows.map((customer) => customer.id);
+    const visibleIdSet = new Set(visibleIds);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+    setSelectedIds((prev) =>
+      allVisibleSelected ? prev.filter((id) => !visibleIdSet.has(id)) : Array.from(new Set([...prev, ...visibleIds]))
+    );
+  }
+
+  async function deleteCustomers(customerIds: string[]) {
+    if (!permissions.canDelete) return;
+    if (customerIds.length === 0) return;
+
+    const confirmed = window.confirm(`${customerIds.length} müşteri silinsin mi?`);
+    if (!confirmed) return;
+
+    for (const customerId of customerIds) {
+      const response = await fetch(`/api/customers/${customerId}`, { method: "DELETE" });
+      if (!response.ok) return;
+    }
+
+    setLocalCustomers((prev) => prev.filter((customer) => !customerIds.includes(customer.id)));
+    setSelectedIds([]);
+    setSelectionMode(false);
+    setContextMenu(null);
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
-      <CompactFilterActionBar>
+      <CompactFilterActionBar className="!p-3 sm:!p-5">
           <div className="min-w-0 flex-1">
             <label className="sr-only">Ara</label>
             <input
@@ -157,31 +206,80 @@ export default function CustomerList({ customers, permissions }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Firma, ilgili kişi, telefon, e-posta..."
-              className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
             />
           </div>
 
-          <div className="flex h-11 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 shadow-sm">
+          <div
+            className={`grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max sm:grid-cols-none ${
+              permissions.canCreate ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
+          <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-              Toplam Müşteri
+              Toplam
             </div>
-            <div className="text-lg font-semibold text-slate-900">{customers.length}</div>
+              <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{localCustomers.length}</div>
           </div>
           {permissions.canCreate ? (
             <Link
               href="/dashboard/customers/new"
-              className="flex h-11 shrink-0 items-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+              className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
             >
-              Yeni Müşteri
+              Yeni
             </Link>
           ) : null}
+          </div>
       </CompactFilterActionBar>
+
+      {selectionMode ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-sm font-semibold text-slate-800">{selectedIds.length} kayıt seçildi</div>
+          <button
+            type="button"
+            onClick={toggleVisibleSelection}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Görünenleri Seç / Bırak
+          </button>
+          {permissions.canDelete ? (
+            <button
+              type="button"
+              onClick={() => void deleteCustomers(selectedIds)}
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100"
+            >
+              Sil
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionMode(false);
+              setSelectedIds([]);
+            }}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Seçimi Kapat
+          </button>
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="border-b bg-slate-50">
               <tr>
+                {selectionMode ? (
+                  <th className="w-12 px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={rows.length > 0 && rows.every((customer) => selectedIds.includes(customer.id))}
+                      onChange={toggleVisibleSelection}
+                      aria-label="Görünen kayıtları seç"
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </th>
+                ) : null}
                 <th className="cursor-pointer px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => toggleSort("company_name")}>
                   Firma{sortIndicator(sortKey === "company_name", sortDirection)}
                 </th>
@@ -207,7 +305,7 @@ export default function CustomerList({ customers, permissions }: Props) {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={selectionMode ? 8 : 7} className="px-4 py-12 text-center text-sm text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -215,7 +313,14 @@ export default function CustomerList({ customers, permissions }: Props) {
                 rows.map((customer) => (
                   <tr
                     key={customer.id}
-                    onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
+                    onClick={() => {
+                      if (selectionMode) {
+                        toggleCustomerSelection(customer.id);
+                        return;
+                      }
+
+                      router.push(`/dashboard/customers/${customer.id}`);
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setContextMenu({
@@ -226,6 +331,18 @@ export default function CustomerList({ customers, permissions }: Props) {
                     }}
                     className="cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
                   >
+                    {selectionMode ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(customer.id)}
+                          onChange={() => toggleCustomerSelection(customer.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`${customer.company_name} seç`}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">{customer.company_name}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{customer.contact_name ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{customer.phone ?? "-"}</td>
@@ -259,6 +376,14 @@ export default function CustomerList({ customers, permissions }: Props) {
         >
           <button
             type="button"
+            onClick={() => startSelection(contextMenu.customerId)}
+            className="block w-full border-b border-slate-100 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            Seç
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               router.push(`/dashboard/customers/${contextMenu.customerId}`);
               setContextMenu(null);
@@ -278,6 +403,15 @@ export default function CustomerList({ customers, permissions }: Props) {
               className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
             >
               Düzenle
+            </button>
+          ) : null}
+          {permissions.canDelete ? (
+            <button
+              type="button"
+              onClick={() => void deleteCustomers([contextMenu.customerId])}
+              className="block w-full border-t border-slate-100 px-4 py-2.5 text-left text-sm text-red-600 transition-colors hover:bg-red-100"
+            >
+              Sil
             </button>
           ) : null}
         </div>

@@ -271,11 +271,11 @@ export default function Sidebar({
               <Link href="/dashboard" className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm">
                   <Image
-                    src="/noxo-logo.png"
+                    src="/noxo-logo-refined.png"
                     alt="noxo"
                     width={48}
                     height={48}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                     priority
                   />
                 </div>

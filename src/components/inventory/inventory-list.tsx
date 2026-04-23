@@ -837,18 +837,6 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
     router.refresh();
   }
 
-  function toggleSelectionMode() {
-    resetMessages();
-    setSelectionMode((prev) => {
-      if (prev) {
-        setSelectedIds([]);
-      }
-
-      return !prev;
-    });
-    setContextMenu(null);
-  }
-
   function toggleItemSelection(itemId: string) {
     setSelectedIds((prev) =>
       prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
@@ -1092,22 +1080,39 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
     exportInventoryItems(rows);
   }
 
-  function handleBulkExport() {
-    const selectedIdSet = new Set(selectedIds);
-    const selectedItems = allItems.filter((item) => selectedIdSet.has(item.id));
-    exportInventoryItems(selectedItems);
-  }
-
   function handleImportClick() {
     fileInputRef.current?.click();
   }
 
-  function handleAddToOffer(itemId: string) {
-    const item = allItems.find((x) => x.id === itemId);
-    if (!item) return;
+  function handleAddToOffer(itemIds: string | string[]) {
+    const ids = Array.isArray(itemIds) ? itemIds : [itemIds];
+    const idSet = new Set(ids);
+    const selectedItems = allItems.filter((item) => idSet.has(item.id));
+
+    if (selectedItems.length === 0) {
+      setErrorText("Fiyat teklifine eklemek için en az bir parça seçin.");
+      return;
+    }
+
+    window.localStorage.setItem(
+      "noxo_offer_prefill_items",
+      JSON.stringify(
+        selectedItems.map((item) => ({
+          item_id: item.id,
+          item_code: item.item_code,
+          item_name: item.item_name,
+          description: item.description ?? "",
+          unit: item.unit ?? "adet",
+          unit_price: item.unit_price ?? 0,
+          currency: item.currency ?? item.currency_code ?? "TRY",
+        }))
+      )
+    );
 
     setContextMenu(null);
-    setSuccessText(`"${item.item_name}" teklif listesine eklendi.`);
+    setSelectedIds([]);
+    setSelectionMode(false);
+    router.push("/dashboard/offers?new=1");
   }
 
   const rows = (() => {
@@ -1245,18 +1250,6 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
               Genel Geçmiş
             </button>
 
-            <button
-              type="button"
-              onClick={toggleSelectionMode}
-              className={`rounded-xl border px-4 py-2.5 text-sm font-medium ${
-                selectionMode
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              {selectionMode ? "Seçimi Kapat" : "Seçme Modu"}
-            </button>
-
             {permissions.canImport ? (
             <button
               type="button"
@@ -1297,16 +1290,14 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
               Görünenleri Seç / Bırak
             </button>
 
-            {permissions.canExport ? (
-              <button
-                type="button"
-                onClick={handleBulkExport}
-                disabled={selectedIds.length === 0}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Seçilileri Export Et
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => handleAddToOffer(selectedIds)}
+              disabled={selectedIds.length === 0}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Fiyat Teklifine Ekle
+            </button>
 
             {permissions.canDelete ? (
               <button
@@ -1318,6 +1309,17 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
                 Seçilileri Sil
               </button>
             ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectionMode(false);
+                setSelectedIds([]);
+              }}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Seçimi Kapat
+            </button>
           </div>
         ) : null}
 
@@ -1513,6 +1515,18 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
           className="context-menu-layer fixed min-w-[220px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          <button
+            type="button"
+            onClick={() => {
+              setSelectionMode(true);
+              setSelectedIds([contextMenu.itemId]);
+              setContextMenu(null);
+            }}
+            className="block w-full border-b border-slate-100 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+          >
+            Seç
+          </button>
+
           {permissions.canEdit ? (
           <button
             type="button"

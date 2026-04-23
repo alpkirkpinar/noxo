@@ -89,6 +89,7 @@ export default async function CustomersPage() {
       permissions={{
         canCreate: hasPermission(permissionIdentity, PERMISSIONS.customerCreate),
         canEdit: hasPermission(permissionIdentity, PERMISSIONS.customerEdit),
+        canDelete: hasPermission(permissionIdentity, PERMISSIONS.customerDelete),
       }}
     />
   );

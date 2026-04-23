@@ -7,6 +7,7 @@ type TemplateFieldRow = {
   field_key: string;
   field_label: string;
   field_type: string;
+  options_json: string[] | null;
   sort_order?: number | null;
 };
 
@@ -66,7 +67,7 @@ export default async function ServiceFormsByTemplatePage({ params }: PageProps) 
 
   const { data: fields, error: fieldsError } = await supabase
     .from("pdf_template_fields")
-    .select("id, field_key, field_label, field_type, sort_order")
+    .select("id, field_key, field_label, field_type, options_json, sort_order")
     .eq("template_id", templateId)
     .order("sort_order", { ascending: true });
 

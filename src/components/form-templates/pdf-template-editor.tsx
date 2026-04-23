@@ -120,6 +120,7 @@ const STORAGE_BUCKET = "template-pdfs";
 const BASE_PAGE_WIDTH = 900;
 const MIN_W = 0.5;
 const MIN_H = 0.5;
+const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
 
 const FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
   { value: "text", label: "Metin" },
@@ -289,12 +290,38 @@ function sortOptions(values: string[]) {
   );
 }
 
+function getVisibleSelectOptions(values: string[]) {
+  return values.filter((value) => value !== MULTI_SELECT_OPTION_MARKER);
+}
+
+function isMultiSelectField(field: Pick<TemplateField, "field_type" | "options_json">) {
+  return field.field_type === "select" && field.options_json.includes(MULTI_SELECT_OPTION_MARKER);
+}
+
+function withMultiSelectMarker(values: string[], enabled: boolean) {
+  const visibleOptions = sortOptions(getVisibleSelectOptions(values));
+  return enabled ? [MULTI_SELECT_OPTION_MARKER, ...visibleOptions] : visibleOptions;
+}
+
 function asSelectDataSource(value: string | null | undefined): SelectDataSource {
   if (value === "customers" || value === "machines" || value === "tickets" || value === "employees") {
     return value;
   }
 
   return "";
+}
+
+function getPendingFieldTypeMenuStyle(pending: PendingRect) {
+  const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
+  const viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight;
+  const menuWidth = 224;
+  const maxHeight = Math.min(360, Math.max(180, viewportHeight - 24));
+
+  return {
+    left: Math.max(12, Math.min(pending.clientX + 10, viewportWidth - menuWidth - 12)),
+    top: Math.max(12, Math.min(pending.clientY + 10, viewportHeight - maxHeight - 12)),
+    maxHeight,
+  };
 }
 
 export default function PdfTemplateEditor({
@@ -331,6 +358,7 @@ export default function PdfTemplateEditor({
   const [fieldPage, setFieldPage] = useState(0);
   const [copiedField, setCopiedField] = useState<TemplateField | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [fieldTypeMenuOpen, setFieldTypeMenuOpen] = useState(false);
   const [selectSourceOptions, setSelectSourceOptions] = useState<Record<SelectDataSource, string[]>>({
     "": [],
     customers: [],
@@ -344,6 +372,7 @@ export default function PdfTemplateEditor({
   const [successText, setSuccessText] = useState("");
 
   const overlayRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const fieldTypeMenuRef = useRef<HTMLDivElement | null>(null);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedFieldId) ?? null,
@@ -451,7 +480,7 @@ export default function PdfTemplateEditor({
 
         return {
           ...field,
-          options_json: selectSourceOptions[dataSource],
+          options_json: withMultiSelectMarker(selectSourceOptions[dataSource], isMultiSelectField(field)),
         };
       })
     );
@@ -581,6 +610,19 @@ export default function PdfTemplateEditor({
     return () => window.removeEventListener("click", closeMenus);
   }, []);
 
+  useEffect(() => {
+    function closeFieldTypeMenu(event: MouseEvent) {
+      if (fieldTypeMenuRef.current && event.target instanceof Node) {
+        if (fieldTypeMenuRef.current.contains(event.target)) return;
+      }
+
+      setFieldTypeMenuOpen(false);
+    }
+
+    window.addEventListener("click", closeFieldTypeMenu);
+    return () => window.removeEventListener("click", closeFieldTypeMenu);
+  }, []);
+
   function copyField(field: TemplateField) {
     setCopiedField({ ...field });
     setSuccessText("Alan kopyalandı.");
@@ -621,6 +663,7 @@ export default function PdfTemplateEditor({
 
   function updateSelectedFieldType(fieldType: FieldType) {
     if (!selectedFieldId) return;
+    setFieldTypeMenuOpen(false);
 
     setFields((prev) =>
       prev.map((field) => {
@@ -630,7 +673,10 @@ export default function PdfTemplateEditor({
           ...field,
           field_type: fieldType,
           data_source: fieldType === "select" ? field.data_source : null,
-          options_json: fieldType === "select" ? sortOptions(field.options_json) : [],
+          options_json:
+            fieldType === "select"
+              ? withMultiSelectMarker(field.options_json, isMultiSelectField(field))
+              : [],
           is_readonly: fieldType === "select" ? false : field.is_readonly,
         };
       })
@@ -647,16 +693,29 @@ export default function PdfTemplateEditor({
         return {
           ...field,
           data_source: dataSource || null,
-          options_json: dataSource ? selectSourceOptions[dataSource] : sortOptions(field.options_json),
+          options_json: withMultiSelectMarker(
+            dataSource ? selectSourceOptions[dataSource] : field.options_json,
+            isMultiSelectField(field)
+          ),
         };
       })
     );
   }
 
   function updateSelectedOptions(value: string) {
-    updateSelectedField(
-      "options_json",
-      sortOptions(value.split(","))
+    if (!selectedField) return;
+    updateSelectedField("options_json", withMultiSelectMarker(value.split(","), isMultiSelectField(selectedField)));
+  }
+
+  function updateSelectedMultiSelect(enabled: boolean) {
+    if (!selectedFieldId) return;
+
+    setFields((prev) =>
+      prev.map((field) =>
+        field.id === selectedFieldId
+          ? { ...field, options_json: withMultiSelectMarker(field.options_json, enabled) }
+          : field
+      )
     );
   }
 
@@ -907,7 +966,10 @@ export default function PdfTemplateEditor({
         ...field,
         field_key: createFieldKey(field.field_label, index),
         data_source: field.field_type === "select" ? asSelectDataSource(field.data_source) || null : null,
-        options_json: field.field_type === "select" ? sortOptions(field.options_json) : [],
+        options_json:
+          field.field_type === "select"
+            ? withMultiSelectMarker(field.options_json, isMultiSelectField(field))
+            : [],
       }));
 
       const { error: deleteError } = await supabase
@@ -1036,17 +1098,47 @@ export default function PdfTemplateEditor({
 
               <div>
                 <label className="mb-1 block text-sm font-medium">Alan Türü</label>
-                <select
-                  value={selectedField.field_type}
-                  onChange={(e) => updateSelectedFieldType(e.target.value as FieldType)}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
-                >
-                  {FIELD_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <div ref={fieldTypeMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setFieldTypeMenuOpen((open) => !open);
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-left text-sm"
+                    aria-haspopup="listbox"
+                    aria-expanded={fieldTypeMenuOpen}
+                  >
+                    <span>{fieldTypeLabel(selectedField.field_type)}</span>
+                    <span className="text-xs text-slate-500">v</span>
+                  </button>
+
+                  {fieldTypeMenuOpen ? (
+                    <div
+                      role="listbox"
+                      className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
+                      onWheel={(event) => event.stopPropagation()}
+                    >
+                      {FIELD_TYPE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="option"
+                          aria-selected={selectedField.field_type === option.value}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            updateSelectedFieldType(option.value);
+                          }}
+                          className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-slate-100 ${
+                            selectedField.field_type === option.value ? "bg-slate-100 font-medium text-slate-950" : "text-slate-700"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               {selectedField.field_type === "select" ? (
@@ -1066,17 +1158,27 @@ export default function PdfTemplateEditor({
                     </select>
                   </div>
 
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={isMultiSelectField(selectedField)}
+                      onChange={(e) => updateSelectedMultiSelect(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                    Çoklu seçim
+                  </label>
+
                   <div>
                     <label className="mb-1 block text-sm font-medium">Seçim Listesi</label>
                     <textarea
-                      value={selectedField.options_json.join(", ")}
+                      value={getVisibleSelectOptions(selectedField.options_json).join(", ")}
                       onChange={(e) => updateSelectedOptions(e.target.value)}
                       readOnly={Boolean(asSelectDataSource(selectedField.data_source))}
                       className="min-h-24 w-full rounded-lg border px-3 py-2 text-sm disabled:opacity-60 read-only:bg-slate-50"
                       placeholder="Örnek: Evet, Hayır"
                     />
                     <div className="mt-1 text-xs text-slate-500">
-                      {selectedField.options_json.length} seçenek · A-Z sıralı
+                      {getVisibleSelectOptions(selectedField.options_json).length} seçenek · A-Z sıralı
                     </div>
                   </div>
                 </div>
@@ -1422,14 +1524,12 @@ export default function PdfTemplateEditor({
 
             {pendingRect ? (
               <div
-                className="context-menu-layer fixed rounded-xl border bg-white p-3 shadow-xl"
-                style={{
-                  left: pendingRect.clientX + 10,
-                  top: pendingRect.clientY + 10,
-                }}
+                className="context-menu-layer fixed w-56 overflow-hidden rounded-xl border bg-white p-3 shadow-xl"
+                style={getPendingFieldTypeMenuStyle(pendingRect)}
+                onWheel={(event) => event.stopPropagation()}
               >
                 <div className="mb-2 text-sm font-medium">Alan Türü Seç</div>
-                <div className="grid gap-2">
+                <div className="grid max-h-72 gap-2 overflow-y-auto pr-1">
                   {FIELD_TYPE_OPTIONS.map((option) => (
                     <button
                       key={option.value}

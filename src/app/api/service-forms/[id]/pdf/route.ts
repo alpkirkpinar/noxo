@@ -25,6 +25,7 @@ type TemplateField = {
   font_size: number | null;
   field_type: string;
   data_source: string | null;
+  options_json: string[] | null;
   text_align: "left" | "center" | "right" | null;
 };
 
@@ -60,6 +61,7 @@ type Ticket = {
 
 const STORAGE_BUCKET = "template-pdfs";
 const PDF_FONT_PATH = path.join(process.cwd(), "public", "fonts", "arial.ttf");
+const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
 
 function sanitizePdfText(value: string) {
   return value
@@ -78,9 +80,32 @@ function sanitizePdfText(value: string) {
     .replace(/ç/g, "c");
 }
 
+function isMultiSelectField(field: Pick<TemplateField, "field_type" | "options_json">) {
+  return field.field_type === "select" && (field.options_json ?? []).includes(MULTI_SELECT_OPTION_MARKER);
+}
+
+function parseMultiSelectValue(value: string) {
+  if (!value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.map(String).filter(Boolean);
+    }
+  } catch {
+    // Older saved values may be plain text.
+  }
+
+  return [value].filter(Boolean);
+}
+
 function formatPdfText(field: TemplateField, rawValue: string) {
   if (field.field_type === "checkbox") {
     return rawValue === "true" ? "X" : "";
+  }
+
+  if (field.field_type === "select" && isMultiSelectField(field)) {
+    return parseMultiSelectValue(rawValue).join(", ");
   }
 
   if (field.field_type === "date" && rawValue) {
@@ -200,7 +225,7 @@ export async function GET(_request: Request, context: RouteContext) {
           .single(),
         auth.supabase
           .from("pdf_template_fields")
-          .select("id, field_key, field_label, page_number, pos_x, pos_y, width, height, font_size, field_type, data_source, text_align")
+          .select("id, field_key, field_label, page_number, pos_x, pos_y, width, height, font_size, field_type, data_source, options_json, text_align")
           .eq("template_id", serviceForm.template_id)
           .order("sort_order", { ascending: true }),
         auth.supabase
