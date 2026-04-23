@@ -9,6 +9,7 @@
   --elevation-lg: 0 26px 70px rgba(15, 23, 42, 0.18), 0 8px 20px rgba(15, 23, 42, 0.10);
   --elevation-xl: 0 34px 90px rgba(15, 23, 42, 0.22), 0 12px 26px rgba(15, 23, 42, 0.12);
   --elevation-sidebar: 28px 0 90px rgba(15, 23, 42, 0.32), 10px 0 28px rgba(15, 23, 42, 0.18);
+  color-scheme: light;
 }
 
 @theme inline {
@@ -29,6 +30,26 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  color: #0f172a;
+  caret-color: #0f172a;
+  color-scheme: light;
+}
+
+input:not([type="checkbox"]):not([type="radio"])::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: #0f172a;
 }
 
 .shadow-sm {
