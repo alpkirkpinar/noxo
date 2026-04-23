@@ -81,14 +81,14 @@ if (!supabaseUrl) {
 }
 
 Font.register({
-  family: "DejaVuSansCustom",
+  family: "CalibriCustom",
   fonts: [
     {
-      src: `${supabaseUrl}/storage/v1/object/public/public-assets/DejaVuSans.ttf`,
+      src: `${supabaseUrl}/storage/v1/object/public/public-assets/calibri-regular.ttf`,
       fontWeight: 400,
     },
     {
-      src: `${supabaseUrl}/storage/v1/object/public/public-assets/DejaVuSans-Bold.ttf`,
+      src: `${supabaseUrl}/storage/v1/object/public/public-assets/calibri-bold.ttf`,
       fontWeight: 700,
     },
   ],
@@ -208,140 +208,160 @@ function sumLineTotals(items: OfferPdfItem[]) {
   return Number(items.reduce((sum, item) => sum + Number(item.line_total ?? 0), 0).toFixed(2));
 }
 
+function extractTaggedNoteValue(lines: string[], tags: string[]) {
+  for (const line of lines) {
+    for (const tag of tags) {
+      if (line.startsWith(tag)) {
+        return line.slice(tag.length).trim();
+      }
+    }
+  }
+
+  return "";
+}
+
+function isTaggedNoteLine(line: string, tags: string[]) {
+  return tags.some((tag) => line.startsWith(tag));
+}
+
+const SALES_REP_TAGS = ["Satis Temsilcisi:", "SatÄ±ÅŸ Temsilcisi:", "SatÃ„Â±Ã…Å¸ Temsilcisi:"];
+const EMAIL_TAGS = ["E-mail:", "E-Posta:", "E-posta:"];
+const PHONE_TAGS = ["Telefon:", "Phone:"];
+
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 40,
-    paddingBottom: 34,
-    paddingHorizontal: 34,
+    paddingTop: 34,
+    paddingBottom: 28,
+    paddingHorizontal: 28,
     fontSize: 10,
     color: "#0f172a",
-    fontFamily: "DejaVuSansCustom",
+    fontFamily: "CalibriCustom",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   headerLeft: {
-    width: "58%",
+    width: "62%",
   },
   logo: {
-    maxWidth: 180,
-    maxHeight: 82,
+    maxWidth: 245,
+    maxHeight: 92,
     objectFit: "contain",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   brandTitle: {
-    fontSize: 26,
+    fontSize: 27,
     fontWeight: 700,
-    marginBottom: 6,
+    marginBottom: 2,
   },
   brandSub: {
     fontSize: 11,
-    color: "#475569",
+    color: "#334155",
   },
   offerNoWrap: {
-    width: "32%",
+    width: "30%",
     alignItems: "flex-end",
     paddingTop: 10,
   },
   offerNoLabel: {
     fontSize: 10,
-    color: "#64748b",
-    marginBottom: 4,
+    color: "#475569",
+    marginBottom: 1,
   },
   offerNoValue: {
-    fontSize: 22,
+    fontSize: 25,
     fontWeight: 700,
   },
   divider: {
     borderBottomWidth: 1,
-    borderBottomColor: "#cbd5e1",
-    marginBottom: 14,
+    borderBottomColor: "#94a3b8",
+    marginBottom: 10,
   },
   continuedHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
-    marginBottom: 10,
-    paddingBottom: 8,
+    marginBottom: 8,
+    paddingBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: "#cbd5e1",
+    borderBottomColor: "#94a3b8",
   },
   continuedTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 700,
   },
   continuedSubtitle: {
-    fontSize: 12,
-    color: "#64748b",
+    fontSize: 10,
+    color: "#475569",
   },
   twoCol: {
     flexDirection: "row",
-    gap: 18,
-    marginBottom: 16,
+    gap: 14,
+    marginBottom: 10,
   },
   infoCard: {
     flexGrow: 1,
     flexBasis: 0,
     borderWidth: 1,
     borderColor: "#94a3b8",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#fafafa",
+    borderRadius: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#ffffff",
   },
   sectionTitle: {
     fontSize: 10,
     fontWeight: 700,
-    color: "#334155",
-    marginBottom: 10,
-  },
-  customerName: {
-    fontSize: 14,
-    fontWeight: 700,
+    color: "#0f172a",
     marginBottom: 8,
   },
+  customerName: {
+    fontSize: 12.5,
+    fontWeight: 700,
+    marginBottom: 6,
+  },
   line: {
-    fontSize: 11,
+    fontSize: 10,
     color: "#334155",
-    marginBottom: 5,
-    lineHeight: 1.4,
+    marginBottom: 2,
+    lineHeight: 1.25,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 7,
+    gap: 8,
+    marginBottom: 4,
   },
   infoLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: "#334155",
   },
   infoValue: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700,
     textAlign: "right",
-    maxWidth: "55%",
+    maxWidth: "57%",
   },
   tableWrap: {
     borderWidth: 1,
     borderColor: "#94a3b8",
-    borderRadius: 12,
+    borderRadius: 0,
     overflow: "hidden",
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#eef2f7",
     borderBottomWidth: 1,
-    borderBottomColor: "#cbd5e1",
-    paddingVertical: 9,
+    borderBottomColor: "#94a3b8",
+    paddingVertical: 6,
     paddingHorizontal: 10,
   },
   mainRow: {
     flexDirection: "row",
-    paddingVertical: 10,
+    paddingVertical: 7,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
@@ -349,119 +369,119 @@ const styles = StyleSheet.create({
   descRow: {
     flexDirection: "row",
     paddingTop: 0,
-    paddingBottom: 9,
+    paddingBottom: 6,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
-    backgroundColor: "#fcfcfc",
+    backgroundColor: "#ffffff",
   },
   emptyRow: {
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 10,
   },
   codeCell: {
-    width: "17%",
-    paddingRight: 8,
+    width: "19%",
+    paddingRight: 6,
   },
   nameCell: {
-    width: "35%",
-    paddingRight: 8,
+    width: "33%",
+    paddingRight: 6,
   },
   qtyCell: {
-    width: "10%",
-    paddingRight: 8,
+    width: "9%",
+    paddingRight: 6,
     textAlign: "center",
   },
   unitCell: {
-    width: "10%",
-    paddingRight: 8,
+    width: "8%",
+    paddingRight: 6,
     textAlign: "center",
   },
   priceCell: {
-    width: "14%",
-    paddingRight: 8,
+    width: "15.5%",
+    paddingRight: 6,
     textAlign: "right",
   },
   totalCell: {
-    width: "14%",
+    width: "15.5%",
     textAlign: "right",
   },
   tableHeaderText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: 700,
     color: "#334155",
   },
   tableText: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     color: "#0f172a",
-    lineHeight: 1.35,
+    lineHeight: 1.2,
   },
   descText: {
-    fontSize: 9.5,
+    fontSize: 8.8,
     color: "#64748b",
-    lineHeight: 1.35,
+    lineHeight: 1.2,
   },
   pageSubtotalWrap: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    gap: 16,
-    paddingTop: 8,
-    paddingRight: 12,
-    marginBottom: 10,
+    gap: 14,
+    paddingTop: 5,
+    paddingRight: 10,
+    marginBottom: 6,
   },
   pageSubtotalLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: "#475569",
     fontWeight: 700,
   },
   pageSubtotalValue: {
-    fontSize: 10,
+    fontSize: 9,
     color: "#0f172a",
     fontWeight: 700,
-    minWidth: 100,
+    minWidth: 90,
     textAlign: "right",
   },
   notesTotals: {
     flexDirection: "row",
-    gap: 18,
-    marginTop: 6,
+    gap: 14,
+    marginTop: 2,
   },
   notesWrap: {
-    width: "58%",
+    width: "60%",
     borderWidth: 1,
     borderColor: "#94a3b8",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#fafafa",
+    borderRadius: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#ffffff",
   },
   notesBody: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     color: "#334155",
-    lineHeight: 1.5,
-    marginBottom: 4,
+    lineHeight: 1.3,
+    marginBottom: 2,
   },
   totalsWrap: {
-    width: "42%",
+    width: "40%",
     borderWidth: 1,
     borderColor: "#94a3b8",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#fafafa",
+    borderRadius: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#ffffff",
   },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 5,
   },
   totalLabel: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     color: "#475569",
   },
   totalValue: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     fontWeight: 700,
   },
   grandRow: {
@@ -469,27 +489,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: "#cbd5e1",
-    marginTop: 6,
-    paddingTop: 10,
+    borderTopColor: "#94a3b8",
+    marginTop: 4,
+    paddingTop: 7,
   },
   grandLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 700,
   },
   grandValue: {
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: 700,
   },
   footer: {
     position: "absolute",
-    left: 34,
-    right: 34,
-    bottom: 18,
+    left: 28,
+    right: 28,
+    bottom: 16,
     borderTopWidth: 1,
-    borderTopColor: "#cbd5e1",
-    paddingTop: 8,
-    fontSize: 9,
+    borderTopColor: "#94a3b8",
+    paddingTop: 6,
+    fontSize: 8.5,
     color: "#64748b",
   },
 });
@@ -508,21 +528,21 @@ export default function OfferPdfDocument({
   const currency = normalizeCurrency(offer.currency_code);
   const rawNotes = offer.notes?.trim() || TR.defaultNotes;
   const noteLines = rawNotes.split("\n");
-  const salesRepLine = noteLines.find((line) => line.startsWith("Satış Temsilcisi:")) ?? "";
-  const salesRepEmailLine = noteLines.find((line) => line.startsWith("E-mail:")) ?? "";
-  const salesRepPhoneLine = noteLines.find((line) => line.startsWith("Telefon:")) ?? "";
+  const salesRepValue = extractTaggedNoteValue(noteLines, SALES_REP_TAGS);
+  const salesRepEmailValue = extractTaggedNoteValue(noteLines, EMAIL_TAGS);
+  const salesRepPhoneValue = extractTaggedNoteValue(noteLines, PHONE_TAGS);
   const notes = noteLines
     .filter(
       (line) =>
-        !line.startsWith("Satış Temsilcisi:") &&
-        !line.startsWith("E-mail:") &&
-        !line.startsWith("Telefon:")
+        !isTaggedNoteLine(line, SALES_REP_TAGS) &&
+        !isTaggedNoteLine(line, EMAIL_TAGS) &&
+        !isTaggedNoteLine(line, PHONE_TAGS)
     )
     .join("\n")
     .trim() || TR.defaultNotes;
-  const salesRep = salesRepLine.replace("Satış Temsilcisi:", "").trim() || "-";
-  const salesRepEmail = salesRepEmailLine.replace("E-mail:", "").trim() || "-";
-  const salesRepPhone = salesRepPhoneLine.replace("Telefon:", "").trim() || "-";
+  const salesRep = salesRepValue || "-";
+  const salesRepEmail = salesRepEmailValue || "-";
+  const salesRepPhone = salesRepPhoneValue || "-";
   const companyName = settings?.company_name?.trim() || "noxo";
   const pages = paginateItems(items);
 
@@ -582,7 +602,7 @@ export default function OfferPdfDocument({
                       <Text style={styles.infoValue}>{offer.currency_code ?? "TRY"}</Text>
                     </View>
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Satış Temsilcisi</Text>
+                      <Text style={styles.infoLabel}>Satis Temsilcisi</Text>
                       <Text style={styles.infoValue}>{salesRep}</Text>
                     </View>
                     <View style={styles.infoRow}>
