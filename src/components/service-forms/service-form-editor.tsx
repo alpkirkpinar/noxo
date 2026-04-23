@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -912,7 +912,7 @@ export default function ServiceFormEditor({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">{pageTitle}</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">{pageTitle}</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

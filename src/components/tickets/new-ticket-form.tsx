@@ -48,6 +48,7 @@ export default function NewTicketForm({
   canCreate = true,
 }: Props) {
   const router = useRouter();
+  const labelClassName = "text-sm font-medium text-slate-700";
 
   const [customerId, setCustomerId] = useState("");
   const [machineId, setMachineId] = useState("");
@@ -123,7 +124,7 @@ export default function NewTicketForm({
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Müşteri</label>
+            <label className={labelClassName}>Müşteri</label>
             <select
               value={customerId}
               onChange={(e) => {
@@ -143,7 +144,7 @@ export default function NewTicketForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Makine</label>
+            <label className={labelClassName}>Makine</label>
             <select
               value={machineId}
               onChange={(e) => setMachineId(e.target.value)}
@@ -162,7 +163,7 @@ export default function NewTicketForm({
 
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Başlık</label>
+            <label className={labelClassName}>Başlık</label>
             <input
               type="text"
               value={title}
@@ -174,7 +175,7 @@ export default function NewTicketForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Öncelik</label>
+            <label className={labelClassName}>Öncelik</label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as TicketPriority)}
@@ -189,7 +190,7 @@ export default function NewTicketForm({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Atanan Kullanıcı</label>
+          <label className={labelClassName}>Atanan Kullanıcı</label>
           <select
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
@@ -205,7 +206,7 @@ export default function NewTicketForm({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Açıklama</label>
+          <label className={labelClassName}>Açıklama</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}

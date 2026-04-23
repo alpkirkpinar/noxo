@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,6 +34,7 @@ export default function CustomerForm({
   canSubmit = true,
 }: Props) {
   const router = useRouter();
+  const labelClassName = "text-sm font-medium text-slate-700";
 
   const [companyName, setCompanyName] = useState(initialValues?.company_name ?? "");
   const [contactName, setContactName] = useState(initialValues?.contact_name ?? "");
@@ -108,7 +109,7 @@ export default function CustomerForm({
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Firma Adı</label>
+            <label className={labelClassName}>Firma Adı</label>
             <input
               type="text"
               value={companyName}
@@ -120,7 +121,7 @@ export default function CustomerForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">İlgili Kişi</label>
+            <label className={labelClassName}>İlgili Kişi</label>
             <input
               type="text"
               value={contactName}
@@ -133,7 +134,7 @@ export default function CustomerForm({
 
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Telefon</label>
+            <label className={labelClassName}>Telefon</label>
             <input
               type="text"
               value={phone}
@@ -143,7 +144,7 @@ export default function CustomerForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">E-posta</label>
+            <label className={labelClassName}>E-posta</label>
             <input
               type="email"
               value={email}
@@ -153,7 +154,7 @@ export default function CustomerForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Vergi Dairesi</label>
+            <label className={labelClassName}>Vergi Dairesi</label>
             <input
               type="text"
               value={taxOffice}
@@ -163,7 +164,7 @@ export default function CustomerForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Vergi No</label>
+            <label className={labelClassName}>Vergi No</label>
             <input
               type="text"
               value={taxNumber}
@@ -175,7 +176,7 @@ export default function CustomerForm({
 
         <div className="grid gap-5 md:grid-cols-3">
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium">Adres</label>
+            <label className={labelClassName}>Adres</label>
             <input
               type="text"
               value={address}
@@ -186,7 +187,7 @@ export default function CustomerForm({
 
           <div className="grid gap-5 md:grid-cols-2 md:col-span-1">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Şehir</label>
+              <label className={labelClassName}>Şehir</label>
               <input
                 type="text"
                 value={city}
@@ -196,7 +197,7 @@ export default function CustomerForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ülke</label>
+              <label className={labelClassName}>Ülke</label>
               <input
                 type="text"
                 value={country}
@@ -208,7 +209,7 @@ export default function CustomerForm({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Notlar</label>
+          <label className={labelClassName}>Notlar</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -216,7 +217,7 @@ export default function CustomerForm({
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
             checked={isActive}

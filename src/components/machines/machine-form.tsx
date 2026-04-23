@@ -256,7 +256,7 @@ export default function MachineForm({
       </div>
 
       <div className="mt-5 flex items-center justify-end gap-2">
-        <Link href="/dashboard/machines" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium">
+        <Link href="/dashboard/machines" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700">
           Vazgeç
         </Link>
 
