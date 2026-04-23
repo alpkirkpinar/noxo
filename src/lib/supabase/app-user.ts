@@ -27,7 +27,7 @@ export async function getCurrentAppUser<T extends AppUserShape = AppUserShape>(
     .maybeSingle();
 
   if (byAuthUser.data) {
-    return { supabase, user, appUser: byAuthUser.data as T };
+    return { supabase, user, appUser: byAuthUser.data as unknown as T };
   }
 
   const email = String(user.email ?? "").trim().toLowerCase();
@@ -42,5 +42,5 @@ export async function getCurrentAppUser<T extends AppUserShape = AppUserShape>(
     .ilike("email", email)
     .maybeSingle();
 
-  return { supabase, user, appUser: (byEmail.data as T | null) ?? null };
+  return { supabase, user, appUser: (byEmail.data as unknown as T | null) ?? null };
 }
