@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { NoxoMark } from "@/components/noxo-mark";
 import { createClient } from "@/lib/supabase/client";
 
 const LOGIN_BACKGROUND_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/public-assets/login/noxo-login-bg.jpg`;
@@ -43,18 +43,8 @@ export default function LoginPage() {
     >
       <div className="absolute inset-0 bg-slate-950/35" />
       <div className="relative w-full max-w-md rounded-[28px] border border-white/25 bg-white/90 p-8 shadow-2xl ring-1 ring-white/20 backdrop-blur-md">
-        <div className="mb-8 flex items-center justify-center gap-5">
-          <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-[28px] border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-slate-900/5">
-            <Image
-              src="/noxo-logo-refined.png"
-              alt="noxo"
-              width={112}
-              height={112}
-              priority
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <h1 className="text-5xl font-black tracking-tight text-slate-950">noxo</h1>
+        <div className="mb-8 flex items-center justify-center">
+          <NoxoMark className="h-32 w-32 drop-shadow-xl" />
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
