@@ -1,5 +1,6 @@
 "use client"
 
+import { animate } from "animejs"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
@@ -207,6 +208,8 @@ export default function Sidebar({
 }) {
   const pathname = usePathname()
   const mobileNavRef = useRef<HTMLDivElement | null>(null)
+  const mobileHintOuterRef = useRef<HTMLSpanElement | null>(null)
+  const mobileHintInnerRef = useRef<HTMLSpanElement | null>(null)
   const [showMobileScrollHint, setShowMobileScrollHint] = useState(false)
   const identity: PermissionIdentity = {
     permissions,
@@ -261,6 +264,42 @@ export default function Sidebar({
       window.removeEventListener("resize", updateScrollHint)
     }
   }, [mobileNavItems.length])
+
+  useEffect(() => {
+    const outer = mobileHintOuterRef.current
+    const inner = mobileHintInnerRef.current
+
+    if (!showMobileScrollHint || !outer || !inner) return
+
+    const mediaQuery =
+      typeof window !== "undefined"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : null
+
+    if (mediaQuery?.matches) return
+
+    const outerAnimation = animate(outer, {
+      translateX: [0, -3, 0],
+      scaleY: [1, 0.97, 1],
+      ease: "inOutSine",
+      duration: 1800,
+      loop: true,
+    })
+
+    const innerAnimation = animate(inner, {
+      translateX: [0, -5, 0],
+      scaleX: [1, 0.92, 1],
+      opacity: [0.88, 1, 0.88],
+      ease: "inOutSine",
+      duration: 1800,
+      loop: true,
+    })
+
+    return () => {
+      outerAnimation.pause()
+      innerAnimation.pause()
+    }
+  }, [showMobileScrollHint])
 
   return (
     <>
@@ -359,9 +398,15 @@ export default function Sidebar({
             className="pointer-events-none absolute bottom-2 right-2 top-2 flex w-14 items-stretch justify-end rounded-r-3xl bg-gradient-to-l from-[#1b2746] via-[#1b2746]/92 to-transparent sm:hidden"
             aria-hidden="true"
           >
-            <span className="relative mr-1 block w-9 overflow-hidden rounded-r-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.07)_100%)] shadow-[-8px_0_18px_rgba(15,23,42,0.18)] ring-1 ring-white/12">
+            <span
+              ref={mobileHintOuterRef}
+              className="relative mr-1 block w-9 overflow-hidden rounded-r-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.07)_100%)] shadow-[-8px_0_18px_rgba(15,23,42,0.18)] ring-1 ring-white/12 will-change-transform"
+            >
               <span className="absolute inset-y-[5px] right-[5px] w-5 rounded-r-[18px] bg-[linear-gradient(180deg,rgba(255,255,255,0.3)_0%,rgba(255,255,255,0.12)_100%)] opacity-90" />
-              <span className="absolute inset-y-[9px] right-[12px] w-3 rounded-r-[14px] bg-[linear-gradient(180deg,#3d527f_0%,#24365f_100%)] shadow-[-4px_0_10px_rgba(15,23,42,0.18)]" />
+              <span
+                ref={mobileHintInnerRef}
+                className="absolute inset-y-[9px] right-[12px] w-3 rounded-r-[14px] bg-[linear-gradient(180deg,#3d527f_0%,#24365f_100%)] shadow-[-4px_0_10px_rgba(15,23,42,0.18)] will-change-transform"
+              />
             </span>
           </div>
         ) : null}
