@@ -1280,8 +1280,8 @@ export default function OffersPage() {
       ) : null}
 
       {showNewOfferModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="max-h-[90vh] w-full max-w-7xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overflow-x-hidden bg-black/30 p-2 sm:items-center sm:p-4">
+          <div className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-7xl overflow-y-auto overflow-x-hidden rounded-2xl bg-white p-4 shadow-xl sm:my-4 sm:max-h-[90vh] sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">{TR.newOfferTitle}</h2>
@@ -1298,22 +1298,22 @@ export default function OffersPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <label className="text-sm font-medium text-slate-700">{TR.offerNo}</label>
                 <input
                   type="text"
                   value={offerNo}
                   onChange={(e) => setOfferNo(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <label className="text-sm font-medium text-slate-700">{TR.customer}</label>
                 <select
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 >
                   <option value="">{TR.customerSelect}</option>
                   {customers.map((customer) => (
@@ -1324,62 +1324,62 @@ export default function OffersPage() {
                 </select>
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <label className="text-sm font-medium text-slate-700">{TR.offerDate}</label>
                 <input
                   type="date"
                   value={offerDate}
                   onChange={(e) => setOfferDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <label className="text-sm font-medium text-slate-700">{TR.validityDate}</label>
                 <input
                   type="date"
                   value={validUntil}
                   onChange={(e) => setValidUntil(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <label className="text-sm font-medium text-slate-700">Satış Temsilcisi</label>
                 <input
                   type="text"
                   value={salesRep}
                   onChange={(e) => setSalesRep(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <label className="text-sm font-medium text-slate-700">Temsilci E-mail</label>
                 <input
                   type="email"
                   value={salesRepEmail}
                   onChange={(e) => setSalesRepEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <label className="text-sm font-medium text-slate-700">Temsilci Telefon</label>
                 <input
                   type="text"
                   value={salesRepPhone}
                   onChange={(e) => setSalesRepPhone(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 />
               </div>
 
-              <div className="space-y-2 lg:col-span-2">
+              <div className="min-w-0 space-y-2 lg:col-span-2">
                 <label className="text-sm font-medium text-slate-700">{TR.notesLabel}</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="min-h-[140px] w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-h-[140px] min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                 />
               </div>
             </div>
@@ -1572,9 +1572,9 @@ export default function OffersPage() {
       ) : null}
 
       {showNewPartModal ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 p-2 sm:items-center sm:p-4">
+          <div className="my-2 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)]">
+            <div className="mb-5 flex items-start justify-between gap-4 px-4 pt-4 sm:px-6 sm:pt-6">
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">{TR.newPartTitle}</h2>
                 <p className="mt-1 text-sm text-slate-500">{TR.newPartDesc}</p>
@@ -1589,6 +1589,7 @@ export default function OffersPage() {
               </button>
             </div>
 
+            <div className="overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">{TR.itemCode}</label>
@@ -1693,6 +1694,7 @@ export default function OffersPage() {
               >
                 {saving ? TR.saving : TR.addPartToStock}
               </button>
+            </div>
             </div>
           </div>
         </div>
