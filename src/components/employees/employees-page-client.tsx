@@ -24,21 +24,21 @@ export default function EmployeesPageClient() {
         } = await supabase.auth.getUser()
 
         if (!user) {
-          throw new Error("Kullanici bulunamadi.")
+          throw new Error("Kullanıcı bulunamadı.")
         }
 
         const response = await fetch("/api/employees", { cache: "no-store" })
         const data = await response.json().catch(() => ({}))
 
         if (!response.ok) {
-          throw new Error(data?.error || "Calisanlar alinamadi.")
+          throw new Error(data?.error || "Çalışanlar alınamadı.")
         }
 
         if (!active) return
         setEmployees(Array.isArray(data.employees) ? data.employees : [])
       } catch (error: unknown) {
         if (!active) return
-        setErrorText(error instanceof Error ? error.message : "Calisanlar alinamadi.")
+        setErrorText(error instanceof Error ? error.message : "Çalışanlar alınamadı.")
       } finally {
         if (active) setLoading(false)
       }
@@ -60,8 +60,8 @@ export default function EmployeesPageClient() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Calisanlar</h1>
-          <p className="mt-1 text-sm text-slate-500">Calisan bilgileri, giris hesaplari ve yetkileri</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Çalışanlar</h1>
+          <p className="mt-1 text-sm text-slate-500">Çalışan bilgileri, giriş hesapları ve yetkileri</p>
         </div>
         <ListLoadingPanel message="Çalışanlar yükleniyor..." />
       </div>
@@ -71,8 +71,8 @@ export default function EmployeesPageClient() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Calisanlar</h1>
-        <p className="mt-1 text-sm text-slate-500">Calisan bilgileri, giris hesaplari ve yetkileri</p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Çalışanlar</h1>
+        <p className="mt-1 text-sm text-slate-500">Çalışan bilgileri, giriş hesapları ve yetkileri</p>
       </div>
       <EmployeeCards employees={employees} />
     </div>

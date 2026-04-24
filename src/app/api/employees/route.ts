@@ -55,6 +55,8 @@ export async function GET() {
       )
     }
 
+    const admin = createAdminClient()
+
     const { data: employees, error: employeesError } = await supabase
       .from("app_users")
       .select("id, auth_user_id, full_name, email, phone, title")
@@ -65,7 +67,42 @@ export async function GET() {
       return NextResponse.json({ error: employeesError.message }, { status: 500 })
     }
 
-    return NextResponse.json({ employees: employees ?? [] })
+    const employeesWithPermissions = await Promise.all(
+      (employees ?? []).map(async (employee) => {
+        const authUserId = String(employee.auth_user_id ?? "").trim()
+
+        if (!isUuid(authUserId)) {
+          return {
+            ...employee,
+            permissions: [],
+            is_super_user: false,
+          }
+        }
+
+        const { data: authUserData, error: authUserError } =
+          await admin.auth.admin.getUserById(authUserId)
+
+        if (authUserError || !authUserData.user) {
+          return {
+            ...employee,
+            permissions: [],
+            is_super_user: false,
+          }
+        }
+
+        const appMetadata = authUserData.user.app_metadata ?? {}
+
+        return {
+          ...employee,
+          permissions: Array.isArray(appMetadata.permissions)
+            ? appMetadata.permissions.map(String)
+            : [],
+          is_super_user: appMetadata.super_user === true,
+        }
+      })
+    )
+
+    return NextResponse.json({ employees: employeesWithPermissions })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Calisanlar alinamadi."
     return NextResponse.json({ error: message }, { status: 500 })
@@ -232,4 +269,10 @@ async function generateUniqueUsername(
   }
 
   return `${base}${Date.now()}`
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value
+  )
 }

@@ -54,7 +54,7 @@ export const APP_MODULES = [
   { key: "customers", label: "Musteriler" },
   { key: "machines", label: "Makineler" },
   { key: "inventory", label: "Depo" },
-  { key: "employees", label: "Calisanlar" },
+  { key: "employees", label: "Çalışanlar" },
   { key: "formTemplates", label: "Form Sablonlari" },
   { key: "settings", label: "Sistem Ayarlari" },
 ] as const
