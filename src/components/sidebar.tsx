@@ -1,6 +1,5 @@
 "use client"
 
-import { animate } from "animejs"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
@@ -208,8 +207,7 @@ export default function Sidebar({
 }) {
   const pathname = usePathname()
   const mobileNavRef = useRef<HTMLDivElement | null>(null)
-  const mobileHintOuterRef = useRef<HTMLSpanElement | null>(null)
-  const mobileHintInnerRef = useRef<HTMLSpanElement | null>(null)
+  const mobileItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({})
   const [showMobileScrollHint, setShowMobileScrollHint] = useState(false)
   const identity: PermissionIdentity = {
     permissions,
@@ -250,9 +248,32 @@ export default function Sidebar({
     const nav = mobileNavRef.current
     if (!nav) return
 
+    const applyRollEffect = () => {
+      const navRect = nav.getBoundingClientRect()
+      const rollStart = navRect.right - 44
+      const rollSpan = 44
+
+      mobileNavItems.forEach((item) => {
+        const element = mobileItemRefs.current[item.href ?? ""]
+        if (!element) return
+
+        const rect = element.getBoundingClientRect()
+        const itemCenter = rect.left + rect.width / 2
+        const progress = Math.max(0, Math.min(1, (itemCenter - rollStart) / rollSpan))
+
+        element.style.transformOrigin = "right center"
+        element.style.transform = `perspective(420px) translateX(${progress * 2.5}px) rotateY(${
+          progress * -58
+        }deg) skewY(${progress * -5}deg) scaleX(${1 - progress * 0.22}) scaleY(${1 - progress * 0.05})`
+        element.style.opacity = String(1 - progress * 0.28)
+        element.style.filter = progress > 0 ? `saturate(${1 - progress * 0.2})` : ""
+      })
+    }
+
     const updateScrollHint = () => {
       const maxScrollLeft = nav.scrollWidth - nav.clientWidth
       setShowMobileScrollHint(maxScrollLeft > 4 && nav.scrollLeft < maxScrollLeft - 4)
+      applyRollEffect()
     }
 
     updateScrollHint()
@@ -263,43 +284,7 @@ export default function Sidebar({
       nav.removeEventListener("scroll", updateScrollHint)
       window.removeEventListener("resize", updateScrollHint)
     }
-  }, [mobileNavItems.length])
-
-  useEffect(() => {
-    const outer = mobileHintOuterRef.current
-    const inner = mobileHintInnerRef.current
-
-    if (!showMobileScrollHint || !outer || !inner) return
-
-    const mediaQuery =
-      typeof window !== "undefined"
-        ? window.matchMedia("(prefers-reduced-motion: reduce)")
-        : null
-
-    if (mediaQuery?.matches) return
-
-    const outerAnimation = animate(outer, {
-      translateX: [0, -3, 0],
-      scaleY: [1, 0.97, 1],
-      ease: "inOutSine",
-      duration: 1800,
-      loop: true,
-    })
-
-    const innerAnimation = animate(inner, {
-      translateX: [0, -5, 0],
-      scaleX: [1, 0.92, 1],
-      opacity: [0.88, 1, 0.88],
-      ease: "inOutSine",
-      duration: 1800,
-      loop: true,
-    })
-
-    return () => {
-      outerAnimation.pause()
-      innerAnimation.pause()
-    }
-  }, [showMobileScrollHint])
+  }, [mobileNavItems])
 
   return (
     <>
@@ -382,9 +367,13 @@ export default function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                ref={(element) => {
+                  mobileItemRefs.current[item.href] = element
+                }}
                 className={`flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-2xl px-2 py-2 transition sm:min-w-0 sm:flex-1 sm:shrink ${
                   active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
+                style={{ willChange: "transform, opacity, filter" }}
               >
                 <MenuIcon icon={item.icon} active={active} />
                 <span className="max-w-[72px] truncate text-[11px] font-semibold">{item.title}</span>
@@ -395,20 +384,9 @@ export default function Sidebar({
 
         {showMobileScrollHint ? (
           <div
-            className="pointer-events-none absolute bottom-2 right-2 top-2 flex w-14 items-stretch justify-end rounded-r-3xl bg-gradient-to-l from-[#1b2746] via-[#1b2746]/92 to-transparent sm:hidden"
+            className="pointer-events-none absolute inset-y-1 right-0 w-9 rounded-r-3xl bg-[linear-gradient(90deg,rgba(27,39,70,0)_0%,rgba(27,39,70,0.72)_45%,rgba(27,39,70,0.98)_100%)] shadow-[-10px_0_22px_rgba(15,23,42,0.22)] sm:hidden"
             aria-hidden="true"
-          >
-            <span
-              ref={mobileHintOuterRef}
-              className="relative mr-1 block w-9 overflow-hidden rounded-r-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.07)_100%)] shadow-[-8px_0_18px_rgba(15,23,42,0.18)] ring-1 ring-white/12 will-change-transform"
-            >
-              <span className="absolute inset-y-[5px] right-[5px] w-5 rounded-r-[18px] bg-[linear-gradient(180deg,rgba(255,255,255,0.3)_0%,rgba(255,255,255,0.12)_100%)] opacity-90" />
-              <span
-                ref={mobileHintInnerRef}
-                className="absolute inset-y-[9px] right-[12px] w-3 rounded-r-[14px] bg-[linear-gradient(180deg,#3d527f_0%,#24365f_100%)] shadow-[-4px_0_10px_rgba(15,23,42,0.18)] will-change-transform"
-              />
-            </span>
-          </div>
+          />
         ) : null}
       </nav>
     </>
