@@ -73,6 +73,12 @@ type OfferListRow = {
   created_at?: string | null;
 };
 
+type SalesRepDefaults = {
+  fullName: string;
+  email: string;
+  phone: string;
+};
+
 type NewPartFormState = {
   item_code: string;
   item_name: string;
@@ -320,6 +326,11 @@ export default function OffersPage() {
   const [salesRep, setSalesRep] = useState("");
   const [salesRepEmail, setSalesRepEmail] = useState("");
   const [salesRepPhone, setSalesRepPhone] = useState("");
+  const [salesRepDefaults, setSalesRepDefaults] = useState<SalesRepDefaults>({
+    fullName: "",
+    email: "",
+    phone: "",
+  });
   const [notes, setNotes] = useState(DEFAULT_NOTES);
   const [rows, setRows] = useState<OfferRow[]>([emptyOfferRow()]);
 
@@ -396,7 +407,7 @@ export default function OffersPage() {
 
     const { data: appUser, error: appUserError } = await supabase
       .from("app_users")
-      .select("company_id")
+      .select("company_id, full_name, email, phone")
       .eq("auth_user_id", user.id)
       .single();
 
@@ -408,6 +419,11 @@ export default function OffersPage() {
 
     const resolvedCompanyId = appUser.company_id;
     setCompanyId(resolvedCompanyId);
+    setSalesRepDefaults({
+      fullName: String(appUser.full_name ?? "").trim(),
+      email: String(appUser.email ?? user.email ?? "").trim(),
+      phone: String(appUser.phone ?? "").trim(),
+    });
 
     const [
       { data: inventoryData, error: inventoryError },
@@ -519,9 +535,9 @@ export default function OffersPage() {
     date.setDate(date.getDate() + 14);
     setValidUntil(date.toISOString().slice(0, 10));
 
-    setSalesRep("");
-    setSalesRepEmail("");
-    setSalesRepPhone("");
+    setSalesRep(salesRepDefaults.fullName);
+    setSalesRepEmail(salesRepDefaults.email);
+    setSalesRepPhone(salesRepDefaults.phone);
     setNotes(DEFAULT_NOTES);
     const prefillRows = (() => {
       if (typeof window === "undefined") return null;
