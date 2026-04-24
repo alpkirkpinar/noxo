@@ -356,21 +356,12 @@ export default function Sidebar({
 
         {showMobileScrollHint ? (
           <div
-            className="pointer-events-none absolute bottom-2 right-2 top-2 flex w-12 items-center justify-end rounded-r-3xl bg-gradient-to-l from-[#1b2746] via-[#1b2746]/90 to-transparent pr-1 sm:hidden"
+            className="pointer-events-none absolute bottom-2 right-2 top-2 flex w-14 items-stretch justify-end rounded-r-3xl bg-gradient-to-l from-[#1b2746] via-[#1b2746]/92 to-transparent sm:hidden"
             aria-hidden="true"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/12 text-white shadow-sm ring-1 ring-white/15">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M9 6l6 6-6 6" />
-              </svg>
+            <span className="relative mr-1 block w-9 overflow-hidden rounded-r-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.07)_100%)] shadow-[-8px_0_18px_rgba(15,23,42,0.18)] ring-1 ring-white/12">
+              <span className="absolute inset-y-[5px] right-[5px] w-5 rounded-r-[18px] bg-[linear-gradient(180deg,rgba(255,255,255,0.3)_0%,rgba(255,255,255,0.12)_100%)] opacity-90" />
+              <span className="absolute inset-y-[9px] right-[12px] w-3 rounded-r-[14px] bg-[linear-gradient(180deg,#3d527f_0%,#24365f_100%)] shadow-[-4px_0_10px_rgba(15,23,42,0.18)]" />
             </span>
           </div>
         ) : null}
