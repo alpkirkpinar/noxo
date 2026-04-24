@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import MachineForm from "@/components/machines/machine-form";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
@@ -37,6 +38,12 @@ type Props = {
     canEdit: boolean;
     canDelete: boolean;
   };
+  companyId: string;
+  customers: Array<{
+    id: string;
+    company_name: string;
+    customer_code?: string | null;
+  }>;
 };
 
 type ContextMenuState = {
@@ -224,14 +231,8 @@ function MaintenanceDueIndicator({ machine, fullWidth = false }: { machine: Mach
   );
 }
 
-export default function MachinesListClient({ initialMachines, permissions }: Props) {
+export default function MachinesListClient({ initialMachines, permissions, companyId, customers }: Props) {
   const router = useRouter();
-  const contextMenuRef = useRef<HTMLDivElement | null>(null);
-  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((machineId, x, y) => {
-    setContextMenu({ x, y, machineId });
-  });
-  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
-
   const [rows, setRows] = useState(initialMachines);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -242,6 +243,12 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((machineId, x, y) => {
+    setContextMenu({ x, y, machineId });
+  });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   useEffect(() => {
     setRows(initialMachines);
@@ -468,7 +475,7 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
             {permissions.canCreate ? (
               <button
                 type="button"
-                onClick={() => router.push("/dashboard/machines/new")}
+                onClick={() => setShowCreateModal(true)}
                 className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
               >
                 Yeni
@@ -653,6 +660,35 @@ export default function MachinesListClient({ initialMachines, permissions }: Pro
               Sil
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-950/35 p-2 sm:p-4">
+          <div className="my-4 w-full max-w-5xl rounded-2xl bg-white p-4 shadow-xl dark:bg-slate-900 sm:p-6">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Yeni Makine</h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Yeni makine kaydı oluşturun</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                ×
+              </button>
+            </div>
+
+            <MachineForm
+              companyId={companyId}
+              customers={customers}
+              mode="create"
+              hideCard
+              onCancel={() => setShowCreateModal(false)}
+            />
+          </div>
         </div>
       ) : null}
     </div>

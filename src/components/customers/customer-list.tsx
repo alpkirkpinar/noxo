@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import CustomerForm from "@/components/customers/customer-form";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
@@ -27,6 +27,8 @@ type Props = {
     canEdit: boolean;
     canDelete: boolean;
   };
+  companyId: string;
+  appUserId: string;
 };
 
 type SortKey =
@@ -72,14 +74,8 @@ function sortIndicator(active: boolean, direction: SortDirection) {
   return direction === "asc" ? " ↑" : " ↓";
 }
 
-export default function CustomerList({ customers, permissions }: Props) {
+export default function CustomerList({ customers, permissions, companyId, appUserId }: Props) {
   const router = useRouter();
-  const contextMenuRef = useRef<HTMLDivElement | null>(null);
-  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((customerId, x, y) => {
-    setContextMenu({ x, y, customerId });
-  });
-  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
-
   const [search, setSearch] = useState("");
   const [localCustomers, setLocalCustomers] = useState(customers);
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
@@ -87,6 +83,12 @@ export default function CustomerList({ customers, permissions }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((customerId, x, y) => {
+    setContextMenu({ x, y, customerId });
+  });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   useEffect(() => {
     setLocalCustomers(customers);
@@ -228,12 +230,13 @@ export default function CustomerList({ customers, permissions }: Props) {
               <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{localCustomers.length}</div>
           </div>
           {permissions.canCreate ? (
-            <Link
-              href="/dashboard/customers/new"
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
               className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
             >
               Yeni
-            </Link>
+            </button>
           ) : null}
           </div>
       </CompactFilterActionBar>
@@ -417,6 +420,35 @@ export default function CustomerList({ customers, permissions }: Props) {
               Sil
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-950/35 p-2 sm:p-4">
+          <div className="my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-xl dark:bg-slate-900 sm:p-6">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Yeni Müşteri</h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Yeni müşteri kaydı oluşturun</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                ×
+              </button>
+            </div>
+
+            <CustomerForm
+              companyId={companyId}
+              createdBy={appUserId}
+              mode="create"
+              hideCard
+              onCancel={() => setShowCreateModal(false)}
+            />
+          </div>
         </div>
       ) : null}
     </div>

@@ -19,9 +19,22 @@ type MachineListItem = {
   status: string | null
 }
 
+type CustomerOption = {
+  id: string
+  company_name: string
+  customer_code: string | null
+}
+
+type AppUserMeta = {
+  companyId: string
+  appUserId: string
+}
+
 export default function MachinesPageClient() {
   const supabase = createClient()
   const [machines, setMachines] = useState<MachineListItem[]>([])
+  const [customers, setCustomers] = useState<CustomerOption[]>([])
+  const [appUserMeta, setAppUserMeta] = useState<AppUserMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorText, setErrorText] = useState("")
   const [permissions, setPermissions] = useState({
@@ -61,15 +74,50 @@ export default function MachinesPageClient() {
           canDelete: hasPermission(identity, PERMISSIONS.machineDelete),
         })
 
-        const response = await fetch("/api/machines", { cache: "no-store" })
-        const data = await response.json().catch(() => ({}))
+        const { data: appUser, error: appUserError } = await supabase
+          .from("app_users")
+          .select("id, company_id")
+          .eq("auth_user_id", user.id)
+          .single()
 
-        if (!response.ok) {
-          throw new Error(data?.error || "Makineler alinamadi.")
+        if (appUserError || !appUser?.company_id || !appUser?.id) {
+          throw new Error(appUserError?.message || "Uygulama kullanicisi bulunamadi.")
         }
 
         if (!active) return
-        setMachines(Array.isArray(data.machines) ? data.machines : [])
+        setAppUserMeta({
+          companyId: String(appUser.company_id),
+          appUserId: String(appUser.id),
+        })
+
+        const [machinesResponse, customersResponse] = await Promise.all([
+          fetch("/api/machines", { cache: "no-store" }),
+          fetch("/api/customers", { cache: "no-store" }),
+        ])
+        const machinesData = await machinesResponse.json().catch(() => ({}))
+        const customersData = await customersResponse.json().catch(() => ({}))
+
+        if (!machinesResponse.ok) {
+          throw new Error(machinesData?.error || "Makineler alinamadi.")
+        }
+
+        if (!customersResponse.ok) {
+          throw new Error(customersData?.error || "Musteriler alinamadi.")
+        }
+
+        if (!active) return
+        setMachines(Array.isArray(machinesData.machines) ? machinesData.machines : [])
+        setCustomers(
+          Array.isArray(customersData.customers)
+            ? customersData.customers
+                .filter((customer: { is_active?: boolean }) => customer.is_active !== false)
+                .map((customer: CustomerOption) => ({
+                  id: customer.id,
+                  company_name: customer.company_name,
+                  customer_code: customer.customer_code ?? null,
+                }))
+            : []
+        )
       } catch (error: unknown) {
         if (!active) return
         setErrorText(error instanceof Error ? error.message : "Makineler alinamadi.")
@@ -94,5 +142,12 @@ export default function MachinesPageClient() {
     return <ListLoadingPanel message="Makineler yükleniyor..." />
   }
 
-  return <MachinesListClient initialMachines={machines} permissions={permissions} />
+  return (
+    <MachinesListClient
+      initialMachines={machines}
+      permissions={permissions}
+      companyId={appUserMeta?.companyId ?? ""}
+      customers={customers}
+    />
+  )
 }

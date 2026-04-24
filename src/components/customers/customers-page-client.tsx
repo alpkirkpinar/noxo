@@ -19,9 +19,15 @@ type Customer = {
   machine_count: number
 }
 
+type AppUserMeta = {
+  companyId: string
+  appUserId: string
+}
+
 export default function CustomersPageClient() {
   const supabase = createClient()
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [appUserMeta, setAppUserMeta] = useState<AppUserMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorText, setErrorText] = useState("")
   const [permissions, setPermissions] = useState({
@@ -61,6 +67,22 @@ export default function CustomersPageClient() {
           canDelete: hasPermission(identity, PERMISSIONS.customerDelete),
         })
 
+        const { data: appUser, error: appUserError } = await supabase
+          .from("app_users")
+          .select("id, company_id")
+          .eq("auth_user_id", user.id)
+          .single()
+
+        if (appUserError || !appUser?.company_id || !appUser?.id) {
+          throw new Error(appUserError?.message || "Uygulama kullanicisi bulunamadi.")
+        }
+
+        if (!active) return
+        setAppUserMeta({
+          companyId: String(appUser.company_id),
+          appUserId: String(appUser.id),
+        })
+
         const response = await fetch("/api/customers", { cache: "no-store" })
         const data = await response.json().catch(() => ({}))
 
@@ -94,5 +116,12 @@ export default function CustomersPageClient() {
     return <ListLoadingPanel message="Müşteriler yükleniyor..." />
   }
 
-  return <CustomerList customers={customers} permissions={permissions} />
+  return (
+    <CustomerList
+      customers={customers}
+      permissions={permissions}
+      companyId={appUserMeta?.companyId ?? ""}
+      appUserId={appUserMeta?.appUserId ?? ""}
+    />
+  )
 }

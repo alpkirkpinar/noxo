@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 type CustomerItem = {
   id: string;
@@ -35,6 +34,9 @@ type Props = {
   mode?: "create" | "edit";
   initialValues?: MachineInitialValues;
   canSubmit?: boolean;
+  onCancel?: () => void;
+  cancelHref?: string;
+  hideCard?: boolean;
 };
 
 function dateValue(value?: string | null) {
@@ -47,9 +49,15 @@ export default function MachineForm({
   mode = "create",
   initialValues,
   canSubmit = true,
+  onCancel,
+  cancelHref,
+  hideCard = false,
 }: Props) {
   const router = useRouter();
   const isEdit = mode === "edit";
+  const inputClass =
+    "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+  const labelClass = "mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200";
 
   const [machineCode, setMachineCode] = useState(initialValues?.machine_code ?? "");
   const [customerId, setCustomerId] = useState(initialValues?.customer_id ?? "");
@@ -124,14 +132,10 @@ export default function MachineForm({
     router.refresh();
   }
 
-  const inputClass =
-    "w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500";
-  const labelClass = "mb-2 block text-sm font-medium text-slate-700";
-
-  return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  const formContent = (
+    <form onSubmit={handleSubmit} className="space-y-5">
       {errorText ? (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
           {errorText}
         </div>
       ) : null}
@@ -156,12 +160,7 @@ export default function MachineForm({
 
         <div>
           <label className={labelClass}>Makine Adı</label>
-          <input
-            className={inputClass}
-            value={machineName}
-            onChange={(event) => setMachineName(event.target.value)}
-            required
-          />
+          <input className={inputClass} value={machineName} onChange={(event) => setMachineName(event.target.value)} required />
         </div>
 
         <div>
@@ -191,53 +190,27 @@ export default function MachineForm({
 
         <div>
           <label className={labelClass}>Bakım Periyodu (gün)</label>
-          <input
-            className={inputClass}
-            type="number"
-            min="0"
-            value={maintenancePeriodDays}
-            onChange={(event) => setMaintenancePeriodDays(event.target.value)}
-          />
+          <input className={inputClass} type="number" min="0" value={maintenancePeriodDays} onChange={(event) => setMaintenancePeriodDays(event.target.value)} />
         </div>
 
         <div>
           <label className={labelClass}>Kurulum Tarihi</label>
-          <input
-            className={inputClass}
-            type="date"
-            value={installationDate}
-            onChange={(event) => setInstallationDate(event.target.value)}
-          />
+          <input className={inputClass} type="date" value={installationDate} onChange={(event) => setInstallationDate(event.target.value)} />
         </div>
 
         <div>
           <label className={labelClass}>Garanti Bitiş</label>
-          <input
-            className={inputClass}
-            type="date"
-            value={warrantyEndDate}
-            onChange={(event) => setWarrantyEndDate(event.target.value)}
-          />
+          <input className={inputClass} type="date" value={warrantyEndDate} onChange={(event) => setWarrantyEndDate(event.target.value)} />
         </div>
 
         <div>
           <label className={labelClass}>Son Bakım</label>
-          <input
-            className={inputClass}
-            type="date"
-            value={lastMaintenanceDate}
-            onChange={(event) => setLastMaintenanceDate(event.target.value)}
-          />
+          <input className={inputClass} type="date" value={lastMaintenanceDate} onChange={(event) => setLastMaintenanceDate(event.target.value)} />
         </div>
 
         <div>
           <label className={labelClass}>Sonraki Bakım</label>
-          <input
-            className={inputClass}
-            type="date"
-            value={nextMaintenanceDate}
-            onChange={(event) => setNextMaintenanceDate(event.target.value)}
-          />
+          <input className={inputClass} type="date" value={nextMaintenanceDate} onChange={(event) => setNextMaintenanceDate(event.target.value)} />
         </div>
 
         <div className="md:col-span-2">
@@ -247,27 +220,41 @@ export default function MachineForm({
 
         <div className="md:col-span-2">
           <label className={labelClass}>Notlar</label>
-          <textarea
-            className={`${inputClass} min-h-28 resize-y`}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
+          <textarea className={`${inputClass} min-h-28 resize-y`} value={notes} onChange={(event) => setNotes(event.target.value)} />
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-end gap-2">
-        <Link href="/dashboard/machines" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700">
-          Vazgeç
-        </Link>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Vazgeç
+          </button>
+        ) : cancelHref ? (
+          <button
+            type="button"
+            onClick={() => router.push(cancelHref)}
+            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Vazgeç
+          </button>
+        ) : null}
 
         <button
           type="submit"
           disabled={saving || !canSubmit}
-          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
         >
           {saving ? "Kaydediliyor..." : "Kaydet"}
         </button>
       </div>
     </form>
   );
+
+  if (hideCard) return formContent;
+
+  return <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">{formContent}</div>;
 }

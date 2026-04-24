@@ -59,6 +59,7 @@ export default async function NewMachinePage({ searchParams }: PageProps) {
         createdBy={appUser.id}
         customers={(customers ?? []) as CustomerItem[]}
         mode="create"
+        cancelHref="/dashboard/machines"
         initialValues={{
           customer_id: preselectedCustomerId || null,
         }}
