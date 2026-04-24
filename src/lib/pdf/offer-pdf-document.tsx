@@ -1,12 +1,14 @@
 import React from "react";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import {
   Document,
   Font,
   Image,
   Page,
+  StyleSheet,
   Text,
   View,
-  StyleSheet,
 } from "@react-pdf/renderer";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
@@ -23,6 +25,12 @@ export type OfferPdfCustomer = {
 export type OfferPdfSettings = {
   company_name?: string | null;
   logo_url?: string | null;
+};
+
+export type OfferPdfSalesRep = {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
 };
 
 export type OfferPdfOffer = {
@@ -52,43 +60,49 @@ export type OfferPdfItem = {
 
 const TR = {
   offerDocument: "Fiyat Teklifi",
-  customer: "MUSTERI BILGILERI",
-  offerInfo: "TEKLIF BILGILERI",
-  offerNo: "TEKLIF NO",
+  customer: "MÜŞTERİ BİLGİLERİ",
+  offerInfo: "TEKLİF BİLGİLERİ",
+  offerNo: "TEKLİF NO",
   offerDate: "Teklif Tarihi",
-  validUntil: "Gecerlilik",
+  validUntil: "Geçerlilik",
   currency: "Para Birimi",
-  itemCode: "Parca Kodu",
-  itemName: "Parca Adi",
+  itemCode: "Parça Kodu",
+  itemName: "Parça Adı",
   quantity: "Miktar",
   unit: "Birim",
   unitPrice: "Birim Fiyat",
   total: "Tutar",
   notes: "NOTLAR",
   subtotal: "Ara Toplam",
-  discount: "Iskonto",
+  discount: "İskonto",
   tax: "Vergi",
   grandTotal: "Genel Toplam",
-  noItems: "Kalem bulunamadi.",
+  noItems: "Kalem bulunamadı.",
+  salesRep: "Satış Temsilcisi",
   defaultNotes:
-    "- Teklife KDV dahil degildir.\n- Odeme : Sipariste %100\n- Doviz cevriminde odeme tarihindeki TCMB doviz satis kuru esas alinacaktir.\n- Fiyatimiz yatirim tesvik kapsaminda 0 KDV'li faturalama icin gecerli degildir.\n- Aksi belirtilmedikce urun tekliflerimize muhendislik, programlama calismalari dahil degildir.",
+    "KDV dahil değildir.\nÖdeme: Siparişte %100\nDöviz çevriminde ödeme tarihindeki TCMB döviz satış kuru esas alınacaktır.",
 };
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const WINDOWS_CALIBRI = "C:\\Windows\\Fonts\\calibri.ttf";
+const WINDOWS_CALIBRI_BOLD = "C:\\Windows\\Fonts\\calibrib.ttf";
+const LOCAL_ARIAL = path.join(process.cwd(), "public", "fonts", "arial.ttf");
+const LOCAL_ARIAL_BOLD = path.join(process.cwd(), "public", "fonts", "arialbd.ttf");
+const LOCAL_LOGO = path.join(process.cwd(), "public", "noxo-logo.png");
 
-if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL tanimli degil.");
+function pickFontSource(preferred: string, fallback: string) {
+  if (existsSync(preferred)) return preferred;
+  return fallback;
 }
 
 Font.register({
-  family: "CalibriCustom",
+  family: "OfferPdfSans",
   fonts: [
     {
-      src: `${supabaseUrl}/storage/v1/object/public/public-assets/calibri-regular.ttf`,
+      src: pickFontSource(WINDOWS_CALIBRI, LOCAL_ARIAL),
       fontWeight: 400,
     },
     {
-      src: `${supabaseUrl}/storage/v1/object/public/public-assets/calibri-bold.ttf`,
+      src: pickFontSource(WINDOWS_CALIBRI_BOLD, LOCAL_ARIAL_BOLD),
       fontWeight: 700,
     },
   ],
@@ -101,7 +115,7 @@ function normalizeCurrency(value?: string | null): CurrencyCode {
 
 function formatCurrency(value?: number | null, currency: CurrencyCode = "TRY") {
   const safeValue = Number(value ?? 0);
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("tr-TR", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -111,101 +125,12 @@ function formatCurrency(value?: number | null, currency: CurrencyCode = "TRY") {
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
+
   try {
     return new Date(value).toLocaleDateString("tr-TR");
   } catch {
     return value;
   }
-}
-
-function getItemUnits(item: OfferPdfItem) {
-  return item.description?.trim() ? 2 : 1;
-}
-
-function takeItemsByUnits(source: OfferPdfItem[], maxUnits: number) {
-  const pageItems: OfferPdfItem[] = [];
-  let used = 0;
-  let index = 0;
-
-  while (index < source.length) {
-    const item = source[index];
-    const units = getItemUnits(item);
-
-    if (pageItems.length > 0 && used + units > maxUnits) break;
-    if (pageItems.length === 0 && units > maxUnits) {
-      pageItems.push(item);
-      index += 1;
-      break;
-    }
-    if (used + units > maxUnits) break;
-
-    pageItems.push(item);
-    used += units;
-    index += 1;
-  }
-
-  return {
-    pageItems,
-    rest: source.slice(index),
-  };
-}
-
-function paginateItems(items: OfferPdfItem[]) {
-  if (items.length === 0) return [[]];
-
-  const firstPageUnits = 12;
-  const middlePageUnits = 16;
-  const lastPageUnits = 5;
-  const pages: OfferPdfItem[][] = [];
-  let remaining = [...items];
-  let isFirst = true;
-
-  while (remaining.length > 0) {
-    const remainingUnits = remaining.reduce((sum, item) => sum + getItemUnits(item), 0);
-
-    if (isFirst) {
-      if (remainingUnits <= firstPageUnits) {
-        pages.push(remaining);
-        break;
-      }
-
-      if (remainingUnits <= firstPageUnits + lastPageUnits) {
-        const firstTake = takeItemsByUnits(remaining, firstPageUnits);
-        pages.push(firstTake.pageItems);
-        remaining = firstTake.rest;
-        isFirst = false;
-        continue;
-      }
-
-      const firstTake = takeItemsByUnits(remaining, firstPageUnits);
-      pages.push(firstTake.pageItems);
-      remaining = firstTake.rest;
-      isFirst = false;
-      continue;
-    }
-
-    if (remainingUnits <= lastPageUnits) {
-      pages.push(remaining);
-      break;
-    }
-
-    if (remainingUnits <= middlePageUnits + lastPageUnits) {
-      const middleTake = takeItemsByUnits(remaining, middlePageUnits);
-      pages.push(middleTake.pageItems);
-      remaining = middleTake.rest;
-      continue;
-    }
-
-    const middleTake = takeItemsByUnits(remaining, middlePageUnits);
-    pages.push(middleTake.pageItems);
-    remaining = middleTake.rest;
-  }
-
-  return pages.length > 0 ? pages : [[]];
-}
-
-function sumLineTotals(items: OfferPdfItem[]) {
-  return Number(items.reduce((sum, item) => sum + Number(item.line_total ?? 0), 0).toFixed(2));
 }
 
 function extractTaggedNoteValue(lines: string[], tags: string[]) {
@@ -224,347 +149,502 @@ function isTaggedNoteLine(line: string, tags: string[]) {
   return tags.some((tag) => line.startsWith(tag));
 }
 
-const SALES_REP_TAGS = ["Satis Temsilcisi:", "SatÄ±ÅŸ Temsilcisi:", "SatÃ„Â±Ã…Å¸ Temsilcisi:"];
-const EMAIL_TAGS = ["E-mail:", "E-Posta:", "E-posta:"];
+const SALES_REP_TAGS = ["Satış Temsilcisi:", "Satis Temsilcisi:"];
+const EMAIL_TAGS = ["E-mail:", "E-posta:", "E-Posta:"];
 const PHONE_TAGS = ["Telefon:", "Phone:"];
+
+function getItemUnits(item: OfferPdfItem) {
+  return item.description?.trim() ? 1.85 : 1;
+}
+
+function takeItemsByUnits(source: OfferPdfItem[], maxUnits: number) {
+  const pageItems: OfferPdfItem[] = [];
+  let used = 0;
+  let index = 0;
+
+  while (index < source.length) {
+    const item = source[index];
+    const units = getItemUnits(item);
+
+    if (pageItems.length > 0 && used + units > maxUnits) break;
+    if (pageItems.length === 0 && units > maxUnits) {
+      pageItems.push(item);
+      index += 1;
+      break;
+    }
+
+    if (used + units > maxUnits) break;
+
+    pageItems.push(item);
+    used += units;
+    index += 1;
+  }
+
+  return {
+    pageItems,
+    rest: source.slice(index),
+  };
+}
+
+function paginateItems(items: OfferPdfItem[]) {
+  if (items.length === 0) return [[]];
+
+  const firstPageUnits = 13.5;
+  const nextPageUnits = 9;
+  const pages: OfferPdfItem[][] = [];
+  let remaining = [...items];
+  let isFirstPage = true;
+
+  while (remaining.length > 0) {
+    const take = takeItemsByUnits(remaining, isFirstPage ? firstPageUnits : nextPageUnits);
+    pages.push(take.pageItems);
+    remaining = take.rest;
+    isFirstPage = false;
+  }
+
+  return pages;
+}
+
+function sumLineTotals(items: OfferPdfItem[]) {
+  return Number(items.reduce((sum, item) => sum + Number(item.line_total ?? 0), 0).toFixed(2));
+}
+
+function getLogoSource(logoUrl?: string | null) {
+  if (logoUrl?.trim()) return logoUrl.trim();
+  if (existsSync(LOCAL_LOGO)) return LOCAL_LOGO;
+  return null;
+}
+
+const colors = {
+  ink: "#0f172a",
+  text: "#334155",
+  muted: "#475569",
+  soft: "#64748b",
+  border: "#94a3b8",
+  divider: "#cbd5e1",
+  rowDivider: "#e2e8f0",
+  headerFill: "#f8fafc",
+  altFill: "#fcfcfc",
+};
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 34,
-    paddingBottom: 28,
-    paddingHorizontal: 28,
-    fontSize: 10,
-    color: "#0f172a",
-    fontFamily: "CalibriCustom",
+    paddingTop: 39.75,
+    paddingBottom: 32,
+    paddingHorizontal: 39.75,
+    fontFamily: "OfferPdfSans",
+    fontSize: 10.5,
+    color: colors.ink,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
-  headerLeft: {
-    width: "62%",
-  },
-  logo: {
-    maxWidth: 245,
-    maxHeight: 92,
-    objectFit: "contain",
-    marginBottom: 4,
-  },
-  brandTitle: {
-    fontSize: 27,
-    fontWeight: 700,
-    marginBottom: 2,
-  },
-  brandSub: {
-    fontSize: 11,
-    color: "#334155",
-  },
-  offerNoWrap: {
-    width: "30%",
-    alignItems: "flex-end",
-    paddingTop: 10,
-  },
-  offerNoLabel: {
-    fontSize: 10,
-    color: "#475569",
-    marginBottom: 1,
-  },
-  offerNoValue: {
-    fontSize: 25,
-    fontWeight: 700,
-  },
-  divider: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#94a3b8",
-    marginBottom: 10,
-  },
-  continuedHeader: {
+  firstPageHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
     marginBottom: 8,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#94a3b8",
   },
-  continuedTitle: {
-    fontSize: 17,
+  logoBlock: {
+    width: 210,
+  },
+  logo: {
+    width: 72,
+    height: 100,
+    objectFit: "contain",
+    marginBottom: 1,
+  },
+  documentTitle: {
+    fontSize: 10.5,
+    color: colors.muted,
+  },
+  offerNoWrap: {
+    width: 190,
+    alignItems: "flex-end",
+    paddingTop: 0,
+  },
+  offerNoLabel: {
+    fontSize: 9.75,
+    color: colors.soft,
+    marginBottom: 3,
+  },
+  offerNoValue: {
+    fontSize: 18,
     fontWeight: 700,
+    color: colors.ink,
   },
-  continuedSubtitle: {
-    fontSize: 10,
-    color: "#475569",
+  divider: {
+    borderBottomWidth: 1.25,
+    borderBottomColor: colors.divider,
+    marginBottom: 9,
   },
-  twoCol: {
+  cardsRow: {
     flexDirection: "row",
-    gap: 14,
+    gap: 15,
     marginBottom: 10,
   },
-  infoCard: {
-    flexGrow: 1,
-    flexBasis: 0,
-    borderWidth: 1,
-    borderColor: "#94a3b8",
-    borderRadius: 0,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#ffffff",
+  card: {
+    width: 250.5,
+    minHeight: 128,
+    borderWidth: 1.25,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingTop: 14,
+    paddingRight: 18,
+    paddingBottom: 12,
+    paddingLeft: 14,
   },
-  sectionTitle: {
-    fontSize: 10,
+  cardTitle: {
+    fontSize: 9.75,
     fontWeight: 700,
-    color: "#0f172a",
+    color: colors.text,
     marginBottom: 8,
   },
   customerName: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: 700,
+    color: colors.ink,
     marginBottom: 6,
   },
-  line: {
-    fontSize: 10,
-    color: "#334155",
-    marginBottom: 2,
-    lineHeight: 1.25,
+  cardText: {
+    fontSize: 10.5,
+    color: colors.text,
+    marginBottom: 4,
+    lineHeight: 1.08,
   },
   infoRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
     marginBottom: 4,
+    gap: 10,
   },
   infoLabel: {
-    fontSize: 10,
-    color: "#334155",
+    fontSize: 10.5,
+    color: colors.text,
+    width: 82,
   },
   infoValue: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: 700,
-    textAlign: "right",
-    maxWidth: "57%",
+    color: colors.ink,
+    textAlign: "left",
+    maxWidth: 125,
+  },
+  continuationHeader: {
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  continuationTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 7,
+  },
+  continuationTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: colors.ink,
+  },
+  continuationSubtitle: {
+    fontSize: 10.5,
+    color: colors.soft,
   },
   tableWrap: {
-    borderWidth: 1,
-    borderColor: "#94a3b8",
-    borderRadius: 0,
+    borderWidth: 1.25,
+    borderColor: colors.border,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  tableInner: {
+    borderRadius: 14,
     overflow: "hidden",
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#eef2f7",
-    borderBottomWidth: 1,
-    borderBottomColor: "#94a3b8",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  mainRow: {
-    flexDirection: "row",
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-  },
-  descRow: {
-    flexDirection: "row",
-    paddingTop: 0,
+    backgroundColor: colors.headerFill,
+    borderBottomWidth: 1.2,
+    borderBottomColor: colors.divider,
+    paddingTop: 6,
     paddingBottom: 6,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    backgroundColor: "#ffffff",
+    paddingHorizontal: 18.75,
   },
-  emptyRow: {
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+  row: {
+    flexDirection: "row",
+    borderBottomWidth: 1.15,
+    borderBottomColor: colors.rowDivider,
+    paddingTop: 7.5,
+    paddingBottom: 7.5,
+    paddingHorizontal: 18.75,
+  },
+  rowAlt: {
+    backgroundColor: colors.altFill,
+    paddingTop: 5.5,
+    paddingBottom: 5.5,
+  },
+  rowLast: {
+    borderBottomWidth: 0,
   },
   codeCell: {
-    width: "19%",
-    paddingRight: 6,
+    width: 90,
   },
   nameCell: {
-    width: "33%",
-    paddingRight: 6,
+    width: 124.5,
   },
   qtyCell: {
-    width: "9%",
-    paddingRight: 6,
+    width: 60,
     textAlign: "center",
   },
   unitCell: {
-    width: "8%",
-    paddingRight: 6,
+    width: 60,
     textAlign: "center",
   },
   priceCell: {
-    width: "15.5%",
-    paddingRight: 6,
+    width: 90,
     textAlign: "right",
   },
   totalCell: {
-    width: "15.5%",
+    width: 90,
     textAlign: "right",
   },
-  tableHeaderText: {
-    fontSize: 9.5,
+  headerText: {
+    fontSize: 9.75,
     fontWeight: 700,
-    color: "#334155",
+    color: colors.text,
   },
-  tableText: {
-    fontSize: 9.5,
-    color: "#0f172a",
-    lineHeight: 1.2,
+  cellText: {
+    fontSize: 10.5,
+    color: colors.ink,
+    lineHeight: 1.22,
   },
   descText: {
-    fontSize: 8.8,
-    color: "#64748b",
-    lineHeight: 1.2,
+    fontSize: 9.75,
+    color: colors.soft,
+    lineHeight: 1.22,
   },
-  pageSubtotalWrap: {
+  pageSubtotal: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    gap: 14,
-    paddingTop: 5,
-    paddingRight: 10,
-    marginBottom: 6,
+    gap: 0,
+    paddingTop: 6,
+    marginBottom: 12,
+    paddingRight: 18.75,
   },
   pageSubtotalLabel: {
-    fontSize: 9,
-    color: "#475569",
+    fontSize: 9.75,
     fontWeight: 700,
+    color: colors.muted,
+    width: 90,
+    textAlign: "right",
+    marginRight: 5.25,
   },
   pageSubtotalValue: {
-    fontSize: 9,
-    color: "#0f172a",
+    fontSize: 9.75,
     fontWeight: 700,
-    minWidth: 90,
+    color: colors.ink,
+    width: 90,
     textAlign: "right",
   },
-  notesTotals: {
+  notesAndTotals: {
     flexDirection: "row",
-    gap: 14,
-    marginTop: 2,
+    gap: 15,
+    marginTop: 10,
   },
-  notesWrap: {
-    width: "60%",
-    borderWidth: 1,
-    borderColor: "#94a3b8",
-    borderRadius: 0,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#ffffff",
+  notesBox: {
+    width: 290.25,
+    minHeight: 132,
+    borderWidth: 1.25,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingTop: 18,
+    paddingRight: 24,
+    paddingBottom: 18,
+    paddingLeft: 24,
   },
-  notesBody: {
-    fontSize: 9.5,
-    color: "#334155",
-    lineHeight: 1.3,
-    marginBottom: 2,
+  noteText: {
+    fontSize: 10.5,
+    color: colors.text,
+    lineHeight: 1.5,
+    marginBottom: 6,
   },
-  totalsWrap: {
-    width: "40%",
-    borderWidth: 1,
-    borderColor: "#94a3b8",
-    borderRadius: 0,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#ffffff",
+  totalsBox: {
+    width: 210,
+    minHeight: 132,
+    borderWidth: 1.25,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingTop: 18,
+    paddingRight: 24,
+    paddingBottom: 18,
+    paddingLeft: 24,
   },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
     gap: 12,
-    marginBottom: 5,
   },
   totalLabel: {
-    fontSize: 9.5,
-    color: "#475569",
+    fontSize: 10.5,
+    color: colors.muted,
   },
   totalValue: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontWeight: 700,
+    color: colors.ink,
+  },
+  totalDivider: {
+    borderBottomWidth: 1.2,
+    borderBottomColor: colors.divider,
+    marginTop: 4,
+    marginBottom: 13,
   },
   grandRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#94a3b8",
-    marginTop: 4,
-    paddingTop: 7,
   },
   grandLabel: {
-    fontSize: 10,
+    fontSize: 13.5,
     fontWeight: 700,
+    color: colors.ink,
   },
   grandValue: {
-    fontSize: 11.5,
+    fontSize: 13.5,
     fontWeight: 700,
+    color: colors.ink,
   },
-  footer: {
+  footerWrap: {
     position: "absolute",
-    left: 28,
-    right: 28,
-    bottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#94a3b8",
-    paddingTop: 6,
-    fontSize: 8.5,
-    color: "#64748b",
+    left: 39.75,
+    right: 39.75,
+    bottom: 24,
+  },
+  footerText: {
+    marginTop: 10.5,
+    fontSize: 10.5,
+    color: colors.soft,
+  },
+  emptyRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 18.75,
   },
 });
+
+function renderTable(
+  items: OfferPdfItem[],
+  currency: CurrencyCode
+) {
+  return (
+    <>
+      <View style={styles.tableWrap}>
+        <View style={styles.tableInner}>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.headerText, styles.codeCell]}>{TR.itemCode}</Text>
+            <Text style={[styles.headerText, styles.nameCell]}>{TR.itemName}</Text>
+            <Text style={[styles.headerText, styles.qtyCell]}>{TR.quantity}</Text>
+            <Text style={[styles.headerText, styles.unitCell]}>{TR.unit}</Text>
+            <Text style={[styles.headerText, styles.priceCell]}>{TR.unitPrice}</Text>
+            <Text style={[styles.headerText, styles.totalCell]}>{TR.total}</Text>
+          </View>
+
+          {items.length === 0 ? (
+            <View style={styles.emptyRow}>
+              <Text style={styles.cellText}>{TR.noItems}</Text>
+            </View>
+          ) : (
+            items.map((item, itemIndex) => {
+              const isFinalRow = itemIndex === items.length - 1 && !item.description?.trim();
+
+              return (
+                <React.Fragment key={item.id}>
+                  <View style={isFinalRow ? [styles.row, styles.rowLast] : styles.row} wrap={false}>
+                    <Text style={[styles.cellText, styles.codeCell]}>{item.item_code ?? "-"}</Text>
+                    <Text style={[styles.cellText, styles.nameCell]}>{item.item_name}</Text>
+                    <Text style={[styles.cellText, styles.qtyCell]}>{String(item.quantity ?? 0)}</Text>
+                    <Text style={[styles.cellText, styles.unitCell]}>{item.unit}</Text>
+                    <Text style={[styles.cellText, styles.priceCell]}>
+                      {formatCurrency(Number(item.unit_price ?? 0), currency)}
+                    </Text>
+                    <Text style={[styles.cellText, styles.totalCell]}>
+                      {formatCurrency(Number(item.line_total ?? 0), currency)}
+                    </Text>
+                  </View>
+
+                  {item.description?.trim() ? (
+                    <View
+                      style={itemIndex === items.length - 1 ? [styles.row, styles.rowAlt, styles.rowLast] : [styles.row, styles.rowAlt]}
+                      wrap={false}
+                    >
+                      <Text style={styles.codeCell}></Text>
+                      <Text style={[styles.descText, { width: 394.5 }]}>{item.description.trim()}</Text>
+                    </View>
+                  ) : null}
+                </React.Fragment>
+              );
+            })
+          )}
+        </View>
+      </View>
+    </>
+  );
+}
 
 export default function OfferPdfDocument({
   offer,
   customer,
   settings,
+  salesRep,
   items,
 }: {
   offer: OfferPdfOffer;
   customer: OfferPdfCustomer | null;
   settings?: OfferPdfSettings | null;
+  salesRep?: OfferPdfSalesRep | null;
   items: OfferPdfItem[];
 }) {
   const currency = normalizeCurrency(offer.currency_code);
   const rawNotes = offer.notes?.trim() || TR.defaultNotes;
   const noteLines = rawNotes.split("\n");
-  const salesRepValue = extractTaggedNoteValue(noteLines, SALES_REP_TAGS);
-  const salesRepEmailValue = extractTaggedNoteValue(noteLines, EMAIL_TAGS);
-  const salesRepPhoneValue = extractTaggedNoteValue(noteLines, PHONE_TAGS);
-  const notes = noteLines
-    .filter(
-      (line) =>
-        !isTaggedNoteLine(line, SALES_REP_TAGS) &&
-        !isTaggedNoteLine(line, EMAIL_TAGS) &&
-        !isTaggedNoteLine(line, PHONE_TAGS)
-    )
-    .join("\n")
-    .trim() || TR.defaultNotes;
-  const salesRep = salesRepValue || "-";
-  const salesRepEmail = salesRepEmailValue || "-";
-  const salesRepPhone = salesRepPhoneValue || "-";
-  const companyName = settings?.company_name?.trim() || "noxo";
+  const salesRepName =
+    salesRep?.full_name?.trim() || extractTaggedNoteValue(noteLines, SALES_REP_TAGS) || "-";
+  const salesRepEmail =
+    salesRep?.email?.trim() || extractTaggedNoteValue(noteLines, EMAIL_TAGS) || "-";
+  const salesRepPhone =
+    salesRep?.phone?.trim() || extractTaggedNoteValue(noteLines, PHONE_TAGS) || "-";
+  const notes = (
+    noteLines
+      .filter(
+        (line) =>
+          !isTaggedNoteLine(line, SALES_REP_TAGS) &&
+          !isTaggedNoteLine(line, EMAIL_TAGS) &&
+          !isTaggedNoteLine(line, PHONE_TAGS)
+      )
+      .join("\n")
+      .trim() || TR.defaultNotes
+  )
+    .split("\n")
+    .filter(Boolean);
   const pages = paginateItems(items);
+  const companyName = (settings?.company_name?.trim() || "NORAPP").toUpperCase();
+  const logoSrc = getLogoSource(settings?.logo_url);
 
   return (
     <Document title={offer.offer_no} author="noxo" subject="Fiyat Teklifi" creator="noxo" producer="noxo">
       {pages.map((pageItems, index) => {
         const isFirstPage = index === 0;
         const isLastPage = index === pages.length - 1;
-        const pageSubtotal = sumLineTotals(pageItems);
 
         return (
           <Page key={`${offer.id}-${index}`} size="A4" style={styles.page}>
             {isFirstPage ? (
               <>
-                <View style={styles.header}>
-                  <View style={styles.headerLeft}>
-                    {settings?.logo_url ? (
-                      <Image src={settings.logo_url} style={styles.logo} />
-                    ) : (
-                      <Text style={styles.brandTitle}>{companyName}</Text>
-                    )}
-                    <Text style={styles.brandSub}>{TR.offerDocument}</Text>
+                <View style={styles.firstPageHeader}>
+                  <View style={styles.logoBlock}>
+                    {logoSrc ? (
+                      // eslint-disable-next-line jsx-a11y/alt-text
+                      <Image src={logoSrc} style={styles.logo} />
+                    ) : null}
+                    <Text style={styles.documentTitle}>{TR.offerDocument}</Text>
                   </View>
 
                   <View style={styles.offerNoWrap}>
@@ -575,20 +655,21 @@ export default function OfferPdfDocument({
 
                 <View style={styles.divider} />
 
-                <View style={styles.twoCol}>
-                  <View style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>{TR.customer}</Text>
+                <View style={styles.cardsRow}>
+                  <View style={styles.card}>
+                    <Text style={styles.cardTitle}>{TR.customer}</Text>
                     <Text style={styles.customerName}>{customer?.company_name ?? "-"}</Text>
-                    <Text style={styles.line}>{customer?.address ?? "-"}</Text>
-                    <Text style={styles.line}>
+                    <Text style={styles.cardText}>{customer?.address ?? "-"}</Text>
+                    <Text style={styles.cardText}>
                       {[customer?.city, customer?.country].filter(Boolean).join(" / ") || "-"}
                     </Text>
-                    <Text style={styles.line}>{customer?.phone ?? "-"}</Text>
-                    <Text style={styles.line}>{customer?.email ?? "-"}</Text>
+                    <Text style={styles.cardText}>{customer?.phone ?? "-"}</Text>
+                    <Text style={[styles.cardText, { marginBottom: 0 }]}>{customer?.email ?? "-"}</Text>
                   </View>
 
-                  <View style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>{TR.offerInfo}</Text>
+                  <View style={styles.card}>
+                    <Text style={styles.cardTitle}>{TR.offerInfo}</Text>
+
                     <View style={styles.infoRow}>
                       <Text style={styles.infoLabel}>{TR.offerDate}</Text>
                       <Text style={styles.infoValue}>{formatDate(offer.offer_date)}</Text>
@@ -602,14 +683,14 @@ export default function OfferPdfDocument({
                       <Text style={styles.infoValue}>{offer.currency_code ?? "TRY"}</Text>
                     </View>
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Satis Temsilcisi</Text>
-                      <Text style={styles.infoValue}>{salesRep}</Text>
+                      <Text style={styles.infoLabel}>{TR.salesRep}</Text>
+                      <Text style={styles.infoValue}>{salesRepName}</Text>
                     </View>
                     <View style={styles.infoRow}>
                       <Text style={styles.infoLabel}>E-mail</Text>
                       <Text style={styles.infoValue}>{salesRepEmail}</Text>
                     </View>
-                    <View style={styles.infoRow}>
+                    <View style={[styles.infoRow, { marginBottom: 0 }]}>
                       <Text style={styles.infoLabel}>Telefon</Text>
                       <Text style={styles.infoValue}>{salesRepPhone}</Text>
                     </View>
@@ -617,102 +698,76 @@ export default function OfferPdfDocument({
                 </View>
               </>
             ) : (
-              <View style={styles.continuedHeader}>
-                <Text style={styles.continuedTitle}>{offer.offer_no}</Text>
-                <Text style={styles.continuedSubtitle}>
-                  {TR.offerDocument} - {index + 1}. Sayfa
-                </Text>
+              <View style={styles.continuationHeader}>
+                <View style={styles.continuationTop}>
+                  <Text style={styles.continuationTitle}>{offer.offer_no}</Text>
+                  <Text style={styles.continuationSubtitle}>
+                    {TR.offerDocument} - {index + 1}. Sayfa
+                  </Text>
+                </View>
+                <View style={styles.divider} />
               </View>
             )}
 
-            <View style={styles.tableWrap}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderText, styles.codeCell]}>{TR.itemCode}</Text>
-                <Text style={[styles.tableHeaderText, styles.nameCell]}>{TR.itemName}</Text>
-                <Text style={[styles.tableHeaderText, styles.qtyCell]}>{TR.quantity}</Text>
-                <Text style={[styles.tableHeaderText, styles.unitCell]}>{TR.unit}</Text>
-                <Text style={[styles.tableHeaderText, styles.priceCell]}>{TR.unitPrice}</Text>
-                <Text style={[styles.tableHeaderText, styles.totalCell]}>{TR.total}</Text>
-              </View>
+            {renderTable(pageItems, currency)}
 
-              {pageItems.length === 0 ? (
-                <View style={styles.emptyRow}>
-                  <Text style={styles.tableText}>{TR.noItems}</Text>
-                </View>
-              ) : (
-                pageItems.map((item) => (
-                  <React.Fragment key={item.id}>
-                    <View style={styles.mainRow} wrap={false}>
-                      <Text style={[styles.tableText, styles.codeCell]}>{item.item_code ?? "-"}</Text>
-                      <Text style={[styles.tableText, styles.nameCell]}>{item.item_name}</Text>
-                      <Text style={[styles.tableText, styles.qtyCell]}>{String(item.quantity ?? 0)}</Text>
-                      <Text style={[styles.tableText, styles.unitCell]}>{item.unit}</Text>
-                      <Text style={[styles.tableText, styles.priceCell]}>
-                        {formatCurrency(Number(item.unit_price ?? 0), currency)}
-                      </Text>
-                      <Text style={[styles.tableText, styles.totalCell]}>
-                        {formatCurrency(Number(item.line_total ?? 0), currency)}
-                      </Text>
-                    </View>
-                    {item.description?.trim() ? (
-                      <View style={styles.descRow} wrap={false}>
-                        <Text style={styles.codeCell}></Text>
-                        <Text style={[styles.descText, { width: "83%" }]}>{item.description.trim()}</Text>
-                      </View>
-                    ) : null}
-                  </React.Fragment>
-                ))
-              )}
-            </View>
-
-            <View style={styles.pageSubtotalWrap}>
+            <View style={styles.pageSubtotal}>
               <Text style={styles.pageSubtotalLabel}>{TR.subtotal}</Text>
-              <Text style={styles.pageSubtotalValue}>{formatCurrency(pageSubtotal, currency)}</Text>
+              <Text style={styles.pageSubtotalValue}>
+                {formatCurrency(sumLineTotals(pageItems), currency)}
+              </Text>
             </View>
 
             {isLastPage ? (
-              <View style={styles.notesTotals}>
-                <View style={styles.notesWrap}>
-                  <Text style={styles.sectionTitle}>{TR.notes}</Text>
-                  {notes.split("\n").map((line, lineIndex) => (
-                    <Text key={`${offer.id}-note-${lineIndex}`} style={styles.notesBody}>
-                      {line}
-                    </Text>
-                  ))}
+              <>
+                <View style={styles.notesAndTotals}>
+                  <View style={styles.notesBox}>
+                    <Text style={styles.cardTitle}>{TR.notes}</Text>
+                    {notes.map((line, lineIndex) => (
+                      <Text key={`${offer.id}-note-${lineIndex}`} style={styles.noteText}>
+                        {line}
+                      </Text>
+                    ))}
+                  </View>
+
+                  <View style={styles.totalsBox}>
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalLabel}>{TR.subtotal}</Text>
+                      <Text style={styles.totalValue}>{formatCurrency(Number(offer.subtotal ?? 0), currency)}</Text>
+                    </View>
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalLabel}>{TR.discount}</Text>
+                      <Text style={styles.totalValue}>
+                        {formatCurrency(Number(offer.discount_total ?? 0), currency)}
+                      </Text>
+                    </View>
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalLabel}>{TR.tax}</Text>
+                      <Text style={styles.totalValue}>{formatCurrency(Number(offer.tax_total ?? 0), currency)}</Text>
+                    </View>
+
+                    <View style={styles.totalDivider} />
+
+                    <View style={styles.grandRow}>
+                      <Text style={styles.grandLabel}>{TR.grandTotal}</Text>
+                      <Text style={styles.grandValue}>
+                        {formatCurrency(Number(offer.grand_total ?? 0), currency)}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
 
-                <View style={styles.totalsWrap}>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>{TR.subtotal}</Text>
-                    <Text style={styles.totalValue}>
-                      {formatCurrency(Number(offer.subtotal ?? 0), currency)}
-                    </Text>
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>{TR.discount}</Text>
-                    <Text style={styles.totalValue}>
-                      {formatCurrency(Number(offer.discount_total ?? 0), currency)}
-                    </Text>
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>{TR.tax}</Text>
-                    <Text style={styles.totalValue}>
-                      {formatCurrency(Number(offer.tax_total ?? 0), currency)}
-                    </Text>
-                  </View>
-                  <View style={styles.grandRow}>
-                    <Text style={styles.grandLabel}>{TR.grandTotal}</Text>
-                    <Text style={styles.grandValue}>
-                      {formatCurrency(Number(offer.grand_total ?? 0), currency)}
-                    </Text>
-                  </View>
+                <View style={styles.footerWrap}>
+                  <View style={[styles.divider, { marginBottom: 0 }]} />
+                  <Text style={styles.footerText}>{companyName}</Text>
                 </View>
+              </>
+            ) : (
+              <View style={styles.footerWrap} fixed>
+                <View style={[styles.divider, { marginBottom: 0 }]} />
+                <Text style={styles.footerText}>{companyName}</Text>
               </View>
-            ) : null}
-
-            <Text style={styles.footer} fixed>
-              {companyName}
-            </Text>
+            )}
           </Page>
         );
       })}

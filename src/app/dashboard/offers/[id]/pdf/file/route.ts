@@ -33,6 +33,13 @@ type OfferItemRow = {
   line_total: number | null;
 };
 
+type SalesRepRow = {
+  company_id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
@@ -50,7 +57,7 @@ export async function GET(
 
   const { data: appUser, error: appUserError } = await supabase
     .from("app_users")
-    .select("company_id")
+    .select("company_id, full_name, email, phone")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -60,6 +67,8 @@ export async function GET(
       { status: 400 }
     );
   }
+
+  const salesRep = appUser as SalesRepRow;
 
   const { data: offer, error: offerError } = await supabase
     .from("offers")
@@ -145,6 +154,11 @@ export async function GET(
         },
         customer: customer ?? null,
         settings: settings ?? null,
+        salesRep: {
+          full_name: salesRep.full_name,
+          email: salesRep.email ?? user.email ?? null,
+          phone: salesRep.phone,
+        },
         items: ((items ?? []) as OfferItemRow[]).map((item) => ({
           id: item.id,
           item_code: item.item_code,
