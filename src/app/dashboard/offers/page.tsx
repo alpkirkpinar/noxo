@@ -1597,7 +1597,7 @@ export default function OffersPage() {
                   type="text"
                   value={newPartForm.item_code}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, item_code: e.target.value.toUpperCase() }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1607,7 +1607,7 @@ export default function OffersPage() {
                   type="text"
                   value={newPartForm.item_name}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, item_name: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1618,7 +1618,7 @@ export default function OffersPage() {
                   inputMode="decimal"
                   value={newPartForm.current_stock}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, current_stock: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1629,7 +1629,7 @@ export default function OffersPage() {
                   inputMode="decimal"
                   value={newPartForm.min_stock}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, min_stock: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1639,7 +1639,7 @@ export default function OffersPage() {
                   type="text"
                   value={newPartForm.brand}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, brand: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1650,7 +1650,7 @@ export default function OffersPage() {
                   inputMode="decimal"
                   value={newPartForm.unit_price}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, unit_price: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1659,7 +1659,7 @@ export default function OffersPage() {
                 <select
                   value={newPartForm.currency}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, currency: normalizeCurrency(e.target.value) }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 >
                   <option value="TRY">TRY</option>
                   <option value="USD">USD</option>
@@ -1672,7 +1672,7 @@ export default function OffersPage() {
                 <textarea
                   value={newPartForm.description}
                   onChange={(e) => setNewPartForm((prev) => ({ ...prev, description: e.target.value }))}
-                  className="min-h-[110px] w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-h-[110px] w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
             </div>
