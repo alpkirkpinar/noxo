@@ -168,19 +168,19 @@ export default async function CustomerDetailPage({ params }: PageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{customer.company_name}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-300">Müşteri detayı ve bağlı makineler</p>
+          <h1 className="text-2xl font-semibold text-slate-900">{customer.company_name}</h1>
+          <p className="text-sm text-slate-500">Müşteri detayı ve bağlı makineler</p>
         </div>
 
         <div className="flex items-center gap-2">
           {canCreateMachine ? (
           <details className="relative">
-            <summary className="cursor-pointer list-none rounded-lg bg-black px-4 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900">
+            <summary className="cursor-pointer list-none rounded-lg bg-black px-4 py-2 text-sm font-medium text-white">
               Yeni Makine Ekle
             </summary>
 
-            <div className="absolute right-0 z-20 mt-2 w-[520px] max-w-[90vw] rounded-xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Bu Müşteriye Yeni Makine Ekle</h2>
+            <div className="absolute right-0 z-20 mt-2 w-[520px] max-w-[90vw] rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">Bu Müşteriye Yeni Makine Ekle</h2>
 
               <form action={createMachineForCustomer} className="space-y-4">
                 <div>
@@ -294,7 +294,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
 
           <Link
             href="/dashboard/customers"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Geri
           </Link>
@@ -302,89 +302,89 @@ export default async function CustomerDetailPage({ params }: PageProps) {
       </div>
 
       <div className="grid gap-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Müşteri Bilgileri</h2>
-            <span className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">Müşteri Bilgileri</h2>
+            <span className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700">
               {customer.is_active ? "Aktif" : "Pasif"}
             </span>
           </div>
 
-          <div className="grid gap-4 text-sm text-slate-900 dark:text-slate-100 md:grid-cols-2">
+          <div className="grid gap-4 text-sm text-slate-900 md:grid-cols-2">
             <div>
-              <div className="text-slate-500 dark:text-slate-400">İlgili Kişi</div>
+              <div className="text-slate-500">İlgili Kişi</div>
               <div className="font-medium">{customer.contact_name || "-"}</div>
             </div>
 
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Telefon</div>
+              <div className="text-slate-500">Telefon</div>
               <div className="font-medium">{customer.phone || "-"}</div>
             </div>
 
             <div>
-              <div className="text-slate-500 dark:text-slate-400">E-posta</div>
+              <div className="text-slate-500">E-posta</div>
               <div className="font-medium">{customer.email || "-"}</div>
             </div>
 
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Konum</div>
+              <div className="text-slate-500">Konum</div>
               <div className="font-medium">
                 {[customer.city, customer.country].filter(Boolean).join(" / ") || "-"}
               </div>
             </div>
 
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Vergi Dairesi</div>
+              <div className="text-slate-500">Vergi Dairesi</div>
               <div className="font-medium">{customer.tax_office || "-"}</div>
             </div>
 
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Vergi No</div>
+              <div className="text-slate-500">Vergi No</div>
               <div className="font-medium">{customer.tax_number || "-"}</div>
             </div>
 
             <div className="md:col-span-2">
-              <div className="text-slate-500 dark:text-slate-400">Adres</div>
+              <div className="text-slate-500">Adres</div>
               <div className="whitespace-pre-wrap font-medium">{customer.address || "-"}</div>
             </div>
 
             <div className="md:col-span-2">
-              <div className="text-slate-500 dark:text-slate-400">Notlar</div>
+              <div className="text-slate-500">Notlar</div>
               <div className="whitespace-pre-wrap font-medium">{customer.notes || "-"}</div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bağlı Makineler</h2>
-            <span className="text-sm text-slate-500 dark:text-slate-400">{(machines ?? []).length} adet</span>
+            <h2 className="text-lg font-semibold text-slate-900">Bağlı Makineler</h2>
+            <span className="text-sm text-slate-500">{(machines ?? []).length} adet</span>
           </div>
 
           {(machines ?? []).length === 0 ? (
-            <div className="text-sm text-slate-500 dark:text-slate-400">Bu müşteriye bağlı makine yok.</div>
+            <div className="text-sm text-slate-500">Bu müşteriye bağlı makine yok.</div>
           ) : (
             <div className="grid gap-3">
               {((machines ?? []) as CustomerMachineRow[]).map((machine) => (
                 <Link
                   key={machine.id}
                   href={`/dashboard/machines/${machine.id}`}
-                  className="rounded-xl border border-slate-200 px-4 py-3 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60"
+                  className="rounded-xl border border-slate-200 px-4 py-3 transition hover:bg-slate-50"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="font-medium text-blue-600 dark:text-blue-400">{machine.machine_name}</div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                      <div className="font-medium text-blue-600">{machine.machine_name}</div>
+                      <div className="text-sm text-slate-500">
                         {[machine.brand, machine.model].filter(Boolean).join(" / ") || "-"}
                       </div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                      <div className="text-sm text-slate-500">
                         {machine.serial_number || machine.machine_code || "-"}
                       </div>
                     </div>
 
-                    <div className="text-right text-sm text-slate-900 dark:text-slate-100">
+                    <div className="text-right text-sm text-slate-900">
                       <div>{machine.status || "-"}</div>
-                      <div className="text-slate-500 dark:text-slate-400">
+                      <div className="text-slate-500">
                         {machine.next_maintenance_date
                           ? `Sonraki bakım: ${new Date(machine.next_maintenance_date).toLocaleDateString("tr-TR")}`
                           : "-"}

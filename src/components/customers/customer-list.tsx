@@ -425,17 +425,17 @@ export default function CustomerList({ customers, permissions, companyId, appUse
 
       {showCreateModal ? (
         <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-950/35 p-2 sm:p-4">
-          <div className="my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-xl dark:bg-slate-900 sm:p-6">
+          <div className="my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-xl sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Yeni Müşteri</h2>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Yeni müşteri kaydı oluşturun</p>
+                <h2 className="text-xl font-semibold text-slate-900">Yeni Müşteri</h2>
+                <p className="mt-1 text-sm text-slate-500">Yeni müşteri kaydı oluşturun</p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100"
               >
                 ×
               </button>

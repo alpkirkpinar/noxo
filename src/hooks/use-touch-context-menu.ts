@@ -5,7 +5,6 @@ import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
-  SyntheticEvent as ReactSyntheticEvent,
 } from "react";
 
 type TouchContextState<Id extends string> = {
@@ -136,9 +135,6 @@ export function useTouchContextMenu<Id extends string>(onOpen: OpenContextMenu<I
         const touchState = touchStateRef.current;
         if (!touchState || touchState.pointerId !== event.pointerId) return;
         clearTouchState();
-      },
-      onSelectStart(event: ReactSyntheticEvent<HTMLElement>) {
-        event.preventDefault();
       },
       style: TOUCH_ROW_INTERACTION_STYLE,
     };

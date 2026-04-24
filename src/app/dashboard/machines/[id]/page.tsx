@@ -89,21 +89,21 @@ export default async function MachineDetailPage({ params }: PageProps) {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{machine.machine_name}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{machine.machine_code}</p>
+          <h1 className="text-2xl font-semibold text-slate-900">{machine.machine_name}</h1>
+          <p className="text-sm text-slate-500">{machine.machine_code}</p>
         </div>
 
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/machines"
-            className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Geri
           </Link>
 
           <Link
             href={`/dashboard/machines/${machine.id}/edit`}
-            className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Düzenle
           </Link>
@@ -111,56 +111,56 @@ export default async function MachineDetailPage({ params }: PageProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
-          <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Makine Bilgileri</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Makine Bilgileri</h2>
 
-          <div className="grid gap-4 text-sm text-slate-900 dark:text-slate-100 md:grid-cols-2">
-            <div><span className="text-slate-500 dark:text-slate-400">Marka:</span> <span className="font-medium">{machine.brand ?? "-"}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Model:</span> <span className="font-medium">{machine.model ?? "-"}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Seri No:</span> <span className="font-medium">{machine.serial_number ?? "-"}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Durum:</span> <span className="font-medium">{statusLabel(machine.status)}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Kurulum Tarihi:</span> <span className="font-medium">{machine.installation_date ? new Date(machine.installation_date).toLocaleDateString("tr-TR") : "-"}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Garanti Bitiş:</span> <span className="font-medium">{machine.warranty_end_date ? new Date(machine.warranty_end_date).toLocaleDateString("tr-TR") : "-"}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Bakım Periyodu:</span> <span className="font-medium">{machine.maintenance_period_days ?? "-"} gün</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Konum:</span> <span className="font-medium">{machine.location_text ?? "-"}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Son Bakım:</span> <span className="font-medium">{machine.last_maintenance_date ? new Date(machine.last_maintenance_date).toLocaleDateString("tr-TR") : "-"}</span></div>
-            <div><span className="text-slate-500 dark:text-slate-400">Sonraki Bakım:</span> <span className="font-medium">{machine.next_maintenance_date ? new Date(machine.next_maintenance_date).toLocaleDateString("tr-TR") : "-"}</span></div>
+          <div className="grid gap-4 text-sm text-slate-900 md:grid-cols-2">
+            <div><span className="text-slate-500">Marka:</span> <span className="font-medium">{machine.brand ?? "-"}</span></div>
+            <div><span className="text-slate-500">Model:</span> <span className="font-medium">{machine.model ?? "-"}</span></div>
+            <div><span className="text-slate-500">Seri No:</span> <span className="font-medium">{machine.serial_number ?? "-"}</span></div>
+            <div><span className="text-slate-500">Durum:</span> <span className="font-medium">{statusLabel(machine.status)}</span></div>
+            <div><span className="text-slate-500">Kurulum Tarihi:</span> <span className="font-medium">{machine.installation_date ? new Date(machine.installation_date).toLocaleDateString("tr-TR") : "-"}</span></div>
+            <div><span className="text-slate-500">Garanti Bitiş:</span> <span className="font-medium">{machine.warranty_end_date ? new Date(machine.warranty_end_date).toLocaleDateString("tr-TR") : "-"}</span></div>
+            <div><span className="text-slate-500">Bakım Periyodu:</span> <span className="font-medium">{machine.maintenance_period_days ?? "-"} gün</span></div>
+            <div><span className="text-slate-500">Konum:</span> <span className="font-medium">{machine.location_text ?? "-"}</span></div>
+            <div><span className="text-slate-500">Son Bakım:</span> <span className="font-medium">{machine.last_maintenance_date ? new Date(machine.last_maintenance_date).toLocaleDateString("tr-TR") : "-"}</span></div>
+            <div><span className="text-slate-500">Sonraki Bakım:</span> <span className="font-medium">{machine.next_maintenance_date ? new Date(machine.next_maintenance_date).toLocaleDateString("tr-TR") : "-"}</span></div>
           </div>
 
           <div className="mt-5">
-            <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">Notlar</p>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm whitespace-pre-wrap text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+            <p className="mb-2 text-xs text-slate-500">Notlar</p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm whitespace-pre-wrap text-slate-900">
               {machine.notes ?? "-"}
             </div>
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Müşteri</h2>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Müşteri</h2>
 
-            <div className="space-y-3 text-sm text-slate-900 dark:text-slate-100">
+            <div className="space-y-3 text-sm text-slate-900">
               <div>
-                <Link href={`/dashboard/customers/${customer?.id}`} className="font-medium text-blue-600 hover:underline dark:text-blue-400">
+                <Link href={`/dashboard/customers/${customer?.id}`} className="font-medium text-blue-600 hover:underline">
                   {customer?.company_name ?? "-"}
                 </Link>
               </div>
-              <div><span className="text-slate-500 dark:text-slate-400">Müşteri Kodu:</span> <span className="font-medium">{customer?.customer_code ?? "-"}</span></div>
-              <div><span className="text-slate-500 dark:text-slate-400">İlgili Kişi:</span> <span className="font-medium">{customer?.contact_name ?? "-"}</span></div>
-              <div><span className="text-slate-500 dark:text-slate-400">Telefon:</span> <span className="font-medium">{customer?.phone ?? "-"}</span></div>
+              <div><span className="text-slate-500">Müşteri Kodu:</span> <span className="font-medium">{customer?.customer_code ?? "-"}</span></div>
+              <div><span className="text-slate-500">İlgili Kişi:</span> <span className="font-medium">{customer?.contact_name ?? "-"}</span></div>
+              <div><span className="text-slate-500">Telefon:</span> <span className="font-medium">{customer?.phone ?? "-"}</span></div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Bakım Durumu</h2>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Bakım Durumu</h2>
 
-            <div className="space-y-3 text-sm text-slate-900 dark:text-slate-100">
+            <div className="space-y-3 text-sm text-slate-900">
               <div>
-                <span className="text-slate-500 dark:text-slate-400">Durum:</span>{" "}
+                <span className="text-slate-500">Durum:</span>{" "}
                 <span className="font-medium">{maintenanceStatusLabel(machine.next_maintenance_date)}</span>
               </div>
               <div>
-                <span className="text-slate-500 dark:text-slate-400">Sonraki Bakım:</span>{" "}
+                <span className="text-slate-500">Sonraki Bakım:</span>{" "}
                 <span className="font-medium">
                   {machine.next_maintenance_date
                     ? new Date(machine.next_maintenance_date).toLocaleDateString("tr-TR")

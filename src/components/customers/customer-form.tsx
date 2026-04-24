@@ -40,9 +40,9 @@ export default function CustomerForm({
   hideCard = false,
 }: Props) {
   const router = useRouter();
-  const labelClassName = "text-sm font-medium text-slate-700 dark:text-slate-200";
+  const labelClassName = "text-sm font-medium text-slate-700";
   const inputClassName =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500";
 
   const [companyName, setCompanyName] = useState(initialValues?.company_name ?? "");
   const [contactName, setContactName] = useState(initialValues?.contact_name ?? "");
@@ -189,13 +189,13 @@ export default function CustomerForm({
         />
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+      <label className="flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
         Aktif müşteri
       </label>
 
       {errorText ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {errorText}
         </div>
       ) : null}
@@ -205,7 +205,7 @@ export default function CustomerForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
           >
             Vazgeç
           </button>
@@ -213,7 +213,7 @@ export default function CustomerForm({
           <button
             type="button"
             onClick={() => router.push(cancelHref)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
           >
             Vazgeç
           </button>
@@ -222,7 +222,7 @@ export default function CustomerForm({
         <button
           type="submit"
           disabled={saving || !canSubmit}
-          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900"
+          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
           {saving ? "Kaydediliyor..." : mode === "create" ? "Müşteri Oluştur" : "Müşteriyi Güncelle"}
         </button>
@@ -232,5 +232,5 @@ export default function CustomerForm({
 
   if (hideCard) return formContent;
 
-  return <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">{formContent}</div>;
+  return <div className="rounded-xl border border-slate-200 bg-white p-6">{formContent}</div>;
 }
