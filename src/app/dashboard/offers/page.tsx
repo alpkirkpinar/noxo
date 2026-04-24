@@ -913,6 +913,7 @@ export default function OffersPage() {
     const anchor = document.createElement("a");
     anchor.href = `/dashboard/offers/${offerId}/pdf/file`;
     anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -1228,7 +1229,7 @@ export default function OffersPage() {
           <button
             type="button"
             onClick={() => {
-              window.location.href = `/dashboard/offers/${contextMenu.offerId}/pdf/file`;
+              window.open(`/dashboard/offers/${contextMenu.offerId}/pdf/file`, "_blank", "noopener,noreferrer");
               setContextMenu(null);
             }}
             className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"

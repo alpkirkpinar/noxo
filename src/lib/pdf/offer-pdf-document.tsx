@@ -83,14 +83,19 @@ const TR = {
     "KDV dahil değildir.\nÖdeme: Siparişte %100\nDöviz çevriminde ödeme tarihindeki TCMB döviz satış kuru esas alınacaktır.",
 };
 
-const WINDOWS_CALIBRI = "C:\\Windows\\Fonts\\calibri.ttf";
-const WINDOWS_CALIBRI_BOLD = "C:\\Windows\\Fonts\\calibrib.ttf";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+const REMOTE_CALIBRI = SUPABASE_URL
+  ? `${SUPABASE_URL}/storage/v1/object/public/public-assets/calibri-regular.ttf`
+  : "";
+const REMOTE_CALIBRI_BOLD = SUPABASE_URL
+  ? `${SUPABASE_URL}/storage/v1/object/public/public-assets/calibri-bold.ttf`
+  : "";
 const LOCAL_ARIAL = path.join(process.cwd(), "public", "fonts", "arial.ttf");
 const LOCAL_ARIAL_BOLD = path.join(process.cwd(), "public", "fonts", "arialbd.ttf");
 const LOCAL_LOGO = path.join(process.cwd(), "public", "noxo-logo.png");
 
 function pickFontSource(preferred: string, fallback: string) {
-  if (existsSync(preferred)) return preferred;
+  if (preferred) return preferred;
   return fallback;
 }
 
@@ -98,11 +103,11 @@ Font.register({
   family: "OfferPdfSans",
   fonts: [
     {
-      src: pickFontSource(WINDOWS_CALIBRI, LOCAL_ARIAL),
+      src: pickFontSource(REMOTE_CALIBRI, LOCAL_ARIAL),
       fontWeight: 400,
     },
     {
-      src: pickFontSource(WINDOWS_CALIBRI_BOLD, LOCAL_ARIAL_BOLD),
+      src: pickFontSource(REMOTE_CALIBRI_BOLD, LOCAL_ARIAL_BOLD),
       fontWeight: 700,
     },
   ],
