@@ -1196,20 +1196,6 @@ export default function Topbar({
         </div>
       ) : null}
 
-      <style jsx global>{`
-        @keyframes topbarRateCylinder {
-          0% {
-            opacity: 0;
-            transform: translateY(22px) scale(0.96) rotateX(-35deg);
-            filter: blur(2px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1) rotateX(0deg);
-            filter: blur(0);
-          }
-        }
-      `}</style>
     </>
   )
 }

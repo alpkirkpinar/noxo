@@ -162,6 +162,14 @@ function getItemUnits(item: OfferPdfItem) {
   return item.description?.trim() ? 1.85 : 1;
 }
 
+const FIRST_PAGE_UNITS = 13.5;
+const MIDDLE_PAGE_UNITS = 14;
+const FINAL_PAGE_UNITS = 9;
+
+function sumItemUnits(items: OfferPdfItem[]) {
+  return items.reduce((sum, item) => sum + getItemUnits(item), 0);
+}
+
 function takeItemsByUnits(source: OfferPdfItem[], maxUnits: number) {
   const pageItems: OfferPdfItem[] = [];
   let used = 0;
@@ -194,17 +202,22 @@ function takeItemsByUnits(source: OfferPdfItem[], maxUnits: number) {
 function paginateItems(items: OfferPdfItem[]) {
   if (items.length === 0) return [[]];
 
-  const firstPageUnits = 13.5;
-  const nextPageUnits = 9;
   const pages: OfferPdfItem[][] = [];
   let remaining = [...items];
-  let isFirstPage = true;
+
+  const firstPage = takeItemsByUnits(remaining, FIRST_PAGE_UNITS);
+  pages.push(firstPage.pageItems);
+  remaining = firstPage.rest;
 
   while (remaining.length > 0) {
-    const take = takeItemsByUnits(remaining, isFirstPage ? firstPageUnits : nextPageUnits);
-    pages.push(take.pageItems);
-    remaining = take.rest;
-    isFirstPage = false;
+    if (sumItemUnits(remaining) <= FINAL_PAGE_UNITS) {
+      pages.push(remaining);
+      break;
+    }
+
+    const middlePage = takeItemsByUnits(remaining, MIDDLE_PAGE_UNITS);
+    pages.push(middlePage.pageItems);
+    remaining = middlePage.rest;
   }
 
   return pages;

@@ -73,6 +73,18 @@ type OfferListRow = {
   created_at?: string | null;
 };
 
+type OfferItemRow = {
+  id: string;
+  inventory_item_id?: string | null;
+  item_code?: string | null;
+  item_name?: string | null;
+  description?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unit_price?: number | null;
+  line_total?: number | null;
+};
+
 type SalesRepDefaults = {
   fullName: string;
   email: string;
@@ -159,6 +171,9 @@ const TR = {
   pdfDownload: "PDF İndir",
   deleteConfirm: "Bu teklifi silmek istediğine emin misin?",
   offerDeleted: "Teklif silindi.",
+  editOfferTitle: "Teklif D\u00fczenle",
+  editOfferDesc: "Teklif bilgilerini yeni teklif penceresiyle ayn\u0131 d\u00fczende g\u00fcncelle",
+  offerUpdated: "Teklif g\u00fcncellendi.",
 };
 
 const DEFAULT_NOTES = [
@@ -314,6 +329,8 @@ export default function OffersPage() {
 
   const [showNewOfferModal, setShowNewOfferModal] = useState(false);
   const [showNewPartModal, setShowNewPartModal] = useState(false);
+  const [offerModalMode, setOfferModalMode] = useState<"create" | "edit">("create");
+  const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
 
   const [offerNo, setOfferNo] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -371,9 +388,16 @@ export default function OffersPage() {
     if (searchParams.get("new") === "1") {
       openNewOfferModal();
       router.replace("/dashboard/offers");
+      return;
+    }
+
+    const editOfferId = searchParams.get("edit");
+    if (editOfferId) {
+      void openEditOfferModal(editOfferId);
+      router.replace("/dashboard/offers");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, router, loading, permissions.canCreate]);
+  }, [searchParams, router, loading, permissions.canCreate, permissions.canEdit]);
 
   async function initialize() {
     setLoading(true);
@@ -560,13 +584,140 @@ export default function OffersPage() {
     })();
 
     setRows(prefillRows ?? [emptyOfferRow()]);
+    setOfferModalMode("create");
+    setEditingOfferId(null);
     setActiveSuggestionRowId(null);
     setPendingNewItemRowId(null);
     setShowNewOfferModal(true);
   }
 
+  async function openEditOfferModal(targetOfferId: string) {
+    if (!permissions.canEdit) {
+      setErrorText("Teklif d\u00fczenleme yetkiniz yok.");
+      return;
+    }
+
+    if (!companyId) {
+      setErrorText(TR.companyRequired);
+      return;
+    }
+
+    resetMessages();
+    setSaving(true);
+
+    const [{ data: offer, error: offerError }, { data: offerItems, error: itemsError }] = await Promise.all([
+      supabase
+        .from("offers")
+        .select(
+          `
+          id,
+          customer_id,
+          offer_no,
+          offer_date,
+          valid_until,
+          currency_code,
+          notes
+        `
+        )
+        .eq("company_id", companyId)
+        .eq("id", targetOfferId)
+        .single(),
+      supabase
+        .from("offer_items")
+        .select(
+          `
+          id,
+          inventory_item_id,
+          item_code,
+          item_name,
+          description,
+          quantity,
+          unit,
+          unit_price,
+          line_total
+        `
+        )
+        .eq("company_id", companyId)
+        .eq("offer_id", targetOfferId)
+        .order("created_at", { ascending: true }),
+    ]);
+
+    if (offerError || !offer) {
+      setSaving(false);
+      setErrorText(offerError?.message || "Teklif bulunamad\u0131.");
+      return;
+    }
+
+    if (itemsError) {
+      setSaving(false);
+      setErrorText(itemsError.message);
+      return;
+    }
+
+    const salesRepTag = "Sat\u0131\u015f Temsilcisi:";
+    const noteLines = String(offer.notes ?? "").split("\n");
+    const salesRepLine = noteLines.find((line) => line.startsWith(salesRepTag)) ?? "";
+    const emailLine = noteLines.find((line) => line.startsWith("E-mail:")) ?? "";
+    const phoneLine = noteLines.find((line) => line.startsWith("Telefon:")) ?? "";
+    const filteredNotes = noteLines
+      .filter(
+        (line) =>
+          !line.startsWith(salesRepTag) &&
+          !line.startsWith("E-mail:") &&
+          !line.startsWith("Telefon:")
+      )
+      .join("\n")
+      .trim();
+
+    const loadedRows: OfferRow[] =
+      (offerItems ?? []).length > 0
+        ? ((offerItems ?? []) as OfferItemRow[]).map((item) => {
+            const inventoryMatch = inventoryItems.find(
+              (inventoryItem) =>
+                inventoryItem.id === item.inventory_item_id || inventoryItem.item_code === item.item_code
+            );
+            const basePrice = Number(inventoryMatch?.unit_price ?? item.unit_price ?? 0);
+            const offerUnitPrice = Number(item.unit_price ?? 0);
+            const multiplier = basePrice > 0 ? offerUnitPrice / basePrice : 1;
+
+            return {
+              id: item.id,
+              item_id: item.inventory_item_id ?? inventoryMatch?.id ?? null,
+              item_code: item.item_code ?? "",
+              item_name: item.item_name ?? "",
+              description: item.description ?? "",
+              quantity: String(item.quantity ?? 1),
+              multiplier: String(Number(multiplier.toFixed(4))),
+              unit: item.unit ?? "pcs",
+              base_unit_price: basePrice,
+              offer_unit_price: offerUnitPrice,
+              currency: normalizeCurrency(offer.currency_code),
+              line_total: Number(item.line_total ?? 0),
+            };
+          })
+        : [emptyOfferRow()];
+
+    setOfferNo(offer.offer_no ?? "");
+    setCustomerId(offer.customer_id ?? "");
+    setOfferDate(offer.offer_date ?? "");
+    setValidUntil(offer.valid_until ?? "");
+    setSalesRep(salesRepLine.replace(salesRepTag, "").trim());
+    setSalesRepEmail(emailLine.replace("E-mail:", "").trim());
+    setSalesRepPhone(phoneLine.replace("Telefon:", "").trim());
+    setNotes(filteredNotes || DEFAULT_NOTES);
+    setRows(loadedRows);
+    setOfferModalMode("edit");
+    setEditingOfferId(targetOfferId);
+    setActiveSuggestionRowId(null);
+    setPendingNewItemRowId(null);
+    setShowNewOfferModal(true);
+    setSaving(false);
+  }
+
   function closeNewOfferModal() {
     setShowNewOfferModal(false);
+    setOfferModalMode("create");
+    setEditingOfferId(null);
     setActiveSuggestionRowId(null);
     setPendingNewItemRowId(null);
   }
@@ -813,8 +964,13 @@ export default function OffersPage() {
   async function handleSaveOffer() {
     resetMessages();
 
-    if (!permissions.canCreate) {
+    if (offerModalMode === "create" && !permissions.canCreate) {
       setErrorText("Teklif oluşturma yetkiniz yok.");
+      return;
+    }
+
+    if (offerModalMode === "edit" && !permissions.canEdit) {
+      setErrorText("Teklif d\u00fczenleme yetkiniz yok.");
       return;
     }
 
@@ -851,18 +1007,21 @@ export default function OffersPage() {
       .filter(Boolean)
       .join("\n");
 
-    const response = await fetch("/api/offers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        offer_no: finalOfferNo,
-        customer_id: customerId,
-        offer_date: offerDate,
-        valid_until: validUntil || null,
-        notes: safeNotes || null,
-        rows: validRows,
-      }),
-    });
+    const response = await fetch(
+      offerModalMode === "edit" && editingOfferId ? `/api/offers/${editingOfferId}` : "/api/offers",
+      {
+        method: offerModalMode === "edit" ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offer_no: finalOfferNo,
+          customer_id: customerId,
+          offer_date: offerDate,
+          valid_until: validUntil || null,
+          notes: safeNotes || null,
+          rows: validRows,
+        }),
+      }
+    );
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok || !result.offer) {
@@ -871,12 +1030,16 @@ export default function OffersPage() {
       return;
     }
 
-    const insertedOffer = result.offer as OfferListRow;
+    const savedOffer = result.offer as OfferListRow;
 
-    setOffers((prev) => [insertedOffer as OfferListRow, ...prev]);
+    setOffers((prev) =>
+      offerModalMode === "edit"
+        ? prev.map((offer) => (offer.id === savedOffer.id ? savedOffer : offer))
+        : [savedOffer, ...prev]
+    );
     setSaving(false);
     closeNewOfferModal();
-    setSuccessText(`${TR.offerCreated} ${finalOfferNo}`);
+    setSuccessText(offerModalMode === "edit" ? TR.offerUpdated : `${TR.offerCreated} ${finalOfferNo}`);
     router.refresh();
   }
 
@@ -1241,7 +1404,7 @@ export default function OffersPage() {
           <button
             type="button"
             onClick={() => {
-              router.push(`/dashboard/offers/${contextMenu.offerId}/edit`);
+              router.push(`/dashboard/offers?edit=${contextMenu.offerId}`);
               setContextMenu(null);
             }}
             className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
@@ -1284,8 +1447,12 @@ export default function OffersPage() {
           <div className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-7xl overflow-y-auto overflow-x-hidden rounded-2xl bg-white p-4 shadow-xl sm:my-4 sm:max-h-[90vh] sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">{TR.newOfferTitle}</h2>
-                <p className="mt-1 text-sm text-slate-500">{TR.newOfferDesc}</p>
+                <h2 className="text-xl font-semibold text-slate-900">
+                  {offerModalMode === "edit" ? TR.editOfferTitle : TR.newOfferTitle}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {offerModalMode === "edit" ? TR.editOfferDesc : TR.newOfferDesc}
+                </p>
               </div>
 
               <button
@@ -1564,7 +1731,11 @@ export default function OffersPage() {
                 disabled={saving}
                 className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
               >
-                {saving ? TR.saving : TR.saveOffer}
+                {saving
+                  ? TR.saving
+                  : offerModalMode === "edit"
+                  ? "De\u011fi\u015fiklikleri Kaydet"
+                  : TR.saveOffer}
               </button>
             </div>
           </div>

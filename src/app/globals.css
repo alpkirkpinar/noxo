@@ -114,6 +114,43 @@ select:-webkit-autofill {
   z-index: 2147483000;
 }
 
+.floating-actions {
+  right: 0.75rem;
+  bottom: calc(5.75rem + 4dvh);
+}
+
+@media (min-width: 640px) {
+  .floating-actions {
+    right: 1rem;
+  }
+}
+
+@media (orientation: landscape) {
+  .floating-actions {
+    bottom: calc(5.75rem + 3dvh);
+  }
+}
+
+@media (min-width: 1280px) and (pointer: fine) {
+  .floating-actions {
+    right: 1.5rem;
+    bottom: 1.5rem;
+  }
+}
+
+@keyframes topbarRateCylinder {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96) rotateX(-35deg);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+    filter: blur(0);
+  }
+}
+
 main :where(
   div[class*="bg-white"][class*="rounded"][class*="border"],
   form[class*="bg-white"][class*="rounded"][class*="border"],

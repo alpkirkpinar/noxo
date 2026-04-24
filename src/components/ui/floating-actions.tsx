@@ -16,9 +16,10 @@ export default function FloatingActions() {
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
-      if (wrapRef.current && event.target instanceof Node) {
-        if (wrapRef.current.contains(event.target)) return;
+      if (wrapRef.current && event.target instanceof Node && wrapRef.current.contains(event.target)) {
+        return;
       }
+
       setOpen(false);
     }
 
@@ -27,7 +28,6 @@ export default function FloatingActions() {
   }, []);
 
   return (
-    <>
     <div ref={wrapRef} className="floating-actions fixed z-[35]">
       {open ? (
         <div className="mb-3 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
@@ -53,31 +53,5 @@ export default function FloatingActions() {
         +
       </button>
     </div>
-    <style jsx global>{`
-      .floating-actions {
-        right: 0.75rem;
-        bottom: calc(5.75rem + 4dvh);
-      }
-
-      @media (min-width: 640px) {
-        .floating-actions {
-          right: 1rem;
-        }
-      }
-
-      @media (orientation: landscape) {
-        .floating-actions {
-          bottom: calc(5.75rem + 3dvh);
-        }
-      }
-
-      @media (min-width: 1280px) and (pointer: fine) {
-        .floating-actions {
-          right: 1.5rem;
-          bottom: 1.5rem;
-        }
-      }
-    `}</style>
-    </>
   );
 }
