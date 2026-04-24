@@ -13,6 +13,7 @@ type InventoryRow = {
   company_id: string
   warehouse_id?: string | null
   item_code: string
+  manufacturer_code?: string | null
   item_name: string
   description?: string | null
   category?: string | null

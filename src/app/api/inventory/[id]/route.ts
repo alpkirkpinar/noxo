@@ -19,6 +19,7 @@ function toNumber(value: unknown) {
 function normalizeItem(body: Record<string, unknown>) {
   return {
     item_code: String(body?.item_code ?? "").trim(),
+    manufacturer_code: String(body?.manufacturer_code ?? "").trim() || null,
     item_name: String(body?.item_name ?? "").trim(),
     unit: String(body?.unit ?? "").trim() || "adet",
     current_stock: toNumber(body?.current_stock),

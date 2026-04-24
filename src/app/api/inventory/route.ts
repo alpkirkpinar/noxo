@@ -16,6 +16,7 @@ function normalizeItem(body: Record<string, unknown>, companyId: string) {
   return {
     company_id: companyId,
     item_code: String(body?.item_code ?? "").trim(),
+    manufacturer_code: String(body?.manufacturer_code ?? "").trim() || null,
     item_name: String(body?.item_name ?? "").trim(),
     unit: String(body?.unit ?? "").trim() || "adet",
     current_stock: toNumber(body?.current_stock),
@@ -42,6 +43,7 @@ export async function GET() {
       company_id,
       warehouse_id,
       item_code,
+      manufacturer_code,
       item_name,
       description,
       category,

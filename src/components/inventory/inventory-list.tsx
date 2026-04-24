@@ -13,6 +13,7 @@ type InventoryRow = {
   company_id: string;
   warehouse_id?: string | null;
   item_code: string;
+  manufacturer_code?: string | null;
   item_name: string;
   description?: string | null;
   category?: string | null;
@@ -61,6 +62,7 @@ type Props = {
 type SortKey =
   | "item_name"
   | "item_code"
+  | "manufacturer_code"
   | "description"
   | "category"
   | "unit_price"
@@ -72,6 +74,7 @@ type SortDirection = "asc" | "desc";
 
 type NewPartFormState = {
   item_code: string;
+  manufacturer_code: string;
   item_name: string;
   unit: string;
   current_stock: string;
@@ -89,6 +92,7 @@ type StockMoveFormState = {
 
 type EditFormState = {
   item_code: string;
+  manufacturer_code: string;
   item_name: string;
   unit: string;
   current_stock: string;
@@ -109,6 +113,7 @@ type CsvImportMode = "append" | "overwrite";
 
 const emptyNewPartForm: NewPartFormState = {
   item_code: "",
+  manufacturer_code: "",
   item_name: "",
   unit: "adet",
   current_stock: "",
@@ -126,6 +131,7 @@ const emptyStockMoveForm: StockMoveFormState = {
 
 const emptyEditForm: EditFormState = {
   item_code: "",
+  manufacturer_code: "",
   item_name: "",
   unit: "adet",
   current_stock: "",
@@ -277,12 +283,7 @@ function parseCsvLine(line: string, delimiter: "," | ";" = ",") {
 }
 
 function isInventoryCsvHeader(cols: string[]) {
-  const normalized = cols.map((col) =>
-    col
-      .trim()
-      .toLocaleLowerCase("tr-TR")
-      .replace(/\./g, "")
-  );
+  const normalized = cols.map((col) => normalizeCsvHeaderValue(col));
 
   return (
     normalized.includes("parça kodu") ||
@@ -290,6 +291,60 @@ function isInventoryCsvHeader(cols: string[]) {
     normalized.includes("item_code") ||
     normalized.includes("item code")
   );
+}
+
+function normalizeCsvHeaderValue(value: string) {
+  return value
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .replace(/\./g, "")
+    .replace(/[_-]/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+const CSV_FIELD_ALIASES: Record<string, string[]> = {
+  item_code: ["parça kodu", "parca kodu", "item code", "item_code", "stok kodu", "ürün kodu", "urun kodu"],
+  manufacturer_code: [
+    "üretici kodu",
+    "uretici kodu",
+    "üretici parça kodu",
+    "uretici parca kodu",
+    "manufacturer code",
+    "manufacturer_code",
+    "vendor code",
+  ],
+  item_name: ["parça adı", "parca adi", "parça adi", "parca adı", "item name", "item_name", "ürün adı", "urun adi"],
+  category: ["marka", "kategori", "category"],
+  description: ["açıklama", "aciklama", "description", "not"],
+  unit: ["birim", "unit"],
+  unit_price: ["birim fiyat", "fiyat", "unit price", "unit_price"],
+  currency: ["para birimi", "döviz", "doviz", "currency"],
+  current_stock: ["stok", "mevcut stok", "current stock", "current_stock"],
+  min_stock: ["min stok", "min. stok", "minimum stok", "minimum stock", "min_stock"],
+};
+
+function buildCsvHeaderIndex(cols: string[]) {
+  const indexMap = new Map<string, number>();
+
+  cols.forEach((col, index) => {
+    const normalized = normalizeCsvHeaderValue(col);
+
+    Object.entries(CSV_FIELD_ALIASES).forEach(([field, aliases]) => {
+      if (!indexMap.has(field) && aliases.includes(normalized)) {
+        indexMap.set(field, index);
+      }
+    });
+  });
+
+  return indexMap;
+}
+
+function getCsvValue(cols: string[], headerIndex: Map<string, number> | null, field: string, fallbackIndex: number) {
+  if (headerIndex?.has(field)) {
+    return cols[headerIndex.get(field) ?? -1] ?? "";
+  }
+
+  return cols[fallbackIndex] ?? "";
 }
 
 function csvEscape(value: string | number | null | undefined) {
@@ -450,6 +505,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
     setEditingItemId(itemId);
     setEditForm({
       item_code: item.item_code,
+      manufacturer_code: item.manufacturer_code ?? "",
       item_name: item.item_name,
       unit: item.unit?.trim() || "adet",
       current_stock: String(item.current_stock ?? ""),
@@ -573,6 +629,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
     const payload = {
       company_id: companyId,
       item_code: newPartForm.item_code.trim(),
+      manufacturer_code: newPartForm.manufacturer_code.trim() || null,
       item_name: newPartForm.item_name.trim(),
       unit: newPartForm.unit.trim() || "adet",
       current_stock: toNumber(newPartForm.current_stock),
@@ -778,6 +835,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
 
     const payload = {
       item_code: editForm.item_code.trim(),
+      manufacturer_code: editForm.manufacturer_code.trim() || null,
       item_name: editForm.item_name.trim(),
       unit: editForm.unit.trim() || "adet",
       current_stock: toNumber(editForm.current_stock),
@@ -936,24 +994,60 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
 
       const delimiter = detectCsvDelimiter(lines[0]);
       const firstRow = parseCsvLine(lines[0], delimiter);
-      const dataLines = isInventoryCsvHeader(firstRow) ? lines.slice(1) : lines;
+      const hasHeader = isInventoryCsvHeader(firstRow);
+      const headerIndex = hasHeader ? buildCsvHeaderIndex(firstRow) : null;
+      const dataLines = hasHeader ? lines.slice(1) : lines;
 
       const importedItems = dataLines
         .map((line) => parseCsvLine(line, delimiter))
         .filter((cols) => cols.some((x) => x !== ""))
-        .map((cols) => ({
-          company_id: companyId,
-          item_code: cols[0] ?? "",
-          item_name: cols[1] ?? "",
-          category: cols[2] ?? null,
-          description: cols[3] ?? null,
-          unit: cols[4] ?? "adet",
-          unit_price: (cols[5] ?? "").trim() ? toNumber(cols[5]) : null,
-          currency: normalizeCurrency(cols[6] ?? "TRY"),
-          current_stock: toNumber(cols[7] ?? "0"),
-          min_stock: (cols[8] ?? "").trim() ? toNumber(cols[8]) : null,
-          is_active: true,
-        }))
+        .map((cols) => {
+          const usesNewPositionalOrder = !headerIndex && cols.length >= 10;
+
+          const itemCode = getCsvValue(cols, headerIndex, "item_code", 0);
+          const manufacturerCode = usesNewPositionalOrder
+            ? cols[1] ?? ""
+            : getCsvValue(cols, headerIndex, "manufacturer_code", -1);
+          const itemName = usesNewPositionalOrder
+            ? cols[2] ?? ""
+            : getCsvValue(cols, headerIndex, "item_name", 1);
+          const category = usesNewPositionalOrder
+            ? cols[3] ?? ""
+            : getCsvValue(cols, headerIndex, "category", 2);
+          const description = usesNewPositionalOrder
+            ? cols[4] ?? ""
+            : getCsvValue(cols, headerIndex, "description", 3);
+          const unit = usesNewPositionalOrder
+            ? cols[5] ?? "adet"
+            : getCsvValue(cols, headerIndex, "unit", 4);
+          const unitPrice = usesNewPositionalOrder
+            ? cols[6] ?? ""
+            : getCsvValue(cols, headerIndex, "unit_price", 5);
+          const currency = usesNewPositionalOrder
+            ? cols[7] ?? "TRY"
+            : getCsvValue(cols, headerIndex, "currency", 6);
+          const currentStock = usesNewPositionalOrder
+            ? cols[8] ?? "0"
+            : getCsvValue(cols, headerIndex, "current_stock", 7);
+          const minStock = usesNewPositionalOrder
+            ? cols[9] ?? ""
+            : getCsvValue(cols, headerIndex, "min_stock", 8);
+
+          return {
+            company_id: companyId,
+            item_code: itemCode,
+            manufacturer_code: manufacturerCode.trim() || null,
+            item_name: itemName,
+            category: category.trim() || null,
+            description: description.trim() || null,
+            unit: unit.trim() || "adet",
+            unit_price: unitPrice.trim() ? toNumber(unitPrice) : null,
+            currency: normalizeCurrency(currency),
+            current_stock: toNumber(currentStock),
+            min_stock: minStock.trim() ? toNumber(minStock) : null,
+            is_active: true,
+          };
+        })
         .filter((item) => item.item_code.trim() && item.item_name.trim());
 
       if (!importedItems.length) {
@@ -1045,6 +1139,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
 
     const headers = [
       "Parça Kodu",
+      "Üretici Kodu",
       "Parça Adı",
       "Marka",
       "Açıklama",
@@ -1058,6 +1153,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
     const lines = exportItems.map((item) =>
       [
         csvEscape(item.item_code),
+        csvEscape(item.manufacturer_code ?? ""),
         csvEscape(item.item_name),
         csvEscape(item.category ?? ""),
         csvEscape(item.description ?? ""),
@@ -1131,6 +1227,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
         const text = [
           row.item_name,
           row.item_code,
+          row.manufacturer_code ?? "",
           row.description ?? "",
           row.category ?? "",
           row.unit_price ?? "",
@@ -1159,6 +1256,8 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
           ? left.item_name
           : sortKey === "item_code"
           ? left.item_code
+          : sortKey === "manufacturer_code"
+          ? left.manufacturer_code ?? ""
           : sortKey === "description"
           ? left.description ?? ""
           : sortKey === "category"
@@ -1176,6 +1275,8 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
           ? right.item_name
           : sortKey === "item_code"
           ? right.item_code
+          : sortKey === "manufacturer_code"
+          ? right.manufacturer_code ?? ""
           : sortKey === "description"
           ? right.description ?? ""
           : sortKey === "category"
@@ -1278,7 +1379,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
           </div>
 
           <div className="text-xs text-slate-500">
-            CSV kolon sırası: Parça Kodu, Parça Adı, Marka, Açıklama, Birim, Birim Fiyat, Para Birimi, Stok, Min. Stok
+            CSV kolon sırası: Parça Kodu, Üretici Kodu, Parça Adı, Marka, Açıklama, Birim, Birim Fiyat, Para Birimi, Stok, Min. Stok
           </div>
         </div>
 
@@ -1386,6 +1487,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
                     </th>
                   ) : null}
                   <th className={sortableHeaderClass} onClick={() => toggleSort("item_code")}>Parça Kodu</th>
+                  <th className={sortableHeaderClass} onClick={() => toggleSort("manufacturer_code")}>Üretici Kodu</th>
                   <th className={sortableHeaderClass} onClick={() => toggleSort("item_name")}>Parça Adı</th>
                   <th className={sortableHeaderClass} onClick={() => toggleSort("category")}>Marka</th>
                   <th className={sortableHeaderClass} onClick={() => toggleSort("description")}>Açıklama</th>
@@ -1400,7 +1502,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={selectionMode ? 10 : 9} className="px-4 py-12 text-center text-sm text-slate-500">
+                    <td colSpan={selectionMode ? 11 : 10} className="px-4 py-12 text-center text-sm text-slate-500">
                       Kayıt bulunamadı.
                     </td>
                   </tr>
@@ -1438,6 +1540,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
                           </td>
                         ) : null}
                         <td className="px-4 py-3 text-sm font-medium text-slate-900">{item.item_code}</td>
+                        <td className="px-4 py-3 text-sm text-slate-700">{item.manufacturer_code ?? "-"}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">{item.item_name}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">{item.category ?? "-"}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">{item.description ?? "-"}</td>
@@ -1581,6 +1684,11 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Üretici Kodu</label>
+                <input type="text" value={newPartForm.manufacturer_code} onChange={(e) => setNewPartForm((prev) => ({ ...prev, manufacturer_code: e.target.value }))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Parça Adı</label>
                 <input type="text" value={newPartForm.item_name} onChange={(e) => setNewPartForm((prev) => ({ ...prev, item_name: e.target.value }))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
               </div>
@@ -1708,6 +1816,11 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Parça Kodu</label>
                 <input type="text" value={editForm.item_code} onChange={(e) => setEditForm((prev) => ({ ...prev, item_code: e.target.value }))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Üretici Kodu</label>
+                <input type="text" value={editForm.manufacturer_code} onChange={(e) => setEditForm((prev) => ({ ...prev, manufacturer_code: e.target.value }))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
               </div>
 
               <div className="space-y-2">
