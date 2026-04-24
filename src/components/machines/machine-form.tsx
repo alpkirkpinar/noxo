@@ -56,7 +56,7 @@ export default function MachineForm({
   const router = useRouter();
   const isEdit = mode === "edit";
   const inputClass =
-    "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500";
+    "min-w-0 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500";
   const labelClass = "mb-2 block text-sm font-medium text-slate-700";
 
   const [machineCode, setMachineCode] = useState(initialValues?.machine_code ?? "");
@@ -141,7 +141,7 @@ export default function MachineForm({
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Müşteri</label>
           <select className={inputClass} value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
             <option value="">Müşteri seç</option>
@@ -153,32 +153,32 @@ export default function MachineForm({
           </select>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Makine Kodu</label>
           <input className={inputClass} value={machineCode} onChange={(event) => setMachineCode(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Makine Adı</label>
           <input className={inputClass} value={machineName} onChange={(event) => setMachineName(event.target.value)} required />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Seri No</label>
           <input className={inputClass} value={serialNumber} onChange={(event) => setSerialNumber(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Marka</label>
           <input className={inputClass} value={brand} onChange={(event) => setBrand(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Model</label>
           <input className={inputClass} value={model} onChange={(event) => setModel(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Durum</label>
           <select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value)}>
             <option value="active">Aktif</option>
@@ -188,22 +188,22 @@ export default function MachineForm({
           </select>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Bakım Periyodu (gün)</label>
           <input className={inputClass} type="number" min="0" value={maintenancePeriodDays} onChange={(event) => setMaintenancePeriodDays(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Kurulum Tarihi</label>
           <input className={inputClass} type="date" value={installationDate} onChange={(event) => setInstallationDate(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Garanti Bitiş</label>
           <input className={inputClass} type="date" value={warrantyEndDate} onChange={(event) => setWarrantyEndDate(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Son Bakım</label>
           <input className={inputClass} type="date" value={lastMaintenanceDate} onChange={(event) => setLastMaintenanceDate(event.target.value)} />
         </div>
@@ -213,12 +213,12 @@ export default function MachineForm({
           <input className={inputClass} type="date" value={nextMaintenanceDate} onChange={(event) => setNextMaintenanceDate(event.target.value)} />
         </div>
 
-        <div className="md:col-span-2">
+        <div className="min-w-0 md:col-span-2">
           <label className={labelClass}>Konum</label>
           <input className={inputClass} value={locationText} onChange={(event) => setLocationText(event.target.value)} />
         </div>
 
-        <div className="md:col-span-2">
+        <div className="min-w-0 md:col-span-2">
           <label className={labelClass}>Notlar</label>
           <textarea className={`${inputClass} min-h-28 resize-y`} value={notes} onChange={(event) => setNotes(event.target.value)} />
         </div>

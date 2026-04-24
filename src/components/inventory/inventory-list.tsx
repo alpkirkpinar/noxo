@@ -1566,13 +1566,14 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
       ) : null}
 
       {showNewPartModal ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/30 p-2 sm:items-center sm:p-4">
+          <div className="my-2 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)]">
+            <div className="mb-5 flex items-start justify-between gap-4 px-4 pt-4 sm:px-6 sm:pt-6">
               <h2 className="text-xl font-semibold text-slate-900">Yeni Parça Ekle</h2>
               <button type="button" onClick={closeNewPartModal} className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100">×</button>
             </div>
 
+            <div className="overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Parça Kodu</label>
@@ -1629,6 +1630,7 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
               <button type="button" onClick={handleCreateItem} disabled={saving} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
                 {saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
+            </div>
             </div>
           </div>
         </div>
