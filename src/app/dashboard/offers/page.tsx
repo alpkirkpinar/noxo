@@ -1304,7 +1304,7 @@ export default function OffersPage() {
                   type="text"
                   value={offerNo}
                   onChange={(e) => setOfferNo(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1313,7 +1313,7 @@ export default function OffersPage() {
                 <select
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 >
                   <option value="">{TR.customerSelect}</option>
                   {customers.map((customer) => (
@@ -1330,7 +1330,7 @@ export default function OffersPage() {
                   type="date"
                   value={offerDate}
                   onChange={(e) => setOfferDate(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1340,7 +1340,7 @@ export default function OffersPage() {
                   type="date"
                   value={validUntil}
                   onChange={(e) => setValidUntil(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1350,7 +1350,7 @@ export default function OffersPage() {
                   type="text"
                   value={salesRep}
                   onChange={(e) => setSalesRep(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1360,7 +1360,7 @@ export default function OffersPage() {
                   type="email"
                   value={salesRepEmail}
                   onChange={(e) => setSalesRepEmail(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1370,7 +1370,7 @@ export default function OffersPage() {
                   type="text"
                   value={salesRepPhone}
                   onChange={(e) => setSalesRepPhone(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
 
@@ -1379,7 +1379,7 @@ export default function OffersPage() {
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="min-h-[140px] min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                  className="min-h-[140px] min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                 />
               </div>
             </div>
@@ -1436,7 +1436,7 @@ export default function OffersPage() {
                                     tryResolveRowCode(row.id);
                                   }
                                 }}
-                                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500"
+                                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base outline-none focus:border-slate-500 sm:text-sm"
                                 placeholder={TR.codePlaceholder}
                               />
 
@@ -1465,7 +1465,7 @@ export default function OffersPage() {
                             <textarea
                               value={row.description}
                               onChange={(e) => updateRow(row.id, { description: e.target.value })}
-                              className="min-h-[76px] min-w-[260px] rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                              className="min-h-[76px] min-w-[260px] rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                             />
                           </td>
 
@@ -1477,7 +1477,7 @@ export default function OffersPage() {
                               step="1"
                               value={row.quantity}
                               onChange={(e) => updateRow(row.id, { quantity: e.target.value })}
-                              className="w-[90px] rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                              className="w-[90px] rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                             />
                           </td>
 
@@ -1488,7 +1488,7 @@ export default function OffersPage() {
                               min="0"
                               value={row.multiplier}
                               onChange={(e) => updateRow(row.id, { multiplier: e.target.value })}
-                              className="w-[100px] rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                              className="w-[100px] rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                             />
                           </td>
 
@@ -1497,7 +1497,7 @@ export default function OffersPage() {
                               type="text"
                               value={row.unit}
                               onChange={(e) => updateRow(row.id, { unit: e.target.value })}
-                              className="w-[100px] rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                              className="w-[100px] rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
                             />
                           </td>
 
