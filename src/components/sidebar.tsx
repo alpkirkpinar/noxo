@@ -387,7 +387,21 @@ export default function Sidebar({
           <div
             className="pointer-events-none absolute inset-y-1 right-0 w-9 rounded-r-3xl bg-[linear-gradient(90deg,rgba(27,39,70,0)_0%,rgba(27,39,70,0.72)_45%,rgba(27,39,70,0.98)_100%)] shadow-[-10px_0_22px_rgba(15,23,42,0.22)] sm:hidden"
             aria-hidden="true"
-          />
+          >
+            <span className="absolute inset-y-0 right-1 flex items-center text-white/80">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </span>
+          </div>
         ) : null}
       </nav>
     </>
