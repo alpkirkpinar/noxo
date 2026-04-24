@@ -361,14 +361,15 @@ export default function Sidebar({
         >
           {mobileNavItems.map((item) => {
             if (!item.href || !item.icon) return null
-            const active = isActive(pathname, item.href)
+            const href = item.href
+            const active = isActive(pathname, href)
 
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={href}
+                href={href}
                 ref={(element) => {
-                  mobileItemRefs.current[item.href] = element
+                  mobileItemRefs.current[href] = element
                 }}
                 className={`flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-2xl px-2 py-2 transition sm:min-w-0 sm:flex-1 sm:shrink ${
                   active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
