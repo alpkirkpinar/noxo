@@ -222,6 +222,13 @@ function formatCurrency(value?: number | null, currency: CurrencyCode = "TRY") {
   }).format(safeValue);
 }
 
+function isIosDevice() {
+  if (typeof navigator === "undefined") return false;
+
+  const userAgent = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && /Mobile/i.test(userAgent));
+}
+
 function compareValues(a: string | number, b: string | number, dir: SortDirection) {
   const aNum = Number(a);
   const bNum = Number(b);
@@ -912,8 +919,10 @@ export default function OffersPage() {
   function downloadOfferPdf(offerId: string) {
     const anchor = document.createElement("a");
     anchor.href = `/dashboard/offers/${offerId}/pdf/file`;
-    anchor.target = "_blank";
-    anchor.rel = "noopener noreferrer";
+    if (isIosDevice()) {
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+    }
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -1229,7 +1238,11 @@ export default function OffersPage() {
           <button
             type="button"
             onClick={() => {
-              window.open(`/dashboard/offers/${contextMenu.offerId}/pdf/file`, "_blank", "noopener,noreferrer");
+              if (isIosDevice()) {
+                window.open(`/dashboard/offers/${contextMenu.offerId}/pdf/file`, "_blank", "noopener,noreferrer");
+              } else {
+                window.location.href = `/dashboard/offers/${contextMenu.offerId}/pdf/file`;
+              }
               setContextMenu(null);
             }}
             className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
@@ -65,6 +66,8 @@ export default async function OfferDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const userAgent = (await headers()).get("user-agent") ?? "";
+  const isIos = /iPad|iPhone|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && /Mobile/i.test(userAgent));
   const supabase = await createClient();
 
   const {
@@ -192,8 +195,8 @@ export default async function OfferDetailPage({
 
           <a
             href={`/dashboard/offers/${offer.id}/pdf/file`}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={isIos ? "_blank" : undefined}
+            rel={isIos ? "noopener noreferrer" : undefined}
             className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
           >
             {TR.pdfDownload}
