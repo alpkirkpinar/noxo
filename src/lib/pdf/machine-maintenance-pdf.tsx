@@ -607,7 +607,10 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
             </View>
 
             {entries.map((entry, index) => (
-              <View key={entry.machine.id} style={[styles.tableRow, index % 2 === 0 ? styles.tableRowAlt : null]}>
+              <View
+                key={entry.machine.id}
+                style={index % 2 === 0 ? [styles.tableRow, styles.tableRowAlt] : styles.tableRow}
+              >
                 <Text style={[styles.rowNum, styles.colIndex]}>{index + 1}</Text>
                 <Text style={[styles.td, styles.colMachine]}>{display(entry.machine.machine_name)}</Text>
                 <Text style={[styles.td, styles.colBrand]}>{machineBrandModel(entry)}</Text>
