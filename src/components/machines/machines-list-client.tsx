@@ -6,6 +6,7 @@ import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
 import MachineForm from "@/components/machines/machine-form";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
+import { MAINTENANCE_SCOPE_OPTIONS } from "@/lib/maintenance-options";
 
 type MachineListItem = {
   id: string;
@@ -171,12 +172,10 @@ function maintenanceProgress(machine: MachineListItem) {
 
   const totalDays = Math.max(1, Math.ceil((nextDate.getTime() - startDate.getTime()) / dayMs));
   const elapsedDays = Math.max(0, Math.ceil((today.getTime() - startDate.getTime()) / dayMs));
-  const percent = daysRemaining < 0 ? 100 : Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
+  const percent =
+    daysRemaining < 0 ? 100 : Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
 
-  return {
-    percent,
-    daysRemaining,
-  };
+  return { percent, daysRemaining };
 }
 
 function maintenanceBarClass(percent: number, daysRemaining: number) {
@@ -233,17 +232,21 @@ function MaintenanceDueIndicator({ machine, fullWidth = false }: { machine: Mach
 
 export default function MachinesListClient({ initialMachines, permissions, companyId, customers }: Props) {
   const router = useRouter();
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [rows, setRows] = useState(initialMachines);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortField>("machine_code");
   const [sortDirection, setSortDirection] = useState<SortOrder>("asc");
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [maintenanceTargetIds, setMaintenanceTargetIds] = useState<string[]>([]);
+  const [maintenanceScopeItems, setMaintenanceScopeItems] = useState<string[]>([]);
+  const [maintenanceDate, setMaintenanceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((machineId, x, y) => {
     setContextMenu({ x, y, machineId });
@@ -284,6 +287,37 @@ export default function MachinesListClient({ initialMachines, permissions, compa
     setSelectedIds((prev) =>
       allVisibleSelected ? prev.filter((id) => !visibleIdSet.has(id)) : Array.from(new Set([...prev, ...visibleIds]))
     );
+  }
+
+  function openMaintenanceModal(machineIds: string[]) {
+    if (!permissions.canEdit) {
+      setErrorText("Makine düzenleme yetkiniz yok.");
+      return;
+    }
+
+    if (machineIds.length === 0) {
+      setErrorText("Bakım için en az bir makine seçin.");
+      return;
+    }
+
+    setErrorText("");
+    setSuccessText("");
+    setMaintenanceTargetIds(machineIds);
+    setMaintenanceScopeItems([]);
+    setMaintenanceDate(new Date().toISOString().slice(0, 10));
+    setShowMaintenanceModal(true);
+    setContextMenu(null);
+  }
+
+  function openBulkCertificate(machineIds: string[]) {
+    if (machineIds.length === 0) {
+      setErrorText("Sertifika için en az bir makine seçin.");
+      return;
+    }
+
+    const query = encodeURIComponent(machineIds.join(","));
+    window.open(`/api/machines/maintenance-certificate?ids=${query}`, "_blank", "noopener,noreferrer");
+    setContextMenu(null);
   }
 
   async function deleteMachine(machineId: string) {
@@ -344,13 +378,13 @@ export default function MachinesListClient({ initialMachines, permissions, compa
     router.refresh();
   }
 
-  async function markMaintenanceDone(machineIds: string[]) {
+  async function submitMaintenanceModal() {
     if (!permissions.canEdit) {
       setErrorText("Makine düzenleme yetkiniz yok.");
       return;
     }
 
-    if (machineIds.length === 0) {
+    if (maintenanceTargetIds.length === 0) {
       setErrorText("Bakım için en az bir makine seçin.");
       return;
     }
@@ -358,7 +392,11 @@ export default function MachinesListClient({ initialMachines, permissions, compa
     const response = await fetch("/api/machines/maintenance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: machineIds }),
+      body: JSON.stringify({
+        ids: maintenanceTargetIds,
+        maintenance_scope_items: maintenanceScopeItems,
+        performed_at: maintenanceDate,
+      }),
     });
     const result = await response.json().catch(() => ({}));
 
@@ -369,6 +407,9 @@ export default function MachinesListClient({ initialMachines, permissions, compa
 
     setSelectedIds([]);
     setSelectionMode(false);
+    setShowMaintenanceModal(false);
+    setMaintenanceTargetIds([]);
+    setMaintenanceScopeItems([]);
     setContextMenu(null);
     setSuccessText("Bakım yapıldı olarak işaretlendi.");
     router.refresh();
@@ -412,6 +453,12 @@ export default function MachinesListClient({ initialMachines, permissions, compa
   const sortableHeaderClass =
     "cursor-pointer whitespace-nowrap px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200";
 
+  function toggleMaintenanceScopeItem(item: string) {
+    setMaintenanceScopeItems((current) =>
+      current.includes(item) ? current.filter((value) => value !== item) : [...current, item]
+    );
+  }
+
   return (
     <div className="space-y-6">
       {errorText ? (
@@ -427,76 +474,97 @@ export default function MachinesListClient({ initialMachines, permissions, compa
       ) : null}
 
       <CompactFilterActionBar className="!p-3 sm:!p-5">
-          <div className="min-w-0 flex-1">
-            <label className="sr-only">Ara</label>
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Makine adı, kod veya seri no ara"
-              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
-            />
-          </div>
+        <div className="min-w-0 flex-1">
+          <label className="sr-only">Ara</label>
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Makine adı, kod veya seri no ara"
+            className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
+          />
+        </div>
 
-          <div className="w-full sm:w-44">
-            <label className="sr-only">Durum</label>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm sm:h-11"
-            >
-              <option value="">Tümü</option>
-              <option value="active">Aktif</option>
-              <option value="inactive">Pasif</option>
-              <option value="in_service">Serviste</option>
-              <option value="scrapped">Hurda</option>
-            </select>
-          </div>
-
-          <div
-            className={`grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max sm:grid-cols-none ${
-              permissions.canCreate ? "grid-cols-3" : "grid-cols-2"
-            }`}
+        <div className="w-full sm:w-44">
+          <label className="sr-only">Durum</label>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm sm:h-11"
           >
-            <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
-              <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
-                Toplam
-              </div>
-              <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{totalCount}</div>
-            </div>
+            <option value="">Tümü</option>
+            <option value="active">Aktif</option>
+            <option value="inactive">Pasif</option>
+            <option value="in_service">Serviste</option>
+            <option value="scrapped">Hurda</option>
+          </select>
+        </div>
 
-            <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
-              <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
-                Aktif
-              </div>
-              <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{activeCount}</div>
+        <div
+          className={`grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max sm:grid-cols-none ${
+            permissions.canCreate ? "grid-cols-3" : "grid-cols-2"
+          }`}
+        >
+          <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+            <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
+              Toplam
             </div>
-
-            {permissions.canCreate ? (
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
-              >
-                Yeni
-              </button>
-            ) : null}
+            <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{totalCount}</div>
           </div>
+
+          <div className="flex h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm sm:h-11 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+            <div className="truncate text-[10px] font-medium uppercase leading-tight text-slate-500 sm:text-[11px]">
+              Aktif
+            </div>
+            <div className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{activeCount}</div>
+          </div>
+
+          {permissions.canCreate ? (
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="flex h-10 min-w-0 items-center justify-center rounded-xl bg-slate-900 px-2 text-xs font-medium text-white transition hover:bg-slate-800 sm:h-11 sm:px-4 sm:text-sm"
+            >
+              Yeni
+            </button>
+          ) : null}
+        </div>
       </CompactFilterActionBar>
 
       {selectionMode ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-sm font-semibold text-slate-800">{selectedIds.length} kayıt seçildi</div>
-          <button type="button" onClick={toggleVisibleSelection} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={toggleVisibleSelection}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
             Görünenleri Seç / Bırak
           </button>
           {permissions.canEdit ? (
-            <button type="button" onClick={() => void markMaintenanceDone(selectedIds)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+            <button
+              type="button"
+              onClick={() => openMaintenanceModal(selectedIds)}
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+            >
               Bakım Yapıldı
             </button>
           ) : null}
+          {permissions.canEdit ? (
+            <button
+              type="button"
+              onClick={() => openBulkCertificate(selectedIds)}
+              className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-700 hover:bg-sky-100"
+            >
+              Bakım Sertifikası
+            </button>
+          ) : null}
           {permissions.canDelete ? (
-            <button type="button" onClick={() => void bulkDeleteMachines(selectedIds)} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100">
+            <button
+              type="button"
+              onClick={() => void bulkDeleteMachines(selectedIds)}
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100"
+            >
               Sil
             </button>
           ) : null}
@@ -631,10 +699,20 @@ export default function MachinesListClient({ initialMachines, permissions, compa
           {permissions.canEdit ? (
             <button
               type="button"
-              onClick={() => void markMaintenanceDone([contextMenu.machineId])}
+              onClick={() => openMaintenanceModal([contextMenu.machineId])}
               className="block w-full px-4 py-2.5 text-left text-sm text-emerald-700 transition-colors hover:bg-emerald-50"
             >
               Bakım Yapıldı
+            </button>
+          ) : null}
+
+          {permissions.canEdit ? (
+            <button
+              type="button"
+              onClick={() => openBulkCertificate([contextMenu.machineId])}
+              className="block w-full px-4 py-2.5 text-left text-sm text-sky-700 transition-colors hover:bg-sky-50"
+            >
+              Bakım Sertifikası
             </button>
           ) : null}
 
@@ -660,6 +738,75 @@ export default function MachinesListClient({ initialMachines, permissions, compa
               Sil
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {showMaintenanceModal ? (
+        <div className="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-slate-950/35 p-2 sm:p-4">
+          <div className="my-4 w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl sm:p-6">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">Bakım İşlemi</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {maintenanceTargetIds.length} makine için uygulanan bakım kapsamını seçin.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowMaintenanceModal(false)}
+                className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Bakım Tarihi</label>
+                <input
+                  type="date"
+                  value={maintenanceDate}
+                  onChange={(event) => setMaintenanceDate(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Uygulanan Bakım Kapsamı</label>
+                <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  {MAINTENANCE_SCOPE_OPTIONS.map((item) => (
+                    <label key={item} className="flex items-center gap-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={maintenanceScopeItems.includes(item)}
+                        onChange={() => toggleMaintenanceScopeItem(item)}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                      <span>{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowMaintenanceModal(false)}
+                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void submitMaintenanceModal()}
+                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  Bakımı Kaydet
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
 

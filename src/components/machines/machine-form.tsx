@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { computeNextMaintenanceDate } from "@/lib/machines";
 
 type CustomerItem = {
   id: string;
@@ -59,7 +60,9 @@ export default function MachineForm({
     "min-w-0 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500";
   const labelClass = "mb-2 block text-sm font-medium text-slate-700";
 
-  const [machineCode, setMachineCode] = useState(initialValues?.machine_code ?? "");
+  const [machineCode, setMachineCode] = useState(() =>
+    initialValues?.machine_code ?? (isEdit ? "" : `MAC-${Date.now()}`)
+  );
   const [customerId, setCustomerId] = useState(initialValues?.customer_id ?? "");
   const [machineName, setMachineName] = useState(initialValues?.machine_name ?? "");
   const [brand, setBrand] = useState(initialValues?.brand ?? "");
@@ -71,12 +74,17 @@ export default function MachineForm({
     initialValues?.maintenance_period_days ? String(initialValues.maintenance_period_days) : ""
   );
   const [lastMaintenanceDate, setLastMaintenanceDate] = useState(dateValue(initialValues?.last_maintenance_date));
-  const [nextMaintenanceDate, setNextMaintenanceDate] = useState(dateValue(initialValues?.next_maintenance_date));
   const [locationText, setLocationText] = useState(initialValues?.location_text ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
   const [status, setStatus] = useState(initialValues?.status ?? "active");
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
+
+  const computedNextMaintenanceDate = computeNextMaintenanceDate({
+    maintenancePeriodDays: Number(maintenancePeriodDays) || null,
+    lastMaintenanceDate,
+    installationDate,
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,7 +99,7 @@ export default function MachineForm({
     const payload = {
       company_id: companyId,
       customer_id: customerId || null,
-      machine_code: machineCode.trim() || (isEdit ? null : `MAC-${Date.now()}`),
+      machine_code: machineCode.trim() || null,
       machine_name: machineName.trim(),
       brand: brand.trim() || null,
       model: model.trim() || null,
@@ -100,7 +108,7 @@ export default function MachineForm({
       warranty_end_date: warrantyEndDate || null,
       maintenance_period_days: Number(maintenancePeriodDays) || null,
       last_maintenance_date: lastMaintenanceDate || null,
-      next_maintenance_date: nextMaintenanceDate || null,
+      next_maintenance_date: computedNextMaintenanceDate,
       location_text: locationText.trim() || null,
       notes: notes.trim() || null,
       status: status || "active",
@@ -190,7 +198,13 @@ export default function MachineForm({
 
         <div className="min-w-0">
           <label className={labelClass}>Bakım Periyodu (gün)</label>
-          <input className={inputClass} type="number" min="0" value={maintenancePeriodDays} onChange={(event) => setMaintenancePeriodDays(event.target.value)} />
+          <input
+            className={inputClass}
+            type="number"
+            min="0"
+            value={maintenancePeriodDays}
+            onChange={(event) => setMaintenancePeriodDays(event.target.value)}
+          />
         </div>
 
         <div className="min-w-0">
@@ -208,9 +222,12 @@ export default function MachineForm({
           <input className={inputClass} type="date" value={lastMaintenanceDate} onChange={(event) => setLastMaintenanceDate(event.target.value)} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label className={labelClass}>Sonraki Bakım</label>
-          <input className={inputClass} type="date" value={nextMaintenanceDate} onChange={(event) => setNextMaintenanceDate(event.target.value)} />
+          <input className={inputClass} type="date" value={dateValue(computedNextMaintenanceDate)} readOnly />
+          <p className="mt-2 text-xs text-slate-500">
+            Sonraki bakım tarihi bakım periyodu ile son bakım veya kurulum tarihine göre hesaplanır.
+          </p>
         </div>
 
         <div className="min-w-0 md:col-span-2">

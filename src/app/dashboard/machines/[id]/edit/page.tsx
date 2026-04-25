@@ -1,4 +1,5 @@
-﻿import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import MachineForm from "@/components/machines/machine-form";
 
@@ -90,9 +91,18 @@ export default async function EditMachinePage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Makine Düzenle</h1>
-        <p className="text-sm text-gray-500">Makine bilgilerini güncelleyin</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Makine Düzenle</h1>
+          <p className="text-sm text-gray-500">Makine bilgilerini güncelleyin</p>
+        </div>
+
+        <Link
+          href={`/dashboard/machines/${machine.id}`}
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+        >
+          Geri
+        </Link>
       </div>
 
       <MachineForm
@@ -100,6 +110,7 @@ export default async function EditMachinePage({ params }: PageProps) {
         customers={(customers ?? []) as CustomerItem[]}
         mode="edit"
         initialValues={machine as MachineInitialValues}
+        cancelHref={`/dashboard/machines/${machine.id}`}
       />
     </div>
   );

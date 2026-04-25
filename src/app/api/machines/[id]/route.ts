@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { computeNextMaintenanceDate, normalizeDateOnly } from "@/lib/machines"
 import { PERMISSIONS } from "@/lib/permissions"
 
 type RouteContext = {
@@ -7,6 +8,10 @@ type RouteContext = {
 }
 
 function normalizeMachinePayload(body: Record<string, unknown>) {
+  const installationDate = normalizeDateOnly(String(body?.installation_date ?? "").trim())
+  const lastMaintenanceDate = normalizeDateOnly(String(body?.last_maintenance_date ?? "").trim())
+  const maintenancePeriodDays = Number(body?.maintenance_period_days) || null
+
   return {
     customer_id: String(body?.customer_id ?? "").trim() || null,
     machine_code: String(body?.machine_code ?? "").trim() || null,
@@ -14,11 +19,15 @@ function normalizeMachinePayload(body: Record<string, unknown>) {
     brand: String(body?.brand ?? "").trim() || null,
     model: String(body?.model ?? "").trim() || null,
     serial_number: String(body?.serial_number ?? "").trim() || null,
-    installation_date: String(body?.installation_date ?? "").trim() || null,
+    installation_date: installationDate,
     warranty_end_date: String(body?.warranty_end_date ?? "").trim() || null,
-    maintenance_period_days: Number(body?.maintenance_period_days) || null,
-    last_maintenance_date: String(body?.last_maintenance_date ?? "").trim() || null,
-    next_maintenance_date: String(body?.next_maintenance_date ?? "").trim() || null,
+    maintenance_period_days: maintenancePeriodDays,
+    last_maintenance_date: lastMaintenanceDate,
+    next_maintenance_date: computeNextMaintenanceDate({
+      maintenancePeriodDays,
+      lastMaintenanceDate,
+      installationDate,
+    }),
     location_text: String(body?.location_text ?? "").trim() || null,
     notes: String(body?.notes ?? "").trim() || null,
     status: String(body?.status ?? "").trim() || "active",

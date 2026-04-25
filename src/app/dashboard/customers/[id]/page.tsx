@@ -1,7 +1,8 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getServerIdentity } from "@/lib/authz";
+import { computeNextMaintenanceDate, normalizeDateOnly } from "@/lib/machines";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 type PageProps = {
@@ -22,6 +23,16 @@ type CustomerMachineRow = {
 
 function createMachineCode() {
   return `MAC-${Date.now()}`;
+}
+
+function getPermissionIdentity(user: { app_metadata?: Record<string, unknown> }) {
+  return {
+    permissions: Array.isArray(user.app_metadata?.permissions)
+      ? user.app_metadata.permissions.map(String)
+      : [],
+    role: typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null,
+    super_user: user.app_metadata?.super_user === true,
+  };
 }
 
 export default async function CustomerDetailPage({ params }: PageProps) {
@@ -88,16 +99,9 @@ export default async function CustomerDetailPage({ params }: PageProps) {
   if (customerError || !customer) notFound();
   if (machinesError) throw new Error(machinesError.message);
 
-  const canCreateMachine = hasPermission(
-    {
-      permissions: Array.isArray(user.app_metadata?.permissions)
-        ? user.app_metadata.permissions.map(String)
-        : [],
-      role: typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null,
-      super_user: user.app_metadata?.super_user === true,
-    },
-    PERMISSIONS.machineCreate
-  );
+  const permissionIdentity = getPermissionIdentity(user);
+  const canCreateMachine = hasPermission(permissionIdentity, PERMISSIONS.machineCreate);
+  const canEditCustomer = hasPermission(permissionIdentity, PERMISSIONS.customerEdit);
 
   async function createMachineForCustomer(formData: FormData) {
     "use server";
@@ -107,24 +111,6 @@ export default async function CustomerDetailPage({ params }: PageProps) {
       throw new Error(auth.error);
     }
 
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) redirect("/login");
-
-    const { data: appUser } = await supabase
-      .from("app_users")
-      .select("company_id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (!appUser?.company_id) {
-      throw new Error("company_id bulunamadı.");
-    }
-
     const machine_name = String(formData.get("machine_name") ?? "").trim();
     const brand = String(formData.get("brand") ?? "").trim();
     const model = String(formData.get("model") ?? "").trim();
@@ -132,15 +118,14 @@ export default async function CustomerDetailPage({ params }: PageProps) {
     const location_text = String(formData.get("location_text") ?? "").trim();
     const notes = String(formData.get("notes") ?? "").trim();
     const maintenance_period_days = Number(formData.get("maintenance_period_days") ?? 0) || null;
-    const installation_date = String(formData.get("installation_date") ?? "").trim();
-    const last_maintenance_date = String(formData.get("last_maintenance_date") ?? "").trim();
-    const next_maintenance_date = String(formData.get("next_maintenance_date") ?? "").trim();
+    const installation_date = normalizeDateOnly(String(formData.get("installation_date") ?? "").trim());
+    const last_maintenance_date = normalizeDateOnly(String(formData.get("last_maintenance_date") ?? "").trim());
 
     if (!machine_name) {
       throw new Error("Makine adı zorunludur.");
     }
 
-    const { error } = await supabase.from("machines").insert({
+    const { error } = await auth.supabase.from("machines").insert({
       company_id: auth.identity.companyId,
       customer_id: id,
       machine_name,
@@ -151,9 +136,13 @@ export default async function CustomerDetailPage({ params }: PageProps) {
       location_text: location_text || null,
       notes: notes || null,
       maintenance_period_days,
-      installation_date: installation_date || null,
-      last_maintenance_date: last_maintenance_date || null,
-      next_maintenance_date: next_maintenance_date || null,
+      installation_date,
+      last_maintenance_date,
+      next_maintenance_date: computeNextMaintenanceDate({
+        maintenancePeriodDays: maintenance_period_days,
+        lastMaintenanceDate: last_maintenance_date,
+        installationDate: installation_date,
+      }),
       status: "active",
     });
 
@@ -173,85 +162,85 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {canEditCustomer ? (
+            <Link
+              href={`/dashboard/customers/${customer.id}/edit`}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Düzenle
+            </Link>
+          ) : null}
+
           {canCreateMachine ? (
-          <details className="relative">
-            <summary className="cursor-pointer list-none rounded-lg bg-black px-4 py-2 text-sm font-medium text-white">
-              Yeni Makine Ekle
-            </summary>
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded-lg bg-black px-4 py-2 text-sm font-medium text-white">
+                Yeni Makine Ekle
+              </summary>
 
-            <div className="absolute right-0 z-20 mt-2 w-[520px] max-w-[90vw] rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">Bu Müşteriye Yeni Makine Ekle</h2>
+              <div className="absolute right-0 z-20 mt-2 w-[520px] max-w-[90vw] rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                <h2 className="mb-4 text-lg font-semibold text-slate-900">Bu Müşteriye Yeni Makine Ekle</h2>
 
-              <form action={createMachineForCustomer} className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Makine Adı</label>
-                  <input
-                    type="text"
-                    name="machine_name"
-                    className="w-full rounded-lg border px-3 py-2 text-sm"
-                    required
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
+                <form action={createMachineForCustomer} className="space-y-4">
                   <div>
-                    <label className="mb-1 block text-sm font-medium">Marka</label>
+                    <label className="mb-1 block text-sm font-medium">Makine Adı</label>
                     <input
                       type="text"
-                      name="brand"
+                      name="machine_name"
                       className="w-full rounded-lg border px-3 py-2 text-sm"
+                      required
                     />
                   </div>
 
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Marka</label>
+                      <input type="text" name="brand" className="w-full rounded-lg border px-3 py-2 text-sm" />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Model</label>
+                      <input type="text" name="model" className="w-full rounded-lg border px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="mb-1 block text-sm font-medium">Model</label>
+                    <label className="mb-1 block text-sm font-medium">Seri No</label>
                     <input
                       type="text"
-                      name="model"
-                      className="w-full rounded-lg border px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Seri No</label>
-                  <input
-                    type="text"
-                    name="serial_number"
-                    className="w-full rounded-lg border px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Konum</label>
-                  <input
-                    type="text"
-                    name="location_text"
-                    className="w-full rounded-lg border px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Kurulum Tarihi</label>
-                    <input
-                      type="date"
-                      name="installation_date"
+                      name="serial_number"
                       className="w-full rounded-lg border px-3 py-2 text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-sm font-medium">Bakım Periyodu (Gün)</label>
+                    <label className="mb-1 block text-sm font-medium">Konum</label>
                     <input
-                      type="number"
-                      name="maintenance_period_days"
+                      type="text"
+                      name="location_text"
                       className="w-full rounded-lg border px-3 py-2 text-sm"
                     />
                   </div>
-                </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Kurulum Tarihi</label>
+                      <input
+                        type="date"
+                        name="installation_date"
+                        className="w-full rounded-lg border px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Bakım Periyodu (Gün)</label>
+                      <input
+                        type="number"
+                        name="maintenance_period_days"
+                        className="w-full rounded-lg border px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="mb-1 block text-sm font-medium">Son Bakım Tarihi</label>
                     <input
@@ -262,34 +251,24 @@ export default async function CustomerDetailPage({ params }: PageProps) {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-sm font-medium">Sonraki Bakım Tarihi</label>
-                    <input
-                      type="date"
-                      name="next_maintenance_date"
-                      className="w-full rounded-lg border px-3 py-2 text-sm"
+                    <label className="mb-1 block text-sm font-medium">Notlar</label>
+                    <textarea
+                      name="notes"
+                      className="min-h-[100px] w-full rounded-lg border px-3 py-2 text-sm"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Notlar</label>
-                  <textarea
-                    name="notes"
-                    className="min-h-[100px] w-full rounded-lg border px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
-                  >
-                    Makineyi Ekle
-                  </button>
-                </div>
-              </form>
-            </div>
-          </details>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+                    >
+                      Makineyi Ekle
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </details>
           ) : null}
 
           <Link

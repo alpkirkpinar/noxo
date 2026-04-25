@@ -1,8 +1,9 @@
 import SystemSettings from "@/components/settings/system-settings"
 import { getDashboardContext } from "@/lib/dashboard-context"
+import { isSuperUser } from "@/lib/permissions"
 
 export default async function SettingsPage() {
-  const { supabase, user, companyId } = await getDashboardContext()
+  const { supabase, user, companyId, identity } = await getDashboardContext()
 
   if (!user) {
     return <div className="text-sm text-red-600">Kullanici bulunamadi.</div>
@@ -14,7 +15,7 @@ export default async function SettingsPage() {
 
   const { data: settings } = await supabase
     .from("system_settings")
-    .select("company_name, logo_url")
+    .select("company_name, logo_url, maintenance_approver_name, maintenance_approver_title")
     .eq("company_id", companyId)
     .maybeSingle()
 
@@ -31,6 +32,9 @@ export default async function SettingsPage() {
         companyId={companyId}
         initialCompanyName={settings?.company_name ?? ""}
         initialLogoUrl={settings?.logo_url ?? ""}
+        initialMaintenanceApproverName={settings?.maintenance_approver_name ?? ""}
+        initialMaintenanceApproverTitle={settings?.maintenance_approver_title ?? ""}
+        canManageApprover={isSuperUser(identity)}
       />
     </div>
   )

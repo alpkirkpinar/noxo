@@ -7,17 +7,25 @@ type Props = {
   companyId: string;
   initialCompanyName: string;
   initialLogoUrl: string;
+  initialMaintenanceApproverName: string;
+  initialMaintenanceApproverTitle: string;
+  canManageApprover: boolean;
 };
 
 export default function SystemSettings({
   companyId,
   initialCompanyName,
   initialLogoUrl,
+  initialMaintenanceApproverName,
+  initialMaintenanceApproverTitle,
+  canManageApprover,
 }: Props) {
   const supabase = createClient();
 
   const [companyName, setCompanyName] = useState(initialCompanyName);
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
+  const [maintenanceApproverName, setMaintenanceApproverName] = useState(initialMaintenanceApproverName);
+  const [maintenanceApproverTitle, setMaintenanceApproverTitle] = useState(initialMaintenanceApproverTitle);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
@@ -37,12 +45,10 @@ export default function SystemSettings({
       const safeExt = ext === "jpg" ? "jpeg" : ext;
       const fileName = `company-logos/${companyId}/${Date.now()}.${safeExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("public-assets")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: true,
-        });
+      const { error: uploadError } = await supabase.storage.from("public-assets").upload(fileName, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
 
       if (uploadError) {
         setErrorText(uploadError.message);
@@ -50,9 +56,7 @@ export default function SystemSettings({
         return;
       }
 
-      const { data } = supabase.storage
-        .from("public-assets")
-        .getPublicUrl(fileName);
+      const { data } = supabase.storage.from("public-assets").getPublicUrl(fileName);
 
       setLogoUrl(data.publicUrl);
       setSuccessText("Logo yüklendi. Kaydet butonuna bas.");
@@ -72,6 +76,8 @@ export default function SystemSettings({
         company_id: companyId,
         company_name: companyName.trim() || null,
         logo_url: logoUrl.trim() || null,
+        maintenance_approver_name: maintenanceApproverName.trim() || null,
+        maintenance_approver_title: maintenanceApproverTitle.trim() || null,
         updated_at: new Date().toISOString(),
       },
       {
@@ -94,9 +100,7 @@ export default function SystemSettings({
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Şirket Adı
-            </label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Şirket Adı</label>
             <input
               type="text"
               value={companyName}
@@ -107,9 +111,7 @@ export default function SystemSettings({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Şirket Logosu
-            </label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Şirket Logosu</label>
 
             <div className="rounded-2xl border border-dashed border-slate-300 p-4">
               <input
@@ -124,9 +126,45 @@ export default function SystemSettings({
                 className="block w-full text-sm text-slate-700"
               />
 
-              <p className="mt-2 text-xs text-slate-500">
-                PNG, JPG, JPEG, WEBP, SVG desteklenir.
+              <p className="mt-2 text-xs text-slate-500">PNG, JPG, JPEG, WEBP, SVG desteklenir.</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3">
+              <h2 className="text-sm font-semibold text-slate-900">Bakım Onaylayanı</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Bakım sertifikalarındaki onaylayan imza alanında bu bilgiler kullanılır.
               </p>
+              {!canManageApprover ? (
+                <p className="mt-2 text-xs text-amber-700">Bu alanları yalnızca admin kullanıcılar değiştirebilir.</p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">İsim Soyisim</label>
+                <input
+                  type="text"
+                  value={maintenanceApproverName}
+                  onChange={(e) => setMaintenanceApproverName(e.target.value)}
+                  disabled={!canManageApprover}
+                  placeholder="Örnek: Ahmet Yılmaz"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Ünvan</label>
+                <input
+                  type="text"
+                  value={maintenanceApproverTitle}
+                  onChange={(e) => setMaintenanceApproverTitle(e.target.value)}
+                  disabled={!canManageApprover}
+                  placeholder="Örnek: Teknik Müdür"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
+                />
+              </div>
             </div>
           </div>
 
@@ -160,11 +198,7 @@ export default function SystemSettings({
           <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-4">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt="Şirket logosu"
-                className="max-h-[180px] max-w-full object-contain"
-              />
+              <img src={logoUrl} alt="Şirket logosu" className="max-h-[180px] max-w-full object-contain" />
             ) : (
               <div className="text-sm text-slate-400">Henüz logo yüklenmedi</div>
             )}
