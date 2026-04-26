@@ -140,7 +140,7 @@ export default function DashboardOverviewClient({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-1 xl:gap-4">
-        <div className={`min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
+        <div className={`flex flex-col items-center text-center min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
           <div className="text-[clamp(6px,2vw,8px)] font-medium leading-tight text-slate-300 min-[390px]:text-[9px] xl:text-sm">
             <span className="xl:hidden">Ticket</span>
             <span className="hidden xl:inline">Toplam Ticket</span>
@@ -154,7 +154,7 @@ export default function DashboardOverviewClient({
           </div>
         </div>
 
-        <div className={`min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
+        <div className={`flex flex-col items-center text-center min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
           <div className="text-[clamp(6px,2vw,8px)] font-medium leading-tight text-slate-300 min-[390px]:text-[9px] xl:text-sm">
             <span className="xl:hidden">Makine</span>
             <span className="hidden xl:inline">Toplam Makine</span>
@@ -168,7 +168,7 @@ export default function DashboardOverviewClient({
           </div>
         </div>
 
-        <div className={`min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
+        <div className={`flex flex-col items-center text-center min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
           <div className="text-[clamp(6px,2vw,8px)] font-medium leading-tight text-slate-300 min-[390px]:text-[9px] xl:text-sm">
             <span className="xl:hidden">Müşteri</span>
             <span className="hidden xl:inline">Toplam Müşteri</span>
@@ -182,7 +182,7 @@ export default function DashboardOverviewClient({
           </div>
         </div>
 
-        <div className={`min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
+        <div className={`flex flex-col items-center text-center min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
           <div className="text-[clamp(6px,2vw,8px)] font-medium leading-tight text-slate-300 min-[390px]:text-[9px] xl:text-sm">
             <span className="xl:hidden">Servis Formu</span>
             <span className="hidden xl:inline">Servis Formları</span>
