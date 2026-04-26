@@ -134,7 +134,7 @@ export default async function ServiceFormDetailPage({ params }: PageProps) {
         templates={(templates ?? []) as TemplateItem[]}
         initialForm={form}
         initialFields={(values ?? []) as FieldValueItem[]}
-        pageTitle="Servis Formu Düzenle"
+        pageTitle="Formu Düzenle"
         backHref="/dashboard/service-forms"
         canDelete={canDelete}
         deleteAction={deleteServiceForm}

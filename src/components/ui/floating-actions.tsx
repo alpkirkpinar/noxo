@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 const actions = [
   { label: "Yeni Ticket", href: "/dashboard/tickets?new=1" },
-  { label: "Yeni Servis Formu", href: "/dashboard/service-forms/new" },
+  { label: "Yeni Form", href: "/dashboard/service-forms/new" },
   { label: "Yeni Teklif", href: "/dashboard/offers?new=1" },
   { label: "Yeni Müşteri", href: "/dashboard/customers/new" },
 ];

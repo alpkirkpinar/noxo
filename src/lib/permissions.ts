@@ -6,7 +6,7 @@ export const PERMISSIONS = {
   ticketEdit: "Ticket Düzenleme",
   ticketDelete: "Ticket Silme",
   ticketAssign: "Ticket Atama",
-  serviceForms: "Servis Formu Görüntüleme",
+  serviceForms: "Form Görüntüleme",
   offers: "Teklif Görüntüleme",
   offerCreate: "Teklif Oluşturma",
   offerEdit: "Teklif Düzenleme",
@@ -37,10 +37,10 @@ export const PERMISSIONS = {
   formTemplateCreate: "Form Şablonu Oluşturma",
   formTemplateEdit: "Form Şablonu Düzenleme",
   formTemplateDelete: "Form Şablonu Silme",
-  serviceFormCreate: "Servis Formu Oluşturma",
-  serviceFormEdit: "Servis Formu Düzenleme",
-  serviceFormDelete: "Servis Formu Silme",
-  serviceFormPdf: "Servis Formu PDF Alma",
+  serviceFormCreate: "Form Oluşturma",
+  serviceFormEdit: "Form Düzenleme",
+  serviceFormDelete: "Form Silme",
+  serviceFormPdf: "Form PDF Alma",
   settings: "Sistem Ayarları",
 } as const
 
@@ -49,7 +49,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]
 export const APP_MODULES = [
   { key: "dashboard", label: "Dashboard" },
   { key: "tickets", label: "Ticketlar" },
-  { key: "serviceForms", label: "Servis Formlari" },
+  { key: "serviceForms", label: "Formlar" },
   { key: "offers", label: "Teklifler" },
   { key: "customers", label: "Musteriler" },
   { key: "machines", label: "Makineler" },

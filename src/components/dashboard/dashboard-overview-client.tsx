@@ -184,15 +184,15 @@ export default function DashboardOverviewClient({
 
         <div className={`flex flex-col items-center text-center min-w-0 rounded-xl border border-slate-800 px-1 py-1.5 shadow-sm xl:rounded-2xl xl:p-4 ${dashboardAccentClass}`}>
           <div className="text-[clamp(6px,2vw,8px)] font-medium leading-tight text-slate-300 min-[390px]:text-[9px] xl:text-sm">
-            <span className="xl:hidden">Servis Formu</span>
-            <span className="hidden xl:inline">Servis Formları</span>
+            <span className="xl:hidden">Form</span>
+            <span className="hidden xl:inline">Formlar</span>
           </div>
           <div className="mt-0.5 text-lg font-semibold leading-none tracking-tight text-white min-[390px]:text-xl xl:mt-2 xl:text-4xl">
             {totalServiceForms}
           </div>
           <div className="mt-0.5 text-[clamp(6px,2vw,8px)] leading-tight text-slate-300 min-[390px]:text-[9px] xl:mt-2 xl:text-sm">
             <span className="xl:hidden">Form kaydı</span>
-            <span className="hidden xl:inline">Toplam servis formu kaydı</span>
+            <span className="hidden xl:inline">Toplam form kaydı</span>
           </div>
         </div>
       </div>
@@ -256,9 +256,9 @@ export default function DashboardOverviewClient({
           <div className={`flex items-center justify-between border-b border-slate-800 px-4 py-3 ${dashboardAccentClass}`}>
             <div>
               <h2 className="text-xl font-semibold tracking-tight text-white">
-                Son Servis Formları
+                Son Formlar
               </h2>
-              <p className="mt-1 text-sm text-slate-300">Güncel servis formu kayıtları</p>
+              <p className="mt-1 text-sm text-slate-300">Güncel form kayıtları</p>
             </div>
 
             {canViewServiceForms ? (
@@ -284,7 +284,7 @@ export default function DashboardOverviewClient({
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-base font-semibold text-slate-900">
-                        Servis Formu
+                        Form
                       </div>
                       <div className="mt-1 line-clamp-1 text-sm text-slate-800">
                         {getCustomerName(form.customers)}

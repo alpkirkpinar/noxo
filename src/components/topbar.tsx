@@ -51,8 +51,8 @@ const PAGE_META: Record<string, { title: string }> = {
   "/dashboard": { title: "Dashboard" },
   "/dashboard/master": { title: "Master Panel" },
   "/dashboard/tickets": { title: "Ticketlar" },
-  "/dashboard/service-forms": { title: "Servis Formları" },
-  "/dashboard/service-forms/new": { title: "Yeni Servis Formu" },
+  "/dashboard/service-forms": { title: "Formlar" },
+  "/dashboard/service-forms/new": { title: "Yeni Form" },
   "/dashboard/customers": { title: "Müşteriler" },
   "/dashboard/offers": { title: "Teklifler" },
   "/dashboard/machines": { title: "Makineler" },
@@ -71,7 +71,7 @@ function getPageTitle(pathname: string) {
     /^\/dashboard\/service-forms\/template\/[^/]+$/.test(pathname) ||
     /^\/dashboard\/service-forms\/[^/]+$/.test(pathname)
   ) {
-    return "Servis Formu"
+    return "Form"
   }
 
   if (/^\/dashboard\/customers\/[^/]+(?:\/edit)?$/.test(pathname)) {

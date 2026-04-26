@@ -50,7 +50,7 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "Ticketlar", href: "/dashboard/tickets", permission: PERMISSIONS.tickets, icon: "ticket" },
       {
-        title: "Servis Formları",
+        title: "Formlar",
         href: "/dashboard/service-forms",
         permission: PERMISSIONS.serviceForms,
         icon: "service",

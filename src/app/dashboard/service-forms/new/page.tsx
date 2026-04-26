@@ -33,7 +33,7 @@ export default async function NewServiceFormPage() {
         userId={String(appUser.id)}
         mode="create"
         templates={(templates ?? []) as TemplateItem[]}
-        pageTitle="Yeni Servis Formu"
+        pageTitle="Yeni Form"
         backHref="/dashboard/service-forms"
       />
     </div>

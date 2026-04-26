@@ -60,14 +60,14 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    title: "Servis Formları",
+    title: "Formlar",
     description: "Saha formları, imza, PDF ve şablondan form üretimi",
     permissions: [
-      "Servis Formu Görüntüleme",
-      "Servis Formu Oluşturma",
-      "Servis Formu Düzenleme",
-      "Servis Formu Silme",
-      "Servis Formu PDF Alma",
+      "Form Görüntüleme",
+      "Form Oluşturma",
+      "Form Düzenleme",
+      "Form Silme",
+      "Form PDF Alma",
     ],
   },
   {
