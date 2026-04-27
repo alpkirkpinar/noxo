@@ -55,7 +55,7 @@ export type CertificateEntry = {
 const LOCAL_ARIAL = path.join(process.cwd(), "public", "fonts", "arial.ttf");
 const LOCAL_ARIAL_BOLD = path.join(process.cwd(), "public", "fonts", "arialbd.ttf");
 const LOCAL_LOGO = path.join(process.cwd(), "public", "noxo-logo.png");
-const MAX_ENTRIES_PER_CERTIFICATE = 5;
+const MAX_ENTRIES_PER_CERTIFICATE = 4;
 
 if (existsSync(LOCAL_ARIAL) && existsSync(LOCAL_ARIAL_BOLD)) {
   Font.register({
@@ -284,13 +284,15 @@ const styles = StyleSheet.create({
     width: 90,
   },
   colSerial: {
-    width: 84,
+    width: 100,
   },
   colDate: {
-    width: 68,
+    width: 62,
+    textAlign: "right",
   },
   colNextDate: {
-    width: 78,
+    width: 74,
+    textAlign: "right",
   },
   rowNum: {
     fontSize: 10,
@@ -306,8 +308,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
     justifyContent: "center",
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 4,
+    marginBottom: 2,
   },
   scopeBadge: {
     backgroundColor: colors.paleStrong,
@@ -327,9 +329,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "flex-end",
-    gap: 34,
-    marginTop: 12,
-    paddingTop: 10,
+    gap: 30,
+    marginTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
@@ -365,8 +367,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 8,
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 6,
     borderTopWidth: 0.5,
     borderTopColor: "#b0cce8",
   },
@@ -484,7 +486,7 @@ function getPerformedByTitle(entries: CertificateEntry[]) {
   const titles = Array.from(
     new Set(entries.map((entry) => entry.latestRecord?.performed_by_title?.trim()).filter(Boolean))
   );
-  return titles.length > 0 ? titles.join(", ") : "Bakım Personeli";
+  return titles.length > 0 ? titles.join(", ") : "Bak\u0131m Personeli";
 }
 
 function getApproverName(entries: CertificateEntry[]) {
@@ -566,15 +568,15 @@ function CertificatePage({
             </View>
 
             <View style={styles.docDateWrap}>
-              <Text style={styles.docDateLabel}>Belge Tarihi</Text>
+            <Text style={styles.docDateLabel}>Belge Tarihi</Text>
               <Text style={styles.docDateValue}>{formatDate(new Date().toISOString())}</Text>
             </View>
           </View>
 
           <View style={styles.divider} />
 
-          <Text style={styles.certMainTitle}>Makine Bakım{"\n"}Hizmet Sertifikası</Text>
-          <Text style={styles.certSubTitle}>Periyodik Bakım Tamamlama Belgesi</Text>
+          <Text style={styles.certMainTitle}>Makine Bak\u0131m{"\n"}Hizmet Sertifikas\u0131</Text>
+          <Text style={styles.certSubTitle}>Periyodik Bak\u0131m Tamamlama Belgesi</Text>
           {pageCount > 1 ? (
             <Text style={styles.certificateIndex}>{`Sertifika ${pageIndex + 1} / ${pageCount}`}</Text>
           ) : null}
@@ -582,29 +584,29 @@ function CertificatePage({
           <View style={styles.dividerShort} />
 
           <View style={styles.recipientBlock}>
-            <Text style={styles.recipientEyebrow}>Bu Sertifika Aşağıdaki Firmaya Verilmiştir</Text>
+            <Text style={styles.recipientEyebrow}>Bu Sertifika A\u015fa\u011f\u0131daki Firmaya Verilmi\u015ftir</Text>
             <Text style={styles.recipientName}>{recipient.name}</Text>
             <Text style={styles.recipientSub}>{recipient.sub || "-"}</Text>
           </View>
 
           <Text style={styles.bodyText}>
-            Yukarıda belirtilen firmaya ait aşağıdaki ekipmanlara yetkili teknik ekibimiz tarafından periyodik bakım
-            hizmeti uygulanmış; tüm işlemler planlı bakım esaslarına uygun biçimde eksiksiz tamamlanmıştır.
+            Yukar\u0131da belirtilen firmaya ait a\u015fa\u011f\u0131daki ekipmanlara yetkili teknik ekibimiz taraf\u0131ndan periyodik bak\u0131m
+            hizmeti uygulanm\u0131\u015f; t\u00fcm i\u015flemler planl\u0131 bak\u0131m esaslar\u0131na uygun bi\u00e7imde eksiksiz tamamlanm\u0131\u015ft\u0131r.
           </Text>
 
           <View style={styles.sectionLabelRow}>
-            <Text style={styles.sectionLabel}>Bakım Uygulanan Makine ve Ekipmanlar</Text>
+            <Text style={styles.sectionLabel}>Bak\u0131m Uygulanan Makine ve Ekipmanlar</Text>
             <View style={styles.sectionRule} />
           </View>
 
           <View>
             <View style={styles.tableHeader}>
               <Text style={[styles.th, styles.colIndex]}>#</Text>
-              <Text style={[styles.th, styles.colMachine]}>Makine Adı / Türü</Text>
+              <Text style={[styles.th, styles.colMachine]}>Makine Ad\u0131 / T\u00fcr\u00fc</Text>
               <Text style={[styles.th, styles.colBrand]}>Marka / Model</Text>
               <Text style={[styles.th, styles.colSerial]}>Seri No</Text>
-              <Text style={[styles.th, styles.colDate]}>Bakım Tarihi</Text>
-              <Text style={[styles.th, styles.colNextDate]}>Sonraki Bakım</Text>
+              <Text style={[styles.th, styles.colDate]}>Bak\u0131m Tarihi</Text>
+              <Text style={[styles.th, styles.colNextDate]}>Sonraki Bak\u0131m</Text>
             </View>
 
             {entries.map((entry, index) => (
@@ -629,7 +631,7 @@ function CertificatePage({
           {scopeBadges.length > 0 ? (
             <View style={styles.scopeSection}>
               <View style={styles.sectionLabelRow}>
-                <Text style={styles.sectionLabel}>Uygulanan Bakım Kapsamı</Text>
+                <Text style={styles.sectionLabel}>Uygulanan Bak\u0131m Kapsam\u0131</Text>
                 <View style={styles.sectionRule} />
               </View>
 
@@ -670,15 +672,15 @@ function CertificatePage({
             </View>
             <View style={styles.infoField}>
               <Text style={styles.infoValue}>{getNextMaintenance(entries)}</Text>
-              <Text style={styles.infoLabel}>Son Geçerlilik Tarihi</Text>
+              <Text style={styles.infoLabel}>Son Ge\u00e7erlilik Tarihi</Text>
             </View>
             <View style={styles.infoField}>
-              <Text style={styles.infoValue}>Planlı Bakım</Text>
-              <Text style={styles.infoLabel}>Hizmet Standardı</Text>
+              <Text style={styles.infoValue}>Planl\u0131 Bak\u0131m</Text>
+              <Text style={styles.infoLabel}>Hizmet Standard\u0131</Text>
             </View>
           </View>
 
-          <Text style={styles.validityBar}>Bu belge imza alanları ile birlikte geçerlidir</Text>
+          <Text style={styles.validityBar}>Bu belge imza alanlar\u0131 ile birlikte ge\u00e7erlidir</Text>
         </View>
       </View>
     </Page>
@@ -690,9 +692,9 @@ export function MachineMaintenanceCertificatePdf({ entries }: { entries: Certifi
 
   return (
     <Document
-      title="Bakım Sertifikası"
+      title="Bak\u0131m Sertifikas\u0131"
       author="noxo"
-      subject="Bakım Sertifikası"
+      subject="Bak\u0131m Sertifikas\u0131"
       creator="noxo"
       producer="noxo"
     >
