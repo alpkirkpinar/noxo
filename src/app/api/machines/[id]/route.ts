@@ -7,6 +7,14 @@ type RouteContext = {
   params: Promise<{ id: string }>
 }
 
+function mapMachineWriteError(message: string) {
+  if (/null value in column "customer_id".*violates not-null constraint/i.test(message)) {
+    return "Müşteri seçmek zorunludur."
+  }
+
+  return message
+}
+
 function normalizeMachinePayload(body: Record<string, unknown>) {
   const installationDate = normalizeDateOnly(String(body?.installation_date ?? "").trim())
   const lastMaintenanceDate = normalizeDateOnly(String(body?.last_maintenance_date ?? "").trim())
@@ -49,6 +57,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Makine adı zorunludur." }, { status: 400 })
   }
 
+  if (!payload.customer_id) {
+    return NextResponse.json({ error: "Müşteri seçmek zorunludur." }, { status: 400 })
+  }
+
   const { data, error } = await auth.supabase
     .from("machines")
     .update(payload)
@@ -58,7 +70,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: mapMachineWriteError(error.message) }, { status: 500 })
   }
 
   return NextResponse.json({ machine: data })

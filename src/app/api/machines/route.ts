@@ -51,6 +51,14 @@ function getCustomerName(relation: { company_name: string } | { company_name: st
   return relation.company_name ?? null
 }
 
+function mapMachineWriteError(message: string) {
+  if (/null value in column "customer_id".*violates not-null constraint/i.test(message)) {
+    return "Müşteri seçmek zorunludur."
+  }
+
+  return message
+}
+
 export async function GET() {
   const auth = await getServerIdentity(PERMISSIONS.machines)
 
@@ -109,6 +117,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Makine adı zorunludur." }, { status: 400 })
   }
 
+  if (!payload.customer_id) {
+    return NextResponse.json({ error: "Müşteri seçmek zorunludur." }, { status: 400 })
+  }
+
   const { data, error } = await auth.supabase
     .from("machines")
     .insert(payload)
@@ -116,7 +128,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: mapMachineWriteError(error.message) }, { status: 500 })
   }
 
   return NextResponse.json({ machine: data })

@@ -120,6 +120,12 @@ export default function MachineForm({
       return;
     }
 
+    if (!payload.customer_id) {
+      setErrorText("Müşteri seçmek zorunludur.");
+      setSaving(false);
+      return;
+    }
+
     const response = await fetch(isEdit && initialValues?.id ? `/api/machines/${initialValues.id}` : "/api/machines", {
       method: isEdit && initialValues?.id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
