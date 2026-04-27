@@ -55,6 +55,7 @@ export type CertificateEntry = {
 const LOCAL_ARIAL = path.join(process.cwd(), "public", "fonts", "arial.ttf");
 const LOCAL_ARIAL_BOLD = path.join(process.cwd(), "public", "fonts", "arialbd.ttf");
 const LOCAL_LOGO = path.join(process.cwd(), "public", "noxo-logo.png");
+const MAX_ENTRIES_PER_CERTIFICATE = 5;
 
 if (existsSync(LOCAL_ARIAL) && existsSync(LOCAL_ARIAL_BOLD)) {
   Font.register({
@@ -66,6 +67,8 @@ if (existsSync(LOCAL_ARIAL) && existsSync(LOCAL_ARIAL_BOLD)) {
   });
 }
 
+Font.registerHyphenationCallback((word) => [word]);
+
 const colors = {
   navy: "#1a4a7a",
   navyDark: "#0d2d52",
@@ -74,8 +77,6 @@ const colors = {
   ink: "#1a2e45",
   pale: "#f2f6fb",
   paleStrong: "#ddeaf8",
-  successBg: "#d4edda",
-  successText: "#155724",
 };
 
 const styles = StyleSheet.create({
@@ -165,6 +166,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 3,
     textTransform: "uppercase",
+  },
+  certificateIndex: {
+    marginTop: 4,
+    fontSize: 8,
+    color: colors.navyMid,
+    fontWeight: 700,
+    textAlign: "center",
   },
   recipientBlock: {
     width: "100%",
@@ -258,27 +266,31 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     color: colors.navyDark,
   },
+  tdSerial: {
+    fontSize: 8,
+    paddingRight: 4,
+  },
+  tdNextDate: {
+    fontWeight: 700,
+  },
   colIndex: {
     width: 22,
     textAlign: "center",
   },
   colMachine: {
-    width: 118,
+    width: 128,
   },
   colBrand: {
-    width: 80,
+    width: 90,
   },
   colSerial: {
-    width: 70,
+    width: 84,
   },
   colDate: {
-    width: 64,
+    width: 68,
   },
   colNextDate: {
-    width: 64,
-  },
-  colStatus: {
-    width: 50,
+    width: 78,
   },
   rowNum: {
     fontSize: 10,
@@ -286,17 +298,8 @@ const styles = StyleSheet.create({
     color: colors.line,
     textAlign: "center",
   },
-  statusBadge: {
-    backgroundColor: colors.successBg,
-    color: colors.successText,
-    fontSize: 7.5,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    paddingTop: 2,
-    paddingRight: 6,
-    paddingBottom: 2,
-    paddingLeft: 6,
-    alignSelf: "flex-start",
+  scopeSection: {
+    marginTop: 4,
   },
   scopeRow: {
     flexDirection: "row",
@@ -523,7 +526,25 @@ function getScopeBadges(entries: CertificateEntry[]) {
   );
 }
 
-function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
+function chunkEntries(entries: CertificateEntry[]) {
+  const chunks: CertificateEntry[][] = [];
+
+  for (let index = 0; index < entries.length; index += MAX_ENTRIES_PER_CERTIFICATE) {
+    chunks.push(entries.slice(index, index + MAX_ENTRIES_PER_CERTIFICATE));
+  }
+
+  return chunks;
+}
+
+function CertificatePage({
+  entries,
+  pageIndex,
+  pageCount,
+}: {
+  entries: CertificateEntry[];
+  pageIndex: number;
+  pageCount: number;
+}) {
   const recipient = getRecipient(entries);
   const scopeBadges = getScopeBadges(entries);
   const logoSource = getLogoSource(entries);
@@ -554,6 +575,9 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
 
           <Text style={styles.certMainTitle}>Makine Bakım{"\n"}Hizmet Sertifikası</Text>
           <Text style={styles.certSubTitle}>Periyodik Bakım Tamamlama Belgesi</Text>
+          {pageCount > 1 ? (
+            <Text style={styles.certificateIndex}>{`Sertifika ${pageIndex + 1} / ${pageCount}`}</Text>
+          ) : null}
 
           <View style={styles.dividerShort} />
 
@@ -581,7 +605,6 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
               <Text style={[styles.th, styles.colSerial]}>Seri No</Text>
               <Text style={[styles.th, styles.colDate]}>Bakım Tarihi</Text>
               <Text style={[styles.th, styles.colNextDate]}>Sonraki Bakım</Text>
-              <Text style={[styles.th, styles.colStatus]}>Durum</Text>
             </View>
 
             {entries.map((entry, index) => (
@@ -592,20 +615,19 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
                 <Text style={[styles.rowNum, styles.colIndex]}>{index + 1}</Text>
                 <Text style={[styles.td, styles.colMachine]}>{display(entry.machine.machine_name)}</Text>
                 <Text style={[styles.td, styles.colBrand]}>{machineBrandModel(entry)}</Text>
-                <Text style={[styles.td, styles.colSerial]}>{display(entry.machine.serial_number)}</Text>
+                <Text style={[styles.td, styles.tdSerial, styles.colSerial]}>{display(entry.machine.serial_number)}</Text>
                 <Text style={[styles.td, styles.colDate]}>
                   {formatDate(entry.latestRecord?.performed_at ?? entry.machine.last_maintenance_date)}
                 </Text>
-                <Text style={[styles.td, styles.colNextDate]}>
+                <Text style={[styles.td, styles.tdNextDate, styles.colNextDate]}>
                   {formatDate(entry.latestRecord?.next_maintenance_date ?? entry.machine.next_maintenance_date)}
                 </Text>
-                <Text style={[styles.statusBadge, styles.colStatus]}>Tamam</Text>
               </View>
             ))}
           </View>
 
           {scopeBadges.length > 0 ? (
-            <>
+            <View style={styles.scopeSection}>
               <View style={styles.sectionLabelRow}>
                 <Text style={styles.sectionLabel}>Uygulanan Bakım Kapsamı</Text>
                 <View style={styles.sectionRule} />
@@ -618,7 +640,7 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
                   </Text>
                 ))}
               </View>
-            </>
+            </View>
           ) : null}
 
           <View style={styles.contentSpacer} />
@@ -664,6 +686,8 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
 }
 
 export function MachineMaintenanceCertificatePdf({ entries }: { entries: CertificateEntry[] }) {
+  const pages = chunkEntries(entries);
+
   return (
     <Document
       title="Bakım Sertifikası"
@@ -672,7 +696,14 @@ export function MachineMaintenanceCertificatePdf({ entries }: { entries: Certifi
       creator="noxo"
       producer="noxo"
     >
-      <CertificatePage entries={entries} />
+      {pages.map((pageEntries, index) => (
+        <CertificatePage
+          key={`${pageEntries[0]?.machine.id ?? "certificate"}-${index}`}
+          entries={pageEntries}
+          pageIndex={index}
+          pageCount={pages.length}
+        />
+      ))}
     </Document>
   );
 }
