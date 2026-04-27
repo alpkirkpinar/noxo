@@ -17,13 +17,22 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
+  function resolveLoginEmail(value: string) {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "master") {
+      return "master@noxo.local";
+    }
+
+    return normalized;
+  }
+
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: resolveLoginEmail(email),
       password,
     });
 
@@ -52,14 +61,14 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              E-posta
+              E-posta veya kullanıcı adı
             </label>
             <input
-              type="email"
+              type="text"
               className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="E-posta"
+              placeholder="E-posta veya master"
               required
             />
           </div>
