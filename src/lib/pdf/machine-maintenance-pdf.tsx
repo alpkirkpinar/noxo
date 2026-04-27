@@ -55,7 +55,7 @@ export type CertificateEntry = {
 const LOCAL_ARIAL = path.join(process.cwd(), "public", "fonts", "arial.ttf");
 const LOCAL_ARIAL_BOLD = path.join(process.cwd(), "public", "fonts", "arialbd.ttf");
 const LOCAL_LOGO = path.join(process.cwd(), "public", "noxo-logo.png");
-const MAX_ENTRIES_PER_CERTIFICATE = 3;
+const MAX_ENTRIES_PER_CERTIFICATE = 5;
 
 if (existsSync(LOCAL_ARIAL) && existsSync(LOCAL_ARIAL_BOLD)) {
   Font.register({
@@ -84,8 +84,6 @@ const PDF_TEXT = {
   documentTitle: "Makine Bak\u0131m\nHizmet Sertifikas\u0131",
   documentSubtitle: "Periyodik Bak\u0131m Tamamlama Belgesi",
   recipientEyebrow: "Bu Sertifika A\u015fa\u011f\u0131daki Firmaya Verilmi\u015ftir",
-  description:
-    "Yukar\u0131da belirtilen firmaya ait a\u015fa\u011f\u0131daki ekipmanlara yetkili teknik ekibimiz taraf\u0131ndan periyodik bak\u0131m hizmeti uygulanm\u0131\u015f; t\u00fcm i\u015flemler planl\u0131 bak\u0131m esaslar\u0131na uygun bi\u00e7imde eksiksiz tamamlanm\u0131\u015ft\u0131r.",
   sectionMachines: "Bak\u0131m Uygulanan Makine ve Ekipmanlar",
   machineNameType: "Makine Ad\u0131 / T\u00fcr\u00fc",
   maintenanceDate: "Bak\u0131m Tarihi",
@@ -204,8 +202,8 @@ const styles = StyleSheet.create({
     paddingRight: 22,
     paddingBottom: 11,
     paddingLeft: 22,
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 8,
   },
   recipientEyebrow: {
     fontSize: 8,
@@ -230,20 +228,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
   },
-  bodyText: {
-    fontSize: 11,
-    lineHeight: 1.7,
-    textAlign: "center",
-    maxWidth: 470,
-    alignSelf: "center",
-    marginTop: 4,
-    marginBottom: 8,
-  },
   sectionLabelRow: {
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 4,
   },
   sectionLabel: {
@@ -262,12 +251,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: colors.navy,
     paddingHorizontal: 8,
-    paddingVertical: 7,
+    paddingVertical: 6,
   },
   tableRow: {
     flexDirection: "row",
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderBottomWidth: 0.5,
     borderBottomColor: "#b0cce8",
   },
@@ -320,7 +309,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   scopeSection: {
-    marginTop: 4,
+    marginTop: 2,
   },
   scopeRow: {
     flexDirection: "row",
@@ -349,8 +338,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "flex-end",
     gap: 30,
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 7,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
@@ -378,16 +367,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
   },
-  contentSpacer: {
-    flexGrow: 1,
-    minHeight: 0,
-  },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 8,
-    marginTop: 8,
-    paddingTop: 6,
+    marginTop: 7,
+    paddingTop: 5,
     borderTopWidth: 0.5,
     borderTopColor: "#b0cce8",
   },
@@ -418,7 +403,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingTop: 5,
     paddingBottom: 5,
-    marginTop: 12,
+    marginTop: 10,
   },
 });
 
@@ -608,10 +593,6 @@ function CertificatePage({
             <Text style={styles.recipientSub}>{recipient.sub || "-"}</Text>
           </View>
 
-          <Text style={styles.bodyText}>
-            {PDF_TEXT.description}
-          </Text>
-
           <View style={styles.sectionLabelRow}>
             <Text style={styles.sectionLabel}>{PDF_TEXT.sectionMachines}</Text>
             <View style={styles.sectionRule} />
@@ -662,8 +643,6 @@ function CertificatePage({
               </View>
             </View>
           ) : null}
-
-          <View style={styles.contentSpacer} />
 
           <View style={styles.bottomBar}>
             <View style={styles.signatureField}>
