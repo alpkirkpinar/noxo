@@ -9,6 +9,10 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+type BackupRequestBody = {
+  companyId?: string;
+};
+
 function slugify(value: string) {
   return value
     .toLocaleLowerCase("tr-TR")
@@ -34,12 +38,16 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  const body = ((await _request.json().catch(() => ({}))) ?? {}) as BackupRequestBody;
+  const requestedCompanyId = String(body.companyId ?? "").trim();
+  const targetCompanyId =
+    isMasterUser(auth.identity) && requestedCompanyId ? requestedCompanyId : auth.identity.companyId;
 
   try {
     const customerResult = await auth.admin
       .from("customers")
       .select("*")
-      .eq("company_id", auth.identity.companyId)
+      .eq("company_id", targetCompanyId)
       .eq("id", id)
       .single();
 
@@ -54,7 +62,7 @@ export async function POST(_request: Request, context: RouteContext) {
     const machinesResult = await auth.admin
       .from("machines")
       .select("*")
-      .eq("company_id", auth.identity.companyId)
+      .eq("company_id", targetCompanyId)
       .eq("customer_id", id);
 
     if (machinesResult.error) {
@@ -67,11 +75,11 @@ export async function POST(_request: Request, context: RouteContext) {
     const machineIds = (machinesResult.data ?? []).map((machine) => String(machine.id));
 
     const [ticketsResult, serviceFormsResult, offersResult, maintenanceResult] = await Promise.all([
-      auth.admin.from("tickets").select("*").eq("company_id", auth.identity.companyId).eq("customer_id", id),
-      auth.admin.from("service_forms").select("*").eq("company_id", auth.identity.companyId).eq("customer_id", id),
-      auth.admin.from("offers").select("*").eq("company_id", auth.identity.companyId).eq("customer_id", id),
+      auth.admin.from("tickets").select("*").eq("company_id", targetCompanyId).eq("customer_id", id),
+      auth.admin.from("service_forms").select("*").eq("company_id", targetCompanyId).eq("customer_id", id),
+      auth.admin.from("offers").select("*").eq("company_id", targetCompanyId).eq("customer_id", id),
       machineIds.length > 0
-        ? auth.admin.from("machine_maintenance_records").select("*").eq("company_id", auth.identity.companyId).in("machine_id", machineIds)
+        ? auth.admin.from("machine_maintenance_records").select("*").eq("company_id", targetCompanyId).in("machine_id", machineIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -106,13 +114,13 @@ export async function POST(_request: Request, context: RouteContext) {
 
     const [ticketHistoryResult, ticketCommentsResult, serviceFormValuesResult, offerItemsResult] = await Promise.all([
       ticketIds.length > 0
-        ? auth.admin.from("ticket_status_history").select("*").eq("company_id", auth.identity.companyId).in("ticket_id", ticketIds)
+        ? auth.admin.from("ticket_status_history").select("*").eq("company_id", targetCompanyId).in("ticket_id", ticketIds)
         : Promise.resolve({ data: [], error: null }),
       ticketIds.length > 0
-        ? auth.admin.from("ticket_comments").select("*").eq("company_id", auth.identity.companyId).in("ticket_id", ticketIds)
+        ? auth.admin.from("ticket_comments").select("*").eq("company_id", targetCompanyId).in("ticket_id", ticketIds)
         : Promise.resolve({ data: [], error: null }),
       serviceFormIds.length > 0
-        ? auth.admin.from("service_form_values").select("*").in("service_form_id", serviceFormIds)
+        ? auth.admin.from("service_form_field_values").select("*").in("service_form_id", serviceFormIds)
         : Promise.resolve({ data: [], error: null }),
       offerIds.length > 0
         ? auth.admin.from("offer_items").select("*").in("offer_id", offerIds)
@@ -132,7 +140,7 @@ export async function POST(_request: Request, context: RouteContext) {
       version: 1,
       backup_type: "customer_full_backup",
       exported_at: new Date().toISOString(),
-      company_id: auth.identity.companyId,
+      company_id: targetCompanyId,
       customer_id: id,
       exported_by_app_user_id: auth.identity.appUserId,
       customer,
@@ -142,7 +150,7 @@ export async function POST(_request: Request, context: RouteContext) {
       ticket_status_history: ticketHistoryResult.data ?? [],
       ticket_comments: ticketCommentsResult.data ?? [],
       service_forms: serviceFormsResult.data ?? [],
-      service_form_values: serviceFormValuesResult.data ?? [],
+      service_form_field_values: serviceFormValuesResult.data ?? [],
       offers: offersResult.data ?? [],
       offer_items: offerItemsResult.data ?? [],
     };
@@ -152,7 +160,7 @@ export async function POST(_request: Request, context: RouteContext) {
     const upload = await uploadJsonBackupToGoogleDrive(backupFileName, backupPayload);
 
     await writeActivityLogSafe(auth.admin, {
-      companyId: auth.identity.companyId,
+      companyId: targetCompanyId,
       userId: auth.identity.appUserId,
       moduleName: "customers",
       actionName: "customer_backup_uploaded",

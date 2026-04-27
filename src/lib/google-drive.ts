@@ -1,8 +1,7 @@
-import { createSign } from "node:crypto";
-
 type GoogleDriveConfig = {
-  clientEmail: string;
-  privateKey: string;
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
   folderId: string;
 };
 
@@ -12,57 +11,42 @@ type GoogleDriveUploadResult = {
 };
 
 function getConfig(): GoogleDriveConfig {
-  const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL?.trim() || "";
-  const privateKey = (process.env.GOOGLE_DRIVE_PRIVATE_KEY || "").replace(/\\n/g, "\n").trim();
+  const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() || "";
+  const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim() || "";
+  const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN?.trim() || "";
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim() || "";
 
-  if (!clientEmail || !privateKey || !folderId) {
+  if (!clientId || !clientSecret || !refreshToken || !folderId) {
     throw new Error(
-      "Google Drive yedeği için GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY ve GOOGLE_DRIVE_FOLDER_ID ortam değişkenleri tanımlanmalıdır."
+      "Google Drive yedeği için GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_REFRESH_TOKEN ve GOOGLE_DRIVE_FOLDER_ID ortam değişkenleri tanımlanmalıdır."
     );
   }
 
-  return { clientEmail, privateKey, folderId };
-}
-
-function toBase64Url(input: string | Buffer) {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return { clientId, clientSecret, refreshToken, folderId };
 }
 
 async function getAccessToken(config: GoogleDriveConfig) {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const claimSet = {
-    iss: config.clientEmail,
-    scope: "https://www.googleapis.com/auth/drive.file",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now,
-  };
-
-  const unsignedJwt = `${toBase64Url(JSON.stringify(header))}.${toBase64Url(JSON.stringify(claimSet))}`;
-  const signer = createSign("RSA-SHA256");
-  signer.update(unsignedJwt);
-  signer.end();
-  const signature = signer.sign(config.privateKey);
-  const jwt = `${unsignedJwt}.${toBase64Url(signature)}`;
-
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      refresh_token: config.refreshToken,
+      grant_type: "refresh_token",
     }),
   });
 
-  const tokenPayload = (await tokenResponse.json().catch(() => ({}))) as { access_token?: string; error_description?: string; error?: string };
+  const tokenPayload = (await tokenResponse.json().catch(() => ({}))) as {
+    access_token?: string;
+    error_description?: string;
+    error?: string;
+  };
+
   if (!tokenResponse.ok || !tokenPayload.access_token) {
-    throw new Error(tokenPayload.error_description || tokenPayload.error || "Google Drive erişim anahtarı alınamadı.");
+    throw new Error(
+      tokenPayload.error_description || tokenPayload.error || "Google Drive erişim anahtarı yenilenemedi."
+    );
   }
 
   return tokenPayload.access_token;

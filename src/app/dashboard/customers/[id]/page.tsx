@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import CustomerBackupButton from "@/components/customers/customer-backup-button";
 import { createClient } from "@/lib/supabase/server";
 import { getServerIdentity } from "@/lib/authz";
 import { computeNextMaintenanceDate, normalizeDateOnly } from "@/lib/machines";
-import { hasPermission, isMasterUser, PERMISSIONS } from "@/lib/permissions";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -103,7 +102,6 @@ export default async function CustomerDetailPage({ params }: PageProps) {
   const permissionIdentity = getPermissionIdentity(user);
   const canCreateMachine = hasPermission(permissionIdentity, PERMISSIONS.machineCreate);
   const canEditCustomer = hasPermission(permissionIdentity, PERMISSIONS.customerEdit);
-  const canBackupCustomer = isMasterUser(permissionIdentity);
 
   async function createMachineForCustomer(formData: FormData) {
     "use server";
@@ -164,8 +162,6 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {canBackupCustomer ? <CustomerBackupButton customerId={customer.id} /> : null}
-
           {canEditCustomer ? (
             <Link
               href={`/dashboard/customers/${customer.id}/edit`}

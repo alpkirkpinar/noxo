@@ -317,6 +317,33 @@ function CompanyDetail({
   onSave: () => void
 }) {
   const enabled = new Set(company.enabledModules)
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [backupError, setBackupError] = useState("")
+  const [backupSuccess, setBackupSuccess] = useState("")
+
+  async function handleCompanyBackup() {
+    setBackupLoading(true)
+    setBackupError("")
+    setBackupSuccess("")
+
+    try {
+      const response = await fetch(`/api/master/companies/${company.companyId}/backup`, {
+        method: "POST",
+      })
+
+      const result = (await response.json().catch(() => ({}))) as { error?: string }
+
+      if (!response.ok) {
+        throw new Error(result.error || "Yedekleme tamamlanamadi.")
+      }
+
+      setBackupSuccess("Firma yedegi Google Drive'a yuklendi.")
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : "Yedekleme tamamlanamadi.")
+    } finally {
+      setBackupLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -421,6 +448,34 @@ function CompanyDetail({
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="elevated-surface rounded-2xl bg-white p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-950">Firma Yedegi</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Bu firmanin tum verilerini company_id bazinda tek dosya olarak Google Drive'a yukler.
+            </p>
+          </div>
+
+          <div className="flex w-full flex-col gap-3 lg:max-w-xl lg:flex-row lg:items-end lg:justify-end">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Company ID: <span className="font-mono text-slate-900">{company.companyId}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleCompanyBackup()}
+              disabled={backupLoading}
+              className="h-[42px] rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {backupLoading ? "Yedekleniyor..." : "Firma Yedegi Al"}
+            </button>
+          </div>
+        </div>
+
+        {backupError ? <div className="mt-3 text-sm text-red-600">{backupError}</div> : null}
+        {backupSuccess ? <div className="mt-3 text-sm text-emerald-700">{backupSuccess}</div> : null}
       </section>
 
       <section className="elevated-surface rounded-2xl bg-white p-5">
