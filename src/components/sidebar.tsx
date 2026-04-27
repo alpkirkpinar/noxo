@@ -371,13 +371,15 @@ export default function Sidebar({
                 ref={(element) => {
                   mobileItemRefs.current[href] = element
                 }}
-                className={`flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-2xl px-2 py-2 transition sm:min-w-0 sm:flex-1 sm:shrink ${
+                className={`flex min-h-[72px] min-w-[88px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition sm:min-w-0 sm:flex-1 sm:shrink ${
                   active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
                 style={{ willChange: "transform, opacity, filter" }}
               >
                 <MenuIcon icon={item.icon} active={active} />
-                <span className="max-w-[72px] truncate text-[11px] font-semibold">{item.title}</span>
+                <span className="max-w-[86px] whitespace-normal text-center text-[10px] font-semibold leading-tight">
+                  {item.title}
+                </span>
               </Link>
             )
           })}
