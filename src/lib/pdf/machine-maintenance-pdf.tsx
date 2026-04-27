@@ -87,11 +87,13 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
   frameOuter: {
+    flex: 1,
     borderWidth: 3,
     borderColor: colors.navy,
     padding: 8,
   },
   frameInner: {
+    flex: 1,
     borderWidth: 1.5,
     borderColor: colors.line,
     paddingTop: 18,
@@ -112,12 +114,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 140,
-    height: 54,
+    width: 280,
+    height: 108,
     objectFit: "contain",
   },
   logoPlaceholder: {
-    height: 54,
+    height: 108,
   },
   docDateWrap: {
     alignItems: "flex-end",
@@ -261,19 +263,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   colMachine: {
-    width: 138,
+    width: 118,
   },
   colBrand: {
-    width: 98,
+    width: 80,
   },
   colSerial: {
-    width: 78,
-  },
-  colDate: {
     width: 70,
   },
+  colDate: {
+    width: 64,
+  },
+  colNextDate: {
+    width: 64,
+  },
   colStatus: {
-    width: 58,
+    width: 50,
   },
   rowNum: {
     fontSize: 10,
@@ -317,16 +322,16 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "flex-end",
-    gap: 14,
+    gap: 34,
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
   signatureField: {
-    flex: 1,
+    width: 155,
     alignItems: "center",
   },
   sigName: {
@@ -349,37 +354,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
   },
-  sealWrap: {
-    width: 74,
-    height: 74,
-    borderWidth: 2,
-    borderColor: colors.navy,
-    borderRadius: 37,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sealInner: {
-    width: 54,
-    height: 54,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 27,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.paleStrong,
-  },
-  sealCore: {
-    width: 16,
-    height: 16,
-    backgroundColor: colors.navy,
-  },
-  sealLabel: {
-    marginTop: 2,
-    fontSize: 7,
-    letterSpacing: 1.5,
-    color: colors.navy,
-    textTransform: "uppercase",
-    textAlign: "center",
+  contentSpacer: {
+    flexGrow: 1,
+    minHeight: 0,
   },
   infoRow: {
     flexDirection: "row",
@@ -484,7 +461,7 @@ function getDateRange(entries: CertificateEntry[]) {
 
 function getNextMaintenance(entries: CertificateEntry[]) {
   const dates = entries
-    .map((entry) => entry.machine.next_maintenance_date)
+    .map((entry) => entry.latestRecord?.next_maintenance_date ?? entry.machine.next_maintenance_date)
     .filter(Boolean)
     .map((value) => new Date(String(value)).getTime())
     .filter((value) => !Number.isNaN(value))
@@ -603,6 +580,7 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
               <Text style={[styles.th, styles.colBrand]}>Marka / Model</Text>
               <Text style={[styles.th, styles.colSerial]}>Seri No</Text>
               <Text style={[styles.th, styles.colDate]}>Bakım Tarihi</Text>
+              <Text style={[styles.th, styles.colNextDate]}>Sonraki Bakım</Text>
               <Text style={[styles.th, styles.colStatus]}>Durum</Text>
             </View>
 
@@ -617,6 +595,9 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
                 <Text style={[styles.td, styles.colSerial]}>{display(entry.machine.serial_number)}</Text>
                 <Text style={[styles.td, styles.colDate]}>
                   {formatDate(entry.latestRecord?.performed_at ?? entry.machine.last_maintenance_date)}
+                </Text>
+                <Text style={[styles.td, styles.colNextDate]}>
+                  {formatDate(entry.latestRecord?.next_maintenance_date ?? entry.machine.next_maintenance_date)}
                 </Text>
                 <Text style={[styles.statusBadge, styles.colStatus]}>Tamam</Text>
               </View>
@@ -640,20 +621,13 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
             </>
           ) : null}
 
+          <View style={styles.contentSpacer} />
+
           <View style={styles.bottomBar}>
             <View style={styles.signatureField}>
               <Text style={styles.sigName}>{getPerformedBy(entries)}</Text>
               <View style={styles.sigLine} />
               <Text style={styles.sigLabel}>{getPerformedByTitle(entries)}</Text>
-            </View>
-
-            <View style={styles.signatureField}>
-              <View style={styles.sealWrap}>
-                <View style={styles.sealInner}>
-                  <View style={styles.sealCore} />
-                </View>
-              </View>
-              <Text style={styles.sealLabel}>Resmi Mühür</Text>
             </View>
 
             <View style={styles.signatureField}>
@@ -674,7 +648,7 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
             </View>
             <View style={styles.infoField}>
               <Text style={styles.infoValue}>{getNextMaintenance(entries)}</Text>
-              <Text style={styles.infoLabel}>Sonraki Bakım</Text>
+              <Text style={styles.infoLabel}>Son Geçerlilik Tarihi</Text>
             </View>
             <View style={styles.infoField}>
               <Text style={styles.infoValue}>Planlı Bakım</Text>
@@ -682,9 +656,7 @@ function CertificatePage({ entries }: { entries: CertificateEntry[] }) {
             </View>
           </View>
 
-          <Text style={styles.validityBar}>
-            Bu belge imza alanları ve resmi mühür düzeni ile birlikte geçerlidir
-          </Text>
+          <Text style={styles.validityBar}>Bu belge imza alanları ile birlikte geçerlidir</Text>
         </View>
       </View>
     </Page>
