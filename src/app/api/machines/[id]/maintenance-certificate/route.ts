@@ -1,8 +1,11 @@
 import { createElement } from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse } from "next/server";
+import { writeActivityLogSafe } from "@/lib/activity-log";
+import { getServerIdentity } from "@/lib/authz";
 import { getMachineMaintenancePdfData } from "@/lib/machine-maintenance-pdf-data";
 import { MachineMaintenanceCertificatePdf, makePdfFileName } from "@/lib/pdf/machine-maintenance-pdf";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +14,12 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getServerIdentity(PERMISSIONS.machines);
+
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   const { id } = await context.params;
   const data = await getMachineMaintenancePdfData(id);
 
@@ -31,6 +40,20 @@ export async function GET(
         ],
       }) as never
     );
+
+    await writeActivityLogSafe(auth.admin, {
+      companyId: auth.identity.companyId,
+      userId: auth.identity.appUserId,
+      moduleName: "machines",
+      actionName: "maintenance_certificate_downloaded",
+      recordType: "machine_certificate",
+      recordId: id,
+      detail: {
+        machineIds: [id],
+        machineCount: 1,
+        machineName: data.machine.machine_name ?? null,
+      },
+    });
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {

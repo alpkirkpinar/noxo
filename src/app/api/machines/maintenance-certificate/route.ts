@@ -1,13 +1,22 @@
 import { createElement } from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse } from "next/server";
+import { writeActivityLogSafe } from "@/lib/activity-log";
+import { getServerIdentity } from "@/lib/authz";
 import { getMachineMaintenancePdfData } from "@/lib/machine-maintenance-pdf-data";
 import { MachineMaintenanceCertificatePdf, makePdfFileName } from "@/lib/pdf/machine-maintenance-pdf";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const auth = await getServerIdentity(PERMISSIONS.machines);
+
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   const { searchParams } = new URL(request.url);
   const ids = (searchParams.get("ids") ?? "")
     .split(",")
@@ -42,6 +51,19 @@ export async function GET(request: Request) {
     );
 
     const companyName = entries[0]?.settings?.company_name?.trim() || "firma";
+
+    await writeActivityLogSafe(auth.admin, {
+      companyId: auth.identity.companyId,
+      userId: auth.identity.appUserId,
+      moduleName: "machines",
+      actionName: "maintenance_certificate_downloaded",
+      recordType: "machine_certificate",
+      recordId: ids.join(","),
+      detail: {
+        machineIds: ids,
+        machineCount: ids.length,
+      },
+    });
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {

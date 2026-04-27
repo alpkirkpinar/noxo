@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { writeActivityLogSafe } from "@/lib/activity-log"
 import { getServerIdentity } from "@/lib/authz"
 import { localizeErrorMessage } from "@/lib/error-messages"
 import { computeNextMaintenanceDate, normalizeDateOnly } from "@/lib/machines"
@@ -130,6 +131,22 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: mapMachineWriteError(error.message) }, { status: 500 })
+  }
+
+  if (data?.id) {
+    await writeActivityLogSafe(auth.admin, {
+      companyId: auth.identity.companyId,
+      userId: auth.identity.appUserId,
+      moduleName: "machines",
+      actionName: "machine_created",
+      recordType: "machine",
+      recordId: String(data.id),
+      detail: {
+        machineName: payload.machine_name,
+        machineCode: payload.machine_code,
+        customerId: payload.customer_id,
+      },
+    })
   }
 
   return NextResponse.json({ machine: data })
