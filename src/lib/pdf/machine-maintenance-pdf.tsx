@@ -55,7 +55,7 @@ export type CertificateEntry = {
 const LOCAL_ARIAL = path.join(process.cwd(), "public", "fonts", "arial.ttf");
 const LOCAL_ARIAL_BOLD = path.join(process.cwd(), "public", "fonts", "arialbd.ttf");
 const LOCAL_LOGO = path.join(process.cwd(), "public", "noxo-logo.png");
-const MAX_ENTRIES_PER_CERTIFICATE = 4;
+const MAX_ENTRIES_PER_CERTIFICATE = 3;
 
 if (existsSync(LOCAL_ARIAL) && existsSync(LOCAL_ARIAL_BOLD)) {
   Font.register({
@@ -77,6 +77,25 @@ const colors = {
   ink: "#1a2e45",
   pale: "#f2f6fb",
   paleStrong: "#ddeaf8",
+};
+
+const PDF_TEXT = {
+  maintenancePersonnel: "Bak\u0131m Personeli",
+  documentTitle: "Makine Bak\u0131m\nHizmet Sertifikas\u0131",
+  documentSubtitle: "Periyodik Bak\u0131m Tamamlama Belgesi",
+  recipientEyebrow: "Bu Sertifika A\u015fa\u011f\u0131daki Firmaya Verilmi\u015ftir",
+  description:
+    "Yukar\u0131da belirtilen firmaya ait a\u015fa\u011f\u0131daki ekipmanlara yetkili teknik ekibimiz taraf\u0131ndan periyodik bak\u0131m hizmeti uygulanm\u0131\u015f; t\u00fcm i\u015flemler planl\u0131 bak\u0131m esaslar\u0131na uygun bi\u00e7imde eksiksiz tamamlanm\u0131\u015ft\u0131r.",
+  sectionMachines: "Bak\u0131m Uygulanan Makine ve Ekipmanlar",
+  machineNameType: "Makine Ad\u0131 / T\u00fcr\u00fc",
+  maintenanceDate: "Bak\u0131m Tarihi",
+  nextMaintenance: "Sonraki Bak\u0131m",
+  sectionScope: "Uygulanan Bak\u0131m Kapsam\u0131",
+  lastValidity: "Son Ge\u00e7erlilik Tarihi",
+  plannedMaintenance: "Planl\u0131 Bak\u0131m",
+  serviceStandard: "Hizmet Standard\u0131",
+  validityBar: "Bu belge imza alanlar\u0131 ile birlikte ge\u00e7erlidir",
+  pdfTitle: "Bak\u0131m Sertifikas\u0131",
 };
 
 const styles = StyleSheet.create({
@@ -486,7 +505,7 @@ function getPerformedByTitle(entries: CertificateEntry[]) {
   const titles = Array.from(
     new Set(entries.map((entry) => entry.latestRecord?.performed_by_title?.trim()).filter(Boolean))
   );
-  return titles.length > 0 ? titles.join(", ") : "Bak\u0131m Personeli";
+  return titles.length > 0 ? titles.join(", ") : PDF_TEXT.maintenancePersonnel;
 }
 
 function getApproverName(entries: CertificateEntry[]) {
@@ -575,8 +594,8 @@ function CertificatePage({
 
           <View style={styles.divider} />
 
-          <Text style={styles.certMainTitle}>Makine Bak\u0131m{"\n"}Hizmet Sertifikas\u0131</Text>
-          <Text style={styles.certSubTitle}>Periyodik Bak\u0131m Tamamlama Belgesi</Text>
+          <Text style={styles.certMainTitle}>{PDF_TEXT.documentTitle}</Text>
+          <Text style={styles.certSubTitle}>{PDF_TEXT.documentSubtitle}</Text>
           {pageCount > 1 ? (
             <Text style={styles.certificateIndex}>{`Sertifika ${pageIndex + 1} / ${pageCount}`}</Text>
           ) : null}
@@ -584,29 +603,28 @@ function CertificatePage({
           <View style={styles.dividerShort} />
 
           <View style={styles.recipientBlock}>
-            <Text style={styles.recipientEyebrow}>Bu Sertifika A\u015fa\u011f\u0131daki Firmaya Verilmi\u015ftir</Text>
+            <Text style={styles.recipientEyebrow}>{PDF_TEXT.recipientEyebrow}</Text>
             <Text style={styles.recipientName}>{recipient.name}</Text>
             <Text style={styles.recipientSub}>{recipient.sub || "-"}</Text>
           </View>
 
           <Text style={styles.bodyText}>
-            Yukar\u0131da belirtilen firmaya ait a\u015fa\u011f\u0131daki ekipmanlara yetkili teknik ekibimiz taraf\u0131ndan periyodik bak\u0131m
-            hizmeti uygulanm\u0131\u015f; t\u00fcm i\u015flemler planl\u0131 bak\u0131m esaslar\u0131na uygun bi\u00e7imde eksiksiz tamamlanm\u0131\u015ft\u0131r.
+            {PDF_TEXT.description}
           </Text>
 
           <View style={styles.sectionLabelRow}>
-            <Text style={styles.sectionLabel}>Bak\u0131m Uygulanan Makine ve Ekipmanlar</Text>
+            <Text style={styles.sectionLabel}>{PDF_TEXT.sectionMachines}</Text>
             <View style={styles.sectionRule} />
           </View>
 
           <View>
             <View style={styles.tableHeader}>
               <Text style={[styles.th, styles.colIndex]}>#</Text>
-              <Text style={[styles.th, styles.colMachine]}>Makine Ad\u0131 / T\u00fcr\u00fc</Text>
+              <Text style={[styles.th, styles.colMachine]}>{PDF_TEXT.machineNameType}</Text>
               <Text style={[styles.th, styles.colBrand]}>Marka / Model</Text>
               <Text style={[styles.th, styles.colSerial]}>Seri No</Text>
-              <Text style={[styles.th, styles.colDate]}>Bak\u0131m Tarihi</Text>
-              <Text style={[styles.th, styles.colNextDate]}>Sonraki Bak\u0131m</Text>
+              <Text style={[styles.th, styles.colDate]}>{PDF_TEXT.maintenanceDate}</Text>
+              <Text style={[styles.th, styles.colNextDate]}>{PDF_TEXT.nextMaintenance}</Text>
             </View>
 
             {entries.map((entry, index) => (
@@ -631,7 +649,7 @@ function CertificatePage({
           {scopeBadges.length > 0 ? (
             <View style={styles.scopeSection}>
               <View style={styles.sectionLabelRow}>
-                <Text style={styles.sectionLabel}>Uygulanan Bak\u0131m Kapsam\u0131</Text>
+                <Text style={styles.sectionLabel}>{PDF_TEXT.sectionScope}</Text>
                 <View style={styles.sectionRule} />
               </View>
 
@@ -672,15 +690,15 @@ function CertificatePage({
             </View>
             <View style={styles.infoField}>
               <Text style={styles.infoValue}>{getNextMaintenance(entries)}</Text>
-              <Text style={styles.infoLabel}>Son Ge\u00e7erlilik Tarihi</Text>
+              <Text style={styles.infoLabel}>{PDF_TEXT.lastValidity}</Text>
             </View>
             <View style={styles.infoField}>
-              <Text style={styles.infoValue}>Planl\u0131 Bak\u0131m</Text>
-              <Text style={styles.infoLabel}>Hizmet Standard\u0131</Text>
+              <Text style={styles.infoValue}>{PDF_TEXT.plannedMaintenance}</Text>
+              <Text style={styles.infoLabel}>{PDF_TEXT.serviceStandard}</Text>
             </View>
           </View>
 
-          <Text style={styles.validityBar}>Bu belge imza alanlar\u0131 ile birlikte ge\u00e7erlidir</Text>
+          <Text style={styles.validityBar}>{PDF_TEXT.validityBar}</Text>
         </View>
       </View>
     </Page>
@@ -692,9 +710,9 @@ export function MachineMaintenanceCertificatePdf({ entries }: { entries: Certifi
 
   return (
     <Document
-      title="Bak\u0131m Sertifikas\u0131"
+      title={PDF_TEXT.pdfTitle}
       author="noxo"
-      subject="Bak\u0131m Sertifikas\u0131"
+      subject={PDF_TEXT.pdfTitle}
       creator="noxo"
       producer="noxo"
     >
