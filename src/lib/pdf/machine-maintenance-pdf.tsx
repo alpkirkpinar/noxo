@@ -367,6 +367,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
   },
+  contentSpacer: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 12,
+  },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -643,6 +648,8 @@ function CertificatePage({
               </View>
             </View>
           ) : null}
+
+          <View style={styles.contentSpacer} />
 
           <View style={styles.bottomBar}>
             <View style={styles.signatureField}>
