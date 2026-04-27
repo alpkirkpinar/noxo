@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { PERMISSIONS } from "@/lib/permissions"
 
 export async function POST(
@@ -29,7 +30,7 @@ export async function POST(
   })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Yorum eklenemedi.") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true }, { status: 201 })

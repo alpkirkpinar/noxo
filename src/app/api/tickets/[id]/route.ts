@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { PERMISSIONS } from "@/lib/permissions"
 
 export async function PATCH(
@@ -38,7 +39,7 @@ export async function PATCH(
     .eq("company_id", auth.identity.companyId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Ticket güncellenemedi.") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })
@@ -63,7 +64,7 @@ export async function DELETE(
     .eq("company_id", auth.identity.companyId)
 
   if (commentsError) {
-    return NextResponse.json({ error: commentsError.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(commentsError.message, "Ticket yorumları silinemedi.") }, { status: 500 })
   }
 
   const { error: historyError } = await auth.supabase
@@ -73,7 +74,7 @@ export async function DELETE(
     .eq("company_id", auth.identity.companyId)
 
   if (historyError) {
-    return NextResponse.json({ error: historyError.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(historyError.message, "Ticket geçmişi silinemedi.") }, { status: 500 })
   }
 
   const { error } = await auth.supabase
@@ -83,7 +84,7 @@ export async function DELETE(
     .eq("company_id", auth.identity.companyId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Ticket silinemedi.") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

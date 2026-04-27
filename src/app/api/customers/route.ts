@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { PERMISSIONS } from "@/lib/permissions"
 
 type CustomerRow = {
@@ -64,11 +65,11 @@ export async function GET() {
     ])
 
   if (customersError) {
-    return NextResponse.json({ error: customersError.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(customersError.message, "Müşteriler alınamadı.") }, { status: 500 })
   }
 
   if (machinesError) {
-    return NextResponse.json({ error: machinesError.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(machinesError.message, "Makine bilgileri alınamadı.") }, { status: 500 })
   }
 
   const machineCountMap = new Map<string, number>()
@@ -110,7 +111,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Müşteri kaydedilemedi.") }, { status: 500 })
   }
 
   return NextResponse.json({ customer: data })

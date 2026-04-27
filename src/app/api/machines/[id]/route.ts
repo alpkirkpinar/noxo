@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { computeNextMaintenanceDate, normalizeDateOnly } from "@/lib/machines"
 import { PERMISSIONS } from "@/lib/permissions"
 
@@ -12,7 +13,7 @@ function mapMachineWriteError(message: string) {
     return "Müşteri seçmek zorunludur."
   }
 
-  return message
+  return localizeErrorMessage(message, "Makine güncellenemedi.")
 }
 
 function normalizeMachinePayload(body: Record<string, unknown>) {
@@ -91,7 +92,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     .eq("company_id", auth.identity.companyId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Makine silinemedi.") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

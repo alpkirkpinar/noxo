@@ -1,3 +1,4 @@
+import { localizeErrorMessage } from "@/lib/error-messages";
 import { createClient } from "@/lib/supabase/server";
 import { isMissingRelationError } from "@/lib/supabase-errors";
 
@@ -30,7 +31,7 @@ export async function getMachineMaintenancePdfData(id: string) {
 
   if (appUserError || !appUser?.company_id) {
     return {
-      error: appUserError?.message || "company_id bulunamadı.",
+      error: localizeErrorMessage(appUserError?.message, "Şirket bilgisi bulunamadı."),
       status: 400 as const,
     };
   }
@@ -58,7 +59,7 @@ export async function getMachineMaintenancePdfData(id: string) {
 
   if (machineError || !machine) {
     return {
-      error: machineError?.message || "Makine bulunamadı.",
+      error: localizeErrorMessage(machineError?.message, "Makine bulunamadı."),
       status: 404 as const,
     };
   }
@@ -88,7 +89,7 @@ export async function getMachineMaintenancePdfData(id: string) {
   const maintenanceTableMissing = isMissingRelationError(recordsError?.message, "machine_maintenance_records");
 
   if (recordsError && !maintenanceTableMissing) {
-    return { error: recordsError.message, status: 500 as const };
+    return { error: localizeErrorMessage(recordsError.message, "Bakım kayıtları alınamadı."), status: 500 as const };
   }
 
   const customer = Array.isArray(machine.customers) ? machine.customers[0] ?? null : machine.customers ?? null;

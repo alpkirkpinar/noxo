@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { createClient } from "@/lib/supabase/server"
 import { hasPermission } from "@/lib/permissions"
 
@@ -23,17 +24,16 @@ export async function getServerIdentity(requiredPermission?: string) {
 
   if (appUserError || !appUser?.company_id || !appUser?.id) {
     return {
-      error: appUserError?.message || "Kullanıcı şirket bilgisi bulunamadı.",
+      error: localizeErrorMessage(appUserError?.message, "Şirket bilgisi bulunamadı."),
       status: 400 as const,
     }
   }
 
-  const { data: freshUser, error: freshUserError } =
-    await admin.auth.admin.getUserById(user.id)
+  const { data: freshUser, error: freshUserError } = await admin.auth.admin.getUserById(user.id)
 
   if (freshUserError || !freshUser.user) {
     return {
-      error: freshUserError?.message || "Kullanıcı yetkileri okunamadı.",
+      error: localizeErrorMessage(freshUserError?.message, "Kullanıcı yetkileri okunamadı."),
       status: 500 as const,
     }
   }
@@ -49,9 +49,7 @@ export async function getServerIdentity(requiredPermission?: string) {
       ? metadata.company_modules.map(String)
       : undefined,
     company_active: metadata.company_active === false ? false : undefined,
-    permissions: Array.isArray(metadata.permissions)
-      ? metadata.permissions.map(String)
-      : [],
+    permissions: Array.isArray(metadata.permissions) ? metadata.permissions.map(String) : [],
   }
 
   if (requiredPermission && !hasPermission(identity, requiredPermission)) {

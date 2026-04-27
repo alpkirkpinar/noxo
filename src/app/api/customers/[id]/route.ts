@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { PERMISSIONS } from "@/lib/permissions"
 
 type RouteContext = {
@@ -47,7 +48,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Müşteri güncellenemedi.") }, { status: 500 })
   }
 
   return NextResponse.json({ customer: data })
@@ -68,7 +69,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     .eq("company_id", auth.identity.companyId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Müşteri silinemedi.") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { PERMISSIONS } from "@/lib/permissions"
 
 type TicketStatus =
@@ -108,23 +109,23 @@ export async function GET() {
     ])
 
   if (ticketsResult.error) {
-    return NextResponse.json({ error: ticketsResult.error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(ticketsResult.error.message, "Ticket listesi alınamadı.") }, { status: 500 })
   }
 
   if (historyResult.error) {
-    return NextResponse.json({ error: historyResult.error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(historyResult.error.message, "Ticket geçmişi alınamadı.") }, { status: 500 })
   }
 
   if (customersResult.error) {
-    return NextResponse.json({ error: customersResult.error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(customersResult.error.message, "Müşteri listesi alınamadı.") }, { status: 500 })
   }
 
   if (machinesResult.error) {
-    return NextResponse.json({ error: machinesResult.error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(machinesResult.error.message, "Makine listesi alınamadı.") }, { status: 500 })
   }
 
   if (employeesResult.error) {
-    return NextResponse.json({ error: employeesResult.error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(employeesResult.error.message, "Çalışan listesi alınamadı.") }, { status: 500 })
   }
 
   const latestHistoryNoteByTicket = new Map<string, string>()
@@ -212,7 +213,7 @@ export async function POST(request: Request) {
   })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Ticket oluşturulamadı.") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true }, { status: 201 })

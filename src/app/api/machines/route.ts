@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { localizeErrorMessage } from "@/lib/error-messages"
 import { computeNextMaintenanceDate, normalizeDateOnly } from "@/lib/machines"
 import { PERMISSIONS } from "@/lib/permissions"
 
@@ -56,7 +57,7 @@ function mapMachineWriteError(message: string) {
     return "Müşteri seçmek zorunludur."
   }
 
-  return message
+  return localizeErrorMessage(message, "Makine kaydedilemedi.")
 }
 
 export async function GET() {
@@ -84,7 +85,7 @@ export async function GET() {
     .eq("company_id", auth.identity.companyId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: localizeErrorMessage(error.message, "Makine listesi alınamadı.") }, { status: 500 })
   }
 
   const machines = ((data ?? []) as MachineRow[]).map((machine) => ({
