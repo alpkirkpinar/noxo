@@ -320,6 +320,7 @@ function CompanyDetail({
   const [backupLoading, setBackupLoading] = useState(false)
   const [backupError, setBackupError] = useState("")
   const [backupSuccess, setBackupSuccess] = useState("")
+  const [restoreLoading, setRestoreLoading] = useState(false)
 
   async function handleCompanyBackup() {
     setBackupLoading(true)
@@ -342,6 +343,53 @@ function CompanyDetail({
       setBackupError(error instanceof Error ? error.message : "Yedekleme tamamlanamadi.")
     } finally {
       setBackupLoading(false)
+    }
+  }
+
+  async function handleRestore(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!confirm("Bu islem secili firmanin mevcut verilerinin uzerine yazacaktir. Emin misiniz?")) {
+      event.target.value = ""
+      return
+    }
+
+    setRestoreLoading(true)
+    setBackupError("")
+    setBackupSuccess("")
+
+    try {
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        try {
+          const content = e.target?.result as string
+          const json = JSON.parse(content)
+
+          const response = await fetch(`/api/master/companies/${company.companyId}/restore`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(json),
+          })
+
+          const result = (await response.json().catch(() => ({}))) as { error?: string }
+
+          if (!response.ok) {
+            throw new Error(result.error || "Geri yukleme basarisiz.")
+          }
+
+          setBackupSuccess("Yedek basariyla geri yuklendi. Sayfayi yenilemeniz onerilir.")
+          event.target.value = ""
+        } catch (error) {
+          setBackupError(error instanceof Error ? error.message : "Dosya okunurken hata olustu.")
+        } finally {
+          setRestoreLoading(false)
+        }
+      }
+      reader.readAsText(file)
+    } catch (error) {
+      setBackupError("Geri yukleme sirasinda bir hata olustu.")
+      setRestoreLoading(false)
     }
   }
 
@@ -453,24 +501,36 @@ function CompanyDetail({
       <section className="elevated-surface rounded-2xl bg-white p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-base font-semibold text-slate-950">Firma Yedegi</h2>
+            <h2 className="text-base font-semibold text-slate-950">Firma Yedegi ve Geri Yukleme</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Bu firmanin tum verilerini company_id bazinda tek dosya olarak Google Drive'a yukler.
+              Bu firmanin tum verilerini Google Drive'a yedekleyebilir veya yerel bir yedek dosyasindan geri yukleyebilirsiniz.
             </p>
           </div>
 
-          <div className="flex w-full flex-col gap-3 lg:max-w-xl lg:flex-row lg:items-end lg:justify-end">
+          <div className="flex w-full flex-col gap-3 lg:max-w-2xl lg:flex-row lg:items-end lg:justify-end">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
               Company ID: <span className="font-mono text-slate-900">{company.companyId}</span>
             </div>
+            
             <button
               type="button"
               onClick={() => void handleCompanyBackup()}
               disabled={backupLoading}
               className="h-[42px] rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {backupLoading ? "Yedekleniyor..." : "Firma Yedegi Al"}
+              {backupLoading ? "Yedekleniyor..." : "Buluta Yedekle (G. Drive)"}
             </button>
+
+            <label className={`relative flex h-[42px] cursor-pointer items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 ${restoreLoading ? "opacity-60 cursor-not-allowed" : ""}`}>
+              {restoreLoading ? "Geri Yukleniyor..." : "Yerel Yedek Yukle (.json)"}
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleRestore}
+                disabled={restoreLoading}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              />
+            </label>
           </div>
         </div>
 
