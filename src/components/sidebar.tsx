@@ -173,7 +173,7 @@ function MenuIcon({ icon, active }: { icon: IconName; active?: boolean }) {
   return (
     <span
       className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition ${
-        active ? "bg-white/20 text-white" : "bg-white/10 text-white/70"
+        active ? "bg-white/25 text-white" : "bg-white/15 text-white/90"
       }`}
     >
       <svg
@@ -307,7 +307,7 @@ export default function Sidebar({
 
                   return (
                     <div key={group.title} className="space-y-2">
-                      <div className="px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                      <div className="px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/75">
                         {group.title}
                       </div>
 
@@ -316,8 +316,8 @@ export default function Sidebar({
                           href={group.href}
                           className={`flex items-center gap-3 rounded-2xl px-3 py-3 transition ${
                             groupActive
-                              ? "bg-white/12 text-white"
-                              : "text-white/75 hover:bg-white/8 hover:text-white"
+                              ? "bg-white/16 text-white"
+                              : "text-white/90 hover:bg-white/10 hover:text-white"
                           }`}
                         >
                           <MenuIcon icon={group.icon ?? "dashboard"} active={groupActive} />
@@ -334,8 +334,8 @@ export default function Sidebar({
                                 href={item.href}
                                 className={`flex items-center gap-3 rounded-2xl px-3 py-3 transition ${
                                   active
-                                    ? "bg-white/12 text-white"
-                                    : "text-white/75 hover:bg-white/8 hover:text-white"
+                                    ? "bg-white/16 text-white"
+                                    : "text-white/90 hover:bg-white/10 hover:text-white"
                                 }`}
                               >
                                 <MenuIcon icon={item.icon} active={active} />
@@ -372,7 +372,7 @@ export default function Sidebar({
                   mobileItemRefs.current[href] = element
                 }}
                 className={`flex min-h-[72px] min-w-[88px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition sm:min-w-0 sm:flex-1 sm:shrink ${
-                  active ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                  active ? "bg-white/20 text-white" : "text-white/90 hover:bg-white/12 hover:text-white"
                 }`}
                 style={{ willChange: "transform, opacity, filter" }}
               >
