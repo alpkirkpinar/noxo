@@ -238,6 +238,9 @@ const colors = {
   text: "#334155",
   muted: "#475569",
   soft: "#64748b",
+  bodyText: "#1f2937",
+  bodyMuted: "#334155",
+  bodySoft: "#475569",
   border: "#94a3b8",
   divider: "#cbd5e1",
   rowDivider: "#e2e8f0",
@@ -271,7 +274,7 @@ const styles = StyleSheet.create({
   },
   documentTitle: {
     fontSize: 10.5,
-    color: colors.muted,
+    color: colors.bodyMuted,
   },
   offerNoWrap: {
     width: 190,
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
   },
   offerNoLabel: {
     fontSize: 9.75,
-    color: colors.soft,
+    color: colors.bodySoft,
     marginBottom: 3,
   },
   offerNoValue: {
@@ -323,7 +326,7 @@ const styles = StyleSheet.create({
   },
   cardText: {
     fontSize: 10.5,
-    color: colors.text,
+    color: colors.bodyText,
     marginBottom: 4,
     lineHeight: 1.08,
   },
@@ -336,7 +339,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 10.5,
-    color: colors.text,
+    color: colors.bodyText,
     width: 82,
   },
   infoValue: {
@@ -363,7 +366,7 @@ const styles = StyleSheet.create({
   },
   continuationSubtitle: {
     fontSize: 10.5,
-    color: colors.soft,
+    color: colors.bodySoft,
   },
   tableWrap: {
     borderWidth: 1.25,
@@ -434,7 +437,7 @@ const styles = StyleSheet.create({
   },
   descText: {
     fontSize: 9.75,
-    color: colors.soft,
+    color: colors.bodySoft,
     lineHeight: 1.22,
   },
   pageSubtotal: {
@@ -478,7 +481,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 10.5,
-    color: colors.text,
+    color: colors.bodyText,
     lineHeight: 1.5,
     marginBottom: 6,
   },
@@ -502,7 +505,7 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 10.5,
-    color: colors.muted,
+    color: colors.bodyMuted,
   },
   totalValue: {
     fontSize: 10.5,
@@ -540,7 +543,7 @@ const styles = StyleSheet.create({
   footerText: {
     marginTop: 10.5,
     fontSize: 10.5,
-    color: colors.soft,
+    color: colors.bodySoft,
   },
   emptyRow: {
     paddingVertical: 12,

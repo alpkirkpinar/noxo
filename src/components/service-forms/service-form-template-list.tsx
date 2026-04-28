@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
@@ -154,6 +155,7 @@ export default function ServiceFormTemplateList({
   newFormHref,
 }: Props) {
   const router = useRouter();
+  const deleteConfirm = useConfirmDialog();
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<string>("created_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -701,7 +703,11 @@ export default function ServiceFormTemplateList({
   }
 
   async function handleDelete(formId: string) {
-    const confirmed = window.confirm("Servis formu silinsin mi?");
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Formu Sil",
+      message: "Bu servis formu silinecek.",
+    });
     if (!confirmed) return;
 
     setErrorText("");
@@ -738,7 +744,11 @@ export default function ServiceFormTemplateList({
       return;
     }
 
-    const confirmed = window.confirm(`${selectedIds.length} servis formu silinsin mi?`);
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Formları Sil",
+      message: `${selectedIds.length} servis formu silinecek.`,
+    });
     if (!confirmed) return;
 
     for (const formId of selectedIds) {
@@ -1029,6 +1039,8 @@ export default function ServiceFormTemplateList({
           </button>
         </div>
       ) : null}
+
+      {deleteConfirm.dialog}
     </div>
   );
 }

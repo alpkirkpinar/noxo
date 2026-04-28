@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import CustomerForm from "@/components/customers/customer-form";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
@@ -76,6 +77,7 @@ function sortIndicator(active: boolean, direction: SortDirection) {
 
 export default function CustomerList({ customers, permissions, companyId, appUserId }: Props) {
   const router = useRouter();
+  const deleteConfirm = useConfirmDialog();
   const [search, setSearch] = useState("");
   const [localCustomers, setLocalCustomers] = useState(customers);
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
@@ -189,7 +191,14 @@ export default function CustomerList({ customers, permissions, companyId, appUse
     if (!permissions.canDelete) return;
     if (customerIds.length === 0) return;
 
-    const confirmed = window.confirm(`${customerIds.length} müşteri silinsin mi?`);
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Müşteriyi Sil",
+      message:
+        customerIds.length === 1
+          ? "Bu müşteri silinecek."
+          : `${customerIds.length} müşteri silinecek.`,
+    });
     if (!confirmed) return;
 
     for (const customerId of customerIds) {
@@ -422,6 +431,8 @@ export default function CustomerList({ customers, permissions, companyId, appUse
           ) : null}
         </div>
       ) : null}
+
+      {deleteConfirm.dialog}
 
       {showCreateModal ? (
         <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-950/35 p-2 sm:p-4">

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import MachineForm from "@/components/machines/machine-form";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
@@ -232,6 +233,7 @@ function MaintenanceDueIndicator({ machine, fullWidth = false }: { machine: Mach
 
 export default function MachinesListClient({ initialMachines, permissions, companyId, customers }: Props) {
   const router = useRouter();
+  const deleteConfirm = useConfirmDialog();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [rows, setRows] = useState(initialMachines);
   const [search, setSearch] = useState("");
@@ -330,7 +332,11 @@ export default function MachinesListClient({ initialMachines, permissions, compa
       return;
     }
 
-    const confirmed = window.confirm("Bu makine silinsin mi?");
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Makineyi Sil",
+      message: "Bu makine silinecek.",
+    });
     if (!confirmed) return;
 
     const response = await fetch(`/api/machines/${machineId}`, { method: "DELETE" });
@@ -357,7 +363,11 @@ export default function MachinesListClient({ initialMachines, permissions, compa
       return;
     }
 
-    const confirmed = window.confirm(`${machineIds.length} makine silinsin mi?`);
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Makineleri Sil",
+      message: `${machineIds.length} makine silinecek.`,
+    });
     if (!confirmed) return;
 
     for (const machineId of machineIds) {
@@ -740,6 +750,8 @@ export default function MachinesListClient({ initialMachines, permissions, compa
           ) : null}
         </div>
       ) : null}
+
+      {deleteConfirm.dialog}
 
       {showMaintenanceModal ? (
         <div className="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-slate-950/35 p-2 sm:p-4">

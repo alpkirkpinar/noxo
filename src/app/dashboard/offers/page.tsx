@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
@@ -315,6 +316,7 @@ export default function OffersPage() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const deleteConfirm = useConfirmDialog();
 
   const [companyId, setCompanyId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -1052,7 +1054,10 @@ export default function OffersPage() {
       return;
     }
 
-    const confirmed = window.confirm(TR.deleteConfirm);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Teklifi Sil",
+      message: "Bu teklif silinecek.",
+    });
     if (!confirmed) return;
 
     if (saving) return;
@@ -1124,7 +1129,10 @@ export default function OffersPage() {
       return;
     }
 
-    const confirmed = window.confirm(`${selectedIds.length} teklif silinsin mi?`);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Teklifleri Sil",
+      message: `${selectedIds.length} teklif silinecek.`,
+    });
     if (!confirmed) return;
 
     for (const offerId of selectedIds) {
@@ -1441,6 +1449,8 @@ export default function OffersPage() {
           ) : null}
         </div>
       ) : null}
+
+      {deleteConfirm.dialog}
 
       {showNewOfferModal ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overflow-x-hidden bg-black/30 p-2 sm:items-center sm:p-4">

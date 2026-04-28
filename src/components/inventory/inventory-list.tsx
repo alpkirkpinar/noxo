@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
@@ -358,6 +359,7 @@ function csvEscape(value: string | number | null | undefined) {
 export default function InventoryList({ companyId, items, permissions }: Props) {
   const router = useRouter();
   const supabase = createClient();
+  const deleteConfirm = useConfirmDialog();
 
   const [allItems, setAllItems] = useState<InventoryRow[]>(
     items.map((item) => ({
@@ -882,6 +884,13 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
       return;
     }
 
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Parçayı Sil",
+      message: "Bu stok kartı silinecek.",
+    });
+    if (!confirmed) return;
+
     if (saving) return;
     setSaving(true);
 
@@ -934,7 +943,11 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
       return;
     }
 
-    const confirmed = window.confirm(`${selectedIds.length} parça silinsin mi?`);
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Parçaları Sil",
+      message: `${selectedIds.length} stok kartı silinecek.`,
+    });
     if (!confirmed) return;
 
     if (saving) return;
@@ -1668,6 +1681,8 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
         </div>
       ) : null}
 
+      {deleteConfirm.dialog}
+
       {showNewPartModal ? (
         <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/30 p-2 sm:items-center sm:p-4">
           <div className="my-2 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)]">
@@ -1988,5 +2003,3 @@ export default function InventoryList({ companyId, items, permissions }: Props) 
     </>
   );
 }
-
-

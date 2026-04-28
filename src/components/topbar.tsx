@@ -50,7 +50,7 @@ type PasswordForm = {
 const PAGE_META: Record<string, { title: string }> = {
   "/dashboard": { title: "Dashboard" },
   "/dashboard/master": { title: "Master Panel" },
-  "/dashboard/tickets": { title: "Ticketlar" },
+  "/dashboard/tickets": { title: "Ticket" },
   "/dashboard/service-forms": { title: "Formlar" },
   "/dashboard/service-forms/new": { title: "Yeni Form" },
   "/dashboard/customers": { title: "Müşteriler" },
@@ -120,6 +120,20 @@ function formatDate(date: Date) {
     day: "2-digit",
     month: "long",
     year: "numeric",
+  }).format(date)
+}
+
+function formatDateMain(date: Date) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date)
+}
+
+function formatWeekday(date: Date) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    weekday: "long",
   }).format(date)
 }
 
@@ -743,72 +757,65 @@ export default function Topbar({
 
   return (
     <>
-      <div className="elevated-topbar mb-3 rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#22345d_0%,#1b2746_100%)] px-3 py-3 text-white ring-1 ring-white/20 backdrop-blur sm:rounded-[28px] sm:px-5 2xl:mb-4">
-        <div className="flex items-center justify-between gap-3 2xl:gap-4">
-          <div className="min-w-0 flex-1 2xl:basis-auto">
-            <h1 className="whitespace-normal break-words text-2xl font-semibold leading-tight tracking-tight text-white md:text-[26px] 2xl:text-4xl">
+      <div className="elevated-topbar relative mb-3 flex min-h-[78px] items-center overflow-hidden rounded-3xl border border-white/10 bg-[linear-gradient(135deg,#1a2d5a_0%,#1e3a6e_50%,#162447_100%)] px-4 py-4 text-white ring-1 ring-white/20 before:absolute before:left-0 before:right-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)] sm:px-7 2xl:mb-4">
+        <div className="relative z-10 flex w-full items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-2xl font-semibold leading-tight tracking-tight text-white md:text-[26px]">
               {pageTitle}
             </h1>
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-2 2xl:min-w-0 2xl:flex-1 2xl:flex-nowrap 2xl:overflow-visible 2xl:pb-0">
-            <div className="hidden h-[68px] min-w-0 flex-col justify-center rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 2xl:flex 2xl:w-[269px] 2xl:shrink-0 2xl:px-4">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 xl:text-[11px] xl:tracking-[0.18em]">
-                Canlı kurlar
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            <div className="hidden h-12 min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.07] px-4 transition-colors hover:bg-white/[0.11] 2xl:flex">
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#7DDBA8] shadow-[0_0_6px_rgba(125,219,168,0.6)] animate-[pulse_2s_infinite]" />
+                <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/45">
+                  Canlı Kur
+                </span>
               </div>
+              <div className="h-5 w-px bg-white/15" />
 
-              <div className="relative mt-1 h-7 overflow-hidden xl:h-8">
+              <div className="relative h-9 min-w-[140px] overflow-hidden">
                 {activeRate ? (
                   <div
                     key={`${activeRate.code}-${activeRateIndex}`}
-                    className="absolute inset-0 grid animate-[topbarRateCylinder_550ms_ease] grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] items-center gap-2 xl:flex xl:justify-between xl:gap-4"
+                    className="absolute inset-0 flex animate-[topbarRateCylinder_550ms_ease] items-center gap-3"
                   >
-                    <div className="min-w-0">
-                      <div className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400 xl:text-[10px] xl:tracking-[0.16em]">
+                    <div className="flex min-w-0 flex-col items-end gap-px">
+                      <span className="max-w-[68px] truncate text-[11px] uppercase tracking-[0.05em] text-white/45">
                         {activeRate.name}
-                      </div>
-                      <div className="truncate text-xs font-semibold text-slate-900 xl:text-sm">
+                      </span>
+                      <span className="text-sm font-medium tracking-tight text-white">
                         1 {activeRate.code}
-                      </div>
+                      </span>
                     </div>
 
-                    <div className="min-w-0 text-right">
-                      <div className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400 xl:text-[10px] xl:tracking-[0.16em]">
-                        <span className="xl:hidden">TL</span>
-                        <span className="hidden xl:inline">TÜRK LİRASI</span>
-                      </div>
-                      <div className="truncate text-xs font-semibold text-slate-900 xl:text-sm">
+                    <div className="whitespace-nowrap rounded-md border border-[#64c896]/30 bg-[#64c896]/15 px-2 py-0.5 text-xs text-[#7DDBA8]">
                         {formatRate(activeRate.value)} TL
-                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center px-4 text-sm text-slate-500">
+                  <div className="absolute inset-0 flex items-center text-xs text-white/60">
                     Kur verisi alınamadı
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="hidden h-[68px] min-w-0 flex-col justify-center rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 2xl:flex 2xl:w-[209px] 2xl:shrink-0 2xl:px-4">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 xl:text-[11px] xl:tracking-[0.18em]">
-                Tarih
-              </div>
-              <div className="mt-1 truncate text-xs font-semibold capitalize text-slate-800 xl:text-sm">
-                {now ? formatDate(now) : "-"}
-              </div>
+            <div className="hidden h-12 min-w-0 flex-col items-end justify-center gap-px rounded-xl border border-white/10 bg-white/[0.07] px-4 transition-colors hover:bg-white/[0.11] xl:flex">
+              <span className="truncate text-sm font-medium capitalize text-white">
+                {now ? formatDateMain(now) : "-"}
+              </span>
+              <span className="text-[11px] capitalize tracking-[0.03em] text-white/40">
+                {now ? formatWeekday(now) : "-"}
+              </span>
             </div>
 
-            <div className="hidden h-[68px] min-w-0 flex-col justify-center rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 2xl:flex 2xl:w-[81px] 2xl:shrink-0 2xl:px-4">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 xl:text-[11px] xl:tracking-[0.18em]">
-                Saat
-              </div>
-              <div className="mt-1 text-sm font-semibold text-slate-800 xl:text-base">
+            <div className="hidden h-12 items-center rounded-xl border border-white/10 bg-white/[0.07] px-3 text-xl font-normal tracking-[0.06em] text-white transition-colors hover:bg-white/[0.11] lg:flex">
                 {now ? formatClock(now) : "--:--"}
-              </div>
             </div>
 
-            <div className="relative shrink-0 2xl:w-auto" ref={profileMenuRef}>
+            <div className="relative shrink-0" ref={profileMenuRef}>
               <button
                 ref={profileButtonRef}
                 type="button"
@@ -824,9 +831,9 @@ export default function Topbar({
                   event.preventDefault()
                   openProfileMenu()
                 }}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-white/15 p-1 transition-colors duration-150 hover:bg-white/20 2xl:h-[68px] 2xl:w-[190px] 2xl:justify-start 2xl:gap-3 2xl:rounded-2xl 2xl:border-slate-200 2xl:bg-slate-50 2xl:px-4 2xl:py-2 2xl:hover:bg-slate-100"
+                className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-2 transition-colors hover:bg-white/[0.11] sm:px-3 2xl:justify-start 2xl:gap-2.5 2xl:px-3"
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-900 text-xs font-semibold text-white 2xl:h-11 2xl:w-11 2xl:text-sm">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-[linear-gradient(135deg,#4a90d9,#2c5f8a)] text-sm font-semibold text-white">
                   {visibleAvatarUrl ? (
                     <img
                       src={visibleAvatarUrl}
@@ -843,10 +850,10 @@ export default function Topbar({
                 </div>
 
                 <div className="hidden min-w-0 text-left 2xl:block">
-                  <div className="truncate text-xs font-semibold text-slate-800 xl:text-sm">
+                  <div className="max-w-[128px] truncate text-sm font-medium text-white">
                     {profileForm.fullName?.trim() || "Kullanıcı"}
                   </div>
-                  <div className="truncate text-[11px] text-slate-500 xl:text-xs">
+                  <div className="max-w-[128px] truncate text-[11px] text-white/40">
                     {profileForm.email?.trim() || "-"}
                   </div>
                 </div>

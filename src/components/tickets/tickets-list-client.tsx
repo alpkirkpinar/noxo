@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import NewTicketForm from "@/components/tickets/new-ticket-form";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
 
@@ -197,6 +198,7 @@ export default function TicketsListClient({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const deleteConfirm = useConfirmDialog();
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((ticketId, x, y) => {
     setContextMenu({ x, y, ticketId });
@@ -333,7 +335,11 @@ export default function TicketsListClient({
       return;
     }
 
-    const confirmed = window.confirm("Bu ticket silinsin mi?");
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Ticketı Sil",
+      message: "Bu ticket silinecek.",
+    });
     if (!confirmed) return;
 
     const response = await fetch(`/api/tickets/${ticketId}`, {
@@ -372,7 +378,11 @@ export default function TicketsListClient({
       return;
     }
 
-    const confirmed = window.confirm(`${selectedIds.length} ticket silinsin mi?`);
+    setContextMenu(null);
+    const confirmed = await deleteConfirm.confirm({
+      title: "Ticketları Sil",
+      message: `${selectedIds.length} ticket silinecek.`,
+    });
     if (!confirmed) return;
 
     for (const ticketId of selectedIds) {
@@ -765,6 +775,8 @@ export default function TicketsListClient({
           ) : null}
         </div>
       ) : null}
+
+      {deleteConfirm.dialog}
 
       {showNewTicketModal ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/35 p-4">
