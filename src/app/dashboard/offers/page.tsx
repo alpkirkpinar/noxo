@@ -1476,23 +1476,23 @@ export default function OffersPage() {
               </button>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="min-w-0 space-y-2">
-                <label className="text-sm font-medium text-slate-700">{TR.offerNo}</label>
+            <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="min-w-0 space-y-1">
+                <label className="text-xs font-medium text-slate-700">{TR.offerNo}</label>
                 <input
                   type="text"
                   value={offerNo}
                   onChange={(e) => setOfferNo(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 />
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <label className="text-sm font-medium text-slate-700">{TR.customer}</label>
+              <div className="min-w-0 space-y-1">
+                <label className="text-xs font-medium text-slate-700">{TR.customer}</label>
                 <select
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 >
                   <option value="">{TR.customerSelect}</option>
                   {customers.map((customer) => (
@@ -1503,68 +1503,68 @@ export default function OffersPage() {
                 </select>
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <label className="text-sm font-medium text-slate-700">{TR.offerDate}</label>
+              <div className="min-w-0 space-y-1">
+                <label className="text-xs font-medium text-slate-700">{TR.offerDate}</label>
                 <input
                   type="date"
                   value={offerDate}
                   onChange={(e) => setOfferDate(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 />
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <label className="text-sm font-medium text-slate-700">{TR.validityDate}</label>
+              <div className="min-w-0 space-y-1">
+                <label className="text-xs font-medium text-slate-700">{TR.validityDate}</label>
                 <input
                   type="date"
                   value={validUntil}
                   onChange={(e) => setValidUntil(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 />
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <label className="text-sm font-medium text-slate-700">Satış Temsilcisi</label>
+              <div className="min-w-0 space-y-1">
+                <label className="text-xs font-medium text-slate-700">Satış Temsilcisi</label>
                 <input
                   type="text"
                   value={salesRep}
                   onChange={(e) => setSalesRep(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 />
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <label className="text-sm font-medium text-slate-700">Temsilci E-mail</label>
+              <div className="min-w-0 space-y-1">
+                <label className="text-xs font-medium text-slate-700">Temsilci E-mail</label>
                 <input
                   type="email"
                   value={salesRepEmail}
                   onChange={(e) => setSalesRepEmail(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 />
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <label className="text-sm font-medium text-slate-700">Temsilci Telefon</label>
+              <div className="min-w-0 space-y-1">
+                <label className="text-xs font-medium text-slate-700">Temsilci Telefon</label>
                 <input
                   type="text"
                   value={salesRepPhone}
                   onChange={(e) => setSalesRepPhone(e.target.value)}
-                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 />
               </div>
 
-              <div className="min-w-0 space-y-2 lg:col-span-2">
-                <label className="text-sm font-medium text-slate-700">{TR.notesLabel}</label>
+              <div className="min-w-0 space-y-1 lg:col-span-2">
+                <label className="text-xs font-medium text-slate-700">{TR.notesLabel}</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="min-h-[140px] min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"
+                  className="min-h-[80px] min-w-0 w-full rounded-xl border border-slate-300 px-3 py-2 text-base sm:text-sm"
                 />
               </div>
             </div>
 
             <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto min-h-[400px]">
                 <table className="min-w-[1400px] w-full">
                   <thead className="border-b bg-slate-50">
                     <tr>
@@ -1615,12 +1615,12 @@ export default function OffersPage() {
                                     tryResolveRowCode(row.id);
                                   }
                                 }}
-                                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base outline-none focus:border-slate-500 sm:text-sm"
+                                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-base outline-none focus:border-slate-500 sm:text-sm"
                                 placeholder={TR.codePlaceholder}
                               />
 
                               {hasSuggestionList ? (
-                                <div className="absolute left-0 top-[calc(100%+6px)] z-30 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                                <div className="absolute left-0 top-[calc(100%+6px)] z-30 w-full max-h-[320px] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl scrollbar-thin">
                                   {suggestions.map((item) => (
                                     <button
                                       key={item.id}
@@ -1756,7 +1756,7 @@ export default function OffersPage() {
 
       {showNewPartModal ? (
         <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 p-2 sm:items-center sm:p-4">
-          <div className="my-2 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)]">
+          <div className="my-2 flex min-h-[600px] max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)]">
             <div className="mb-5 flex items-start justify-between gap-4 px-4 pt-4 sm:px-6 sm:pt-6">
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">{TR.newPartTitle}</h2>
