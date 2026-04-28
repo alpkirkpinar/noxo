@@ -282,6 +282,7 @@ export default function ServiceFormEditor({
   const supabase = createClient();
   const overlayRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const signaturePadRef = useRef<SignatureCanvas | null>(null);
+  const signaturePadClearedRef = useRef(false);
 
   const [templateId, setTemplateId] = useState(initialForm?.template_id ?? "");
   const serviceDate =
@@ -528,31 +529,48 @@ export default function ServiceFormEditor({
     const pad = signaturePadRef.current;
     if (!pad) return;
 
-    if (pad.isEmpty()) {
+    if (signaturePadClearedRef.current || pad.isEmpty()) {
       setFieldValue(fieldId, "");
     } else {
       const dataUrl = pad.toDataURL("image/png");
       setFieldValue(fieldId, dataUrl);
     }
+    signaturePadClearedRef.current = false;
     setActiveSignatureFieldId(null);
   }
 
   function clearSignaturePad() {
     const pad = signaturePadRef.current;
     if (!pad) return;
+    signaturePadClearedRef.current = true;
     pad.clear();
   }
 
   useEffect(() => {
-    if (activeSignatureFieldId && signaturePadRef.current) {
-      const existingValue = fieldValues[activeSignatureFieldId];
-      if (existingValue && existingValue.startsWith("data:image")) {
-        signaturePadRef.current.fromDataURL(existingValue);
-      } else {
-        signaturePadRef.current.clear();
-      }
+    if (!activeSignatureFieldId) {
+      signaturePadClearedRef.current = false;
+      return;
     }
-  }, [activeSignatureFieldId]);
+
+    const syncSignaturePad = () => {
+      const pad = signaturePadRef.current;
+      if (!pad) return;
+
+      const existingValue = fieldValues[activeSignatureFieldId];
+      pad.clear();
+
+      if (existingValue && existingValue.startsWith("data:image")) {
+        pad.fromDataURL(existingValue);
+        signaturePadClearedRef.current = false;
+        return;
+      }
+
+      signaturePadClearedRef.current = true;
+    };
+
+    const frameId = window.requestAnimationFrame(syncSignaturePad);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeSignatureFieldId, fieldValues]);
 
   function toggleCheckbox(fieldId: string) {
     setFieldValue(fieldId, (fieldValues[fieldId] ?? "") === "true" ? "false" : "true");
@@ -919,7 +937,7 @@ export default function ServiceFormEditor({
   const getOverlayInputClass = (field: TemplateField) =>
     getOverlayEditableControlClass(
       `overflow-hidden whitespace-nowrap border-0 bg-transparent text-slate-900 outline-none ${
-        field.field_type === "date" ? "service-form-overlay-date-input" : ""
+        field.field_type === "date" || field.field_type === "time" ? "service-form-overlay-picker-input" : ""
       }`
     );
   const getOverlayDateDisplayClass = (field: TemplateField) => {
@@ -1161,11 +1179,15 @@ export default function ServiceFormEditor({
                                     {fieldValues[field.id] && (
                                       <button
                                         type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
+                                        onPointerDown={(event) => {
+                                          event.stopPropagation();
+                                        }}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
                                           setFieldValue(field.id, "");
                                         }}
-                                        className="absolute right-0 top-0 flex h-full items-center bg-blue-100/80 px-1 text-[10px] font-bold text-red-600 opacity-0 group-hover:opacity-100 dark:bg-slate-800/80"
+                                        aria-label={`${field.field_label} alanını temizle`}
+                                        className="service-form-overlay-clear-button absolute right-0 top-0 z-10 flex h-full min-w-[18px] items-center justify-center bg-blue-100/80 px-1 text-[10px] font-bold text-red-600 dark:bg-slate-800/80"
                                       >
                                         ✕
                                       </button>
@@ -1218,19 +1240,22 @@ export default function ServiceFormEditor({
                 className="fixed left-1/2 top-1/2 z-50 w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">{activeSignatureField.field_label}</div>
+                <div className="mb-3 text-sm font-semibold text-slate-950 dark:text-slate-100">{activeSignatureField.field_label}</div>
 
                 <div className="space-y-3">
-                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700">
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-white">
                     <SignatureCanvas
                       ref={(ref) => {
                         signaturePadRef.current = ref;
                       }}
                       penColor="black"
+                      onBegin={() => {
+                        signaturePadClearedRef.current = false;
+                      }}
                       canvasProps={{
                         width: 290,
                         height: 150,
-                        className: "block w-full",
+                        className: "block w-full bg-white",
                       }}
                     />
                   </div>
@@ -1294,14 +1319,14 @@ export default function ServiceFormEditor({
             width: calc(100% / var(--overlay-mobile-scale));
           }
 
-          .service-form-overlay-date-input {
+          .service-form-overlay-picker-input {
             inset: 0;
             line-height: 1;
             opacity: 0;
             position: absolute;
           }
 
-          .service-form-overlay-date-input::-webkit-calendar-picker-indicator {
+          .service-form-overlay-picker-input::-webkit-calendar-picker-indicator {
             height: 0;
             margin: 0;
             opacity: 0;
@@ -1310,17 +1335,31 @@ export default function ServiceFormEditor({
             width: 0;
           }
 
-          .service-form-overlay-date-input::-webkit-date-and-time-value {
+          .service-form-overlay-picker-input::-webkit-date-and-time-value {
             min-height: 0;
             text-align: inherit;
           }
 
-          .service-form-overlay-date-input::-webkit-inner-spin-button {
+          .service-form-overlay-picker-input::-webkit-inner-spin-button {
             display: none;
           }
 
           .service-form-overlay-date-value {
             display: flex;
+          }
+
+          .service-form-overlay-clear-button {
+            opacity: 1;
+          }
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .service-form-overlay-clear-button {
+            opacity: 0;
+          }
+
+          .group:hover .service-form-overlay-clear-button {
+            opacity: 1;
           }
         }
 
