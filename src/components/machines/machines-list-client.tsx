@@ -317,8 +317,18 @@ export default function MachinesListClient({ initialMachines, permissions, compa
       return;
     }
 
+    window.dispatchEvent(
+      new CustomEvent("noxo:notification", {
+        detail: { message: "Pdf oluşturuluyor lütfen bekleyin" },
+      })
+    );
+
     const query = encodeURIComponent(machineIds.join(","));
-    window.open(`/api/machines/maintenance-certificate?ids=${query}`, "_blank", "noopener,noreferrer");
+    const anchor = document.createElement("a");
+    anchor.href = `/api/machines/maintenance-certificate?ids=${query}`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
     setContextMenu(null);
   }
 

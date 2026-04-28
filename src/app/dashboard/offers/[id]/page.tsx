@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import OfferDetailActions from "./offer-detail-actions";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
 
@@ -193,14 +194,11 @@ export default async function OfferDetailPage({
             {TR.edit}
           </Link>
 
-          <a
-            href={`/dashboard/offers/${offer.id}/pdf/file`}
-            target={isIos ? "_blank" : undefined}
-            rel={isIos ? "noopener noreferrer" : undefined}
-            className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            {TR.pdfDownload}
-          </a>
+          <OfferDetailActions
+            offerId={offer.id}
+            isIos={isIos}
+            label={TR.pdfDownload}
+          />
         </div>
       </div>
 

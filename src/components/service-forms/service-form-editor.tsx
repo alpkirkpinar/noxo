@@ -578,6 +578,12 @@ export default function ServiceFormEditor({
       setExportingPdf(true);
       setErrorText("");
 
+      window.dispatchEvent(
+        new CustomEvent("noxo:notification", {
+          detail: { message: "Pdf oluşturuluyor lütfen bekleyin" },
+        })
+      );
+
       if (!pdfUrl) {
         throw new Error("PDF bulunamadı.");
       }

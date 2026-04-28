@@ -126,13 +126,26 @@ export default function MachineMaintenancePanel({
         </button>
 
         <div className="grid gap-2">
-          <Link
-            href={`/api/machines/${machineId}/maintenance-certificate`}
-            target="_blank"
-            className={`inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 ${!maintenanceAvailable ? "pointer-events-none opacity-50" : ""}`}
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(
+                new CustomEvent("noxo:notification", {
+                  detail: { message: "Pdf oluşturuluyor lütfen bekleyin" },
+                })
+              );
+              
+              const anchor = document.createElement("a");
+              anchor.href = `/api/machines/${machineId}/maintenance-certificate`;
+              document.body.appendChild(anchor);
+              anchor.click();
+              anchor.remove();
+            }}
+            disabled={!maintenanceAvailable}
+            className={`inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50`}
           >
             Bakım Sertifikası PDF
-          </Link>
+          </button>
         </div>
       </div>
     </div>

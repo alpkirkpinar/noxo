@@ -161,6 +161,23 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
+const BellIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+  </svg>
+)
+
 export default function Topbar({
   fullName,
   email,
@@ -182,6 +199,9 @@ export default function Topbar({
   const [activeRateIndex, setActiveRateIndex] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notificationPosition, setNotificationPosition] = useState({ top: 0, left: 0, arrowLeft: 0 })
+  const [transientMessage, setTransientMessage] = useState<string | null>(null)
   const [forcePasswordChange, setForcePasswordChange] = useState(mustChangePassword)
   const [saving, setSaving] = useState(false)
   const [passwordSaving, setPasswordSaving] = useState(false)
@@ -221,6 +241,8 @@ export default function Topbar({
   const profileMenuRef = useRef<HTMLDivElement | null>(null)
   const profileButtonRef = useRef<HTMLButtonElement | null>(null)
   const profileMenuPanelRef = useRef<HTMLDivElement | null>(null)
+  const notificationButtonRef = useRef<HTMLButtonElement | null>(null)
+  const notificationPanelRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const avatarEditorRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<{
@@ -267,9 +289,36 @@ export default function Topbar({
     })
   }
 
+  const updateNotificationPosition = () => {
+    const button = notificationButtonRef.current
+    if (!button) return
+
+    const rect = button.getBoundingClientRect()
+    const panelWidth = 320
+    const viewportPadding = 8
+
+    let left = rect.left + rect.width / 2 - panelWidth / 2
+
+    // Ensure it doesn't go off screen
+    left = clamp(left, viewportPadding, window.innerWidth - panelWidth - viewportPadding)
+
+    const arrowLeft = rect.left + rect.width / 2 - left
+
+    setNotificationPosition({
+      top: rect.bottom + 12,
+      left,
+      arrowLeft,
+    })
+  }
+
   const openProfileMenu = () => {
     updateProfileMenuPosition()
     setMenuOpen(true)
+  }
+
+  const openNotifications = () => {
+    updateNotificationPosition()
+    setNotificationsOpen(true)
   }
 
   useEffect(() => {
@@ -387,9 +436,15 @@ export default function Topbar({
       const target = event.target as Node
       const clickedTrigger = profileMenuRef.current?.contains(target)
       const clickedMenu = profileMenuPanelRef.current?.contains(target)
+      const clickedNotificationTrigger = notificationButtonRef.current?.contains(target)
+      const clickedNotificationPanel = notificationPanelRef.current?.contains(target)
 
       if (!clickedTrigger && !clickedMenu) {
         setMenuOpen(false)
+      }
+
+      if (!clickedNotificationTrigger && !clickedNotificationPanel) {
+        setNotificationsOpen(false)
       }
     }
 
@@ -410,6 +465,40 @@ export default function Topbar({
       window.removeEventListener("scroll", updateProfileMenuPosition, true)
     }
   }, [menuOpen])
+
+  useEffect(() => {
+    if (!notificationsOpen) return
+
+    updateNotificationPosition()
+
+    window.addEventListener("resize", updateNotificationPosition)
+    window.addEventListener("scroll", updateNotificationPosition, true)
+
+    return () => {
+      window.removeEventListener("resize", updateNotificationPosition)
+      window.removeEventListener("scroll", updateNotificationPosition, true)
+    }
+  }, [notificationsOpen])
+
+  useEffect(() => {
+    const handleNotification = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const message = customEvent.detail?.message
+
+      if (message) {
+        setTransientMessage(message)
+        openNotifications()
+
+        setTimeout(() => {
+          setTransientMessage(null)
+          setNotificationsOpen(false)
+        }, 3000)
+      }
+    }
+
+    window.addEventListener("noxo:notification", handleNotification)
+    return () => window.removeEventListener("noxo:notification", handleNotification)
+  }, [])
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -815,6 +904,27 @@ export default function Topbar({
                 {now ? formatClock(now) : "--:--"}
             </div>
 
+            <div className="relative shrink-0">
+              <button
+                ref={notificationButtonRef}
+                type="button"
+                onClick={() => {
+                  if (notificationsOpen) {
+                    setNotificationsOpen(false)
+                    return
+                  }
+                  openNotifications()
+                }}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-all ${
+                  notificationsOpen
+                    ? "border-[#7DDBA8]/50 bg-[#7DDBA8]/10 text-[#7DDBA8]"
+                    : "border-white/10 bg-white/[0.07] text-white/70 hover:bg-white/[0.11] hover:text-white"
+                }`}
+              >
+                <BellIcon />
+              </button>
+            </div>
+
             <div className="relative shrink-0" ref={profileMenuRef}>
               <button
                 ref={profileButtonRef}
@@ -863,6 +973,59 @@ export default function Topbar({
           </div>
         </div>
       </div>
+
+      {notificationsOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={notificationPanelRef}
+              className="context-menu-layer fixed w-[320px] animate-[notificationSlideIn_0.2s_ease-out] rounded-2xl border border-slate-200 bg-white shadow-2xl"
+              style={{ top: notificationPosition.top, left: notificationPosition.left }}
+            >
+              <div
+                className="absolute -top-1.5 h-3 w-3 rotate-45 border-l border-t border-slate-200 bg-white"
+                style={{ left: notificationPosition.arrowLeft - 6 }}
+              />
+
+              <div className="p-4">
+                <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-sm font-semibold text-slate-800">Bildirimler</h3>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    0 Yeni
+                  </span>
+                </div>
+                <div className="py-8 text-center">
+                  {transientMessage ? (
+                    <div className="space-y-2 px-2">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#7DDBA8]/10 text-[#7DDBA8]">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" x2="12" y1="3" y2="15" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-700">
+                        {transientMessage}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400 font-medium">Bildirim yok</p>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {menuOpen && typeof document !== "undefined"
         ? createPortal(

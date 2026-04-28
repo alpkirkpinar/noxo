@@ -663,6 +663,12 @@ export default function ServiceFormTemplateList({
     setSuccessText("");
     setDownloadingPdfId(formId);
 
+    window.dispatchEvent(
+      new CustomEvent("noxo:notification", {
+        detail: { message: "Pdf oluşturuluyor lütfen bekleyin" },
+      })
+    );
+
     try {
       const response = await fetch(`/api/service-forms/${formId}/pdf`);
 

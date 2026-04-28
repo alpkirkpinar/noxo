@@ -1,0 +1,468 @@
+NOXO EXPO ANDROID UYGULAMA GECIS KILAVUZU
+
+Amac
+Bu dosya, mevcut web tabanli NOXO projesinden Android uygulamaya gecis icin adim adim yol haritasi verir.
+Hedefimiz ilk asamada:
+- yeni bir Expo projesi acmak
+- Android emulator veya telefonda calistirmak
+- giris ekrani kurmak
+- mevcut web backendine baglanmak
+- ekranlari parca parca mobil tarafa tasimak
+
+Onemli not
+Bu ilk surecte web projesini kapatmiyoruz.
+Web uygulamasi calismaya devam edecek.
+Mobil uygulama ayri bir proje olacak.
+
+
+1. GENEL YAKLASIM
+
+Senin mevcut yapin:
+- Web: Next.js
+- Veri/Auth: Supabase
+- UI: React tabanli dashboard
+
+Mobilde yapacagimiz:
+- Ayrica bir Expo React Native uygulamasi acacagiz
+- Web tarafindaki veri ve auth mantigini yeniden kullanacagiz
+- UI'yi mobil uyumlu sekilde bastan kuracagiz
+
+Yani:
+- backend buyuk oranda korunur
+- is kurallari korunur
+- ekranlar mobil icin yeniden yazilir
+
+
+2. NEYI KURACAGIZ
+
+Kurulacak temel araclar:
+- Node.js LTS
+- Android Studio
+- Expo
+- Expo Go veya Android emulator
+
+Kontrol listesi:
+- Bilgisayarda Node.js kurulu olmali
+- npm calisiyor olmali
+- Android Studio kurulu olmali
+- Android SDK kurulu olmali
+- Bir Android emulator olusturulmus olmali
+
+
+3. ILK ON HAZIRLIK
+
+Adim 1:
+Terminal ac ve su komutlari kontrol et:
+
+node -v
+npm -v
+
+Beklenen:
+- Node surumu gorunmeli
+- npm surumu gorunmeli
+
+Node yoksa:
+- Resmi Node.js LTS surumunu kur
+
+Adim 2:
+Android Studio kurulu mu kontrol et.
+
+Kurulu degilse:
+- Android Studio indir
+- Kurulum sirasinda Android SDK, SDK Platform, Emulator bileşenlerini dahil et
+
+Adim 3:
+Android Studio icinde bir emulator olustur.
+
+Onerilen:
+- Pixel 7 veya benzeri
+- Android 14 veya guncel stabil surum
+
+
+4. PROJE STRATEJISI
+
+Bu geciste iki repo modeli var:
+
+Model A - En kolay baslangic:
+- Mevcut NOXO web projesinin yanina ayri bir mobile klasoru acmak
+
+Model B - Daha duzgun uzun vadeli:
+- monorepo yapisi
+- apps/web
+- apps/mobile
+- packages/shared
+
+Senin icin ilk adimda onerim:
+- once ayri bir Expo projesi ac
+- sistem oturduktan sonra monorepo duzenine gec
+
+Neden:
+- ilk kez mobil yapiyorsun
+- karmaasayi azaltir
+- once urunu cikarirsin
+
+
+5. ILK HEDEF: CALISAN BOS MOBIL UYGULAMA
+
+Adim 1:
+NOXO klasorunun bir ustunde veya yaninda yeni proje ac:
+
+npx create-expo-app@latest noxo-mobile
+
+Sorular gelirse:
+- TypeScript sec
+
+Adim 2:
+Proje klasorune gir:
+
+cd noxo-mobile
+
+Adim 3:
+Projeyi baslat:
+
+npx expo start
+
+Beklenen:
+- tarayicida Expo arayuzu acilir
+- terminalde QR ve secenekler cikar
+
+Adim 4:
+Android emulator acikken:
+- terminalde a tusuna bas
+
+Beklenen:
+- uygulama emulatora yuklenir
+
+Sorun olursa:
+- Android Studio emulatoru acik mi kontrol et
+- adb ve SDK kurulumunu kontrol et
+
+
+6. ILK OGRENMEN GEREKEN TEMEL FARKLAR
+
+Web tarafinda:
+- div
+- button
+- input
+- css
+
+Mobil tarafinda:
+- View
+- Text
+- Pressable
+- TextInput
+- StyleSheet
+
+Ornek mantik:
+- HTML yok
+- normal CSS yok
+- browser DOM yok
+- native bilesenler var
+
+Bu kritik nokta:
+Web ekranlarini kopyalayip yapistirmayacagiz.
+Ekranlari mobil mantikla yeniden kuracagiz.
+
+
+7. KURMAN GEREKEN TEMEL PAKETLER
+
+Expo projesi olustuktan sonra ilk kurulacaklar:
+
+npx expo install @react-navigation/native
+npx expo install react-native-screens react-native-safe-area-context react-native-gesture-handler react-native-reanimated
+npx expo install @react-navigation/native-stack
+npm install @supabase/supabase-js
+npx expo install expo-secure-store
+
+Bunlar ne ise yarar:
+- navigation: ekran gecisleri
+- supabase-js: auth ve veri
+- secure-store: token saklama
+
+
+8. ILK DOSYA YAPISI
+
+Projede ilk asamada soyle bir duzen kur:
+
+src/
+  api/
+  components/
+  screens/
+  navigation/
+  lib/
+  types/
+
+Onerilen ekranlar:
+- LoginScreen
+- DashboardScreen
+- TicketsScreen
+- CustomersScreen
+- MachinesScreen
+- ProfileScreen
+
+
+9. ILK IS: SUPABASE BAGLANTISI
+
+Adim 1:
+Web projesindeki Supabase bilgilerini bul:
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+Adim 2:
+Expo projesinde env yapisi kur.
+Baslangicta en basit yol:
+- app config veya .env ile degiskenleri kullan
+
+Adim 3:
+Supabase client dosyasi olustur:
+- src/lib/supabase.ts
+
+Mantik:
+- createBrowserClient kullanmayacaksin
+- normal @supabase/supabase-js client kullanacaksin
+- session bilgisini secure storage ile tutacaksin
+
+Onemli:
+Web'deki SSR cookie mantigini mobilde aynen kullanma.
+Mobil ayri session mantigi ister.
+
+
+10. ILK CALISAN OZELLIK: LOGIN
+
+Ilk hedef her zaman login olmali.
+
+Yapilacaklar:
+- email input
+- sifre input
+- giris butonu
+- supabase.auth.signInWithPassword
+- basariliysa Dashboard ekranina gecis
+
+Bu asamayi bitirmeden baska modullere gecme.
+
+Kontrol listesi:
+- login calisiyor mu
+- hata mesaji gorunuyor mu
+- uygulamayi kapatip acinca session duruyor mu
+- logout calisiyor mu
+
+
+11. WEB TARAFINDAN NEYI TASIYACAGIZ
+
+Dogrudan tasinabilecek seyler:
+- tipler
+- permission isimleri
+- enumlar
+- hata mesaji mantigi
+- veri modelleri
+
+Dogrudan tasinamayacak seyler:
+- Next.js page ve layout dosyalari
+- server component yapisi
+- cookie tabanli auth akisi
+- Tailwind siniflari
+- browser API kullanan bilesenler
+
+
+12. MOBIL MVP SIRASI
+
+Tum sistemi ayni anda tasima.
+Su sirayla git:
+
+1. Login
+2. Dashboard ozet
+3. Tickets listesi
+4. Ticket detay
+5. Customers listesi
+6. Machines listesi
+7. Profil
+
+Sonraya birak:
+- PDF uretimi
+- imza editorleri
+- gelismis ayarlar
+- karma form editörleri
+
+Sebep:
+- once saha ve gunluk kullanim cekirdegi cikmali
+
+
+13. API KONUSUNDA DOGRU YAKLASIM
+
+Mobil uygulama web ekranindan veri okumamali.
+HTML parse etmeyecegiz.
+
+Dogru yontem:
+- mevcut Next API route'larini kullan
+- veya Supabase tablo/RPC katmanina baglan
+
+Yani mobil:
+- JSON alacak
+- JSON gonderecek
+
+Eger bir ekranin verisi sadece server component icinde uretiliyorsa:
+- onu ayri bir API endpoint'e tasimak gerekebilir
+
+
+14. ILK GERCEK GELISTIRME PLANI
+
+Asama 1:
+- Expo projesini calistir
+- Android emulatora ac
+- temel navigation kur
+
+Asama 2:
+- Supabase client kur
+- login ekranini bitir
+- session saklamayi bitir
+
+Asama 3:
+- dashboard ekranini sade sekilde getir
+- sadece temel kartlar ve sayilar
+
+Asama 4:
+- ticket listesi getir
+- detay ekranina gecis ekle
+
+Asama 5:
+- customer ve machine listelerini ekle
+
+Asama 6:
+- profil, cikis, temel ayarlar
+
+
+15. UI KONUSUNDA KRITIK TAVSIYE
+
+Mobilde masaustu dashboard mantigini zorla tasima.
+
+Yapma:
+- dev sidebar
+- cok yogun topbar
+- ayni ekranda cok fazla panel
+
+Yap:
+- alt tab veya stack navigation
+- tek amacli ekranlar
+- buyuk dokunma alanlari
+- sade filtre akislari
+
+
+16. ANDROID'E OZEL KONULAR
+
+Mobilde erken dusunmen gerekenler:
+- geri tusu davranisi
+- klavye acilinca layout kaymasi
+- dosya secimi
+- kamera erisimi
+- bildirimler
+- yavas internet
+
+Ilk surumde minimum hedef:
+- uygulama dusuk baglantida da anlamli hata versin
+- tekrar dene mantigi olsun
+
+
+17. TEST PLANI
+
+Her asamada su testleri yap:
+
+Login:
+- dogru bilgiyle giris
+- yanlis sifre
+- internet yokken davranis
+
+Liste ekranlari:
+- veri geliyor mu
+- bos liste dogru gorunuyor mu
+- loading durumu var mi
+- hata durumu var mi
+
+Session:
+- uygulama yeniden acilinca kullanici hatirlaniyor mu
+- logout sonrasi korumali sayfaya giremiyor mu
+
+
+18. ILK HAFTA PLANI
+
+1. gun:
+- Node ve Android Studio kontrol
+- emulator kur
+- Expo projesi ac
+
+2. gun:
+- navigation kur
+- klasor yapisini olustur
+
+3. gun:
+- Supabase baglantisi kur
+- env yapisini netlestir
+
+4. gun:
+- login ekranini yaz
+- session saklamayi bitir
+
+5. gun:
+- dashboard icin bos ekranlar ve routing
+
+6. gun:
+- tickets verisini cekmeye basla
+
+7. gun:
+- tum akisi bastan sona test et
+
+
+19. SENIN ICIN EN DOGRU CALISMA SEKLI
+
+Benimle asama asama git.
+Her adimda tek hedef belirle.
+
+En iyi ilerleme sekli:
+- "simdi expo projesini kur"
+- "simdi navigation ekle"
+- "simdi supabase login yap"
+- "simdi dashboard ekranini ac"
+
+Yani buyuk isi parcalayacagiz.
+Bu sekilde hata ayiklama cok daha kolay olur.
+
+
+20. SIMDI NE YAPACAKSIN
+
+Buradan sonraki ilk uygulama adimlari:
+
+1. Node surumunu kontrol et
+2. Android Studio kurulu mu bak
+3. Emulator olustur
+4. npx create-expo-app@latest noxo-mobile komutunu calistir
+5. cd noxo-mobile
+6. npx expo start
+7. a tusu ile Android emulatoru ac
+
+Bu 7 adim bitmeden uygulama gelistirmeye gecme.
+
+
+21. TIKANIRSAN
+
+Su tip sorunlar normaldir:
+- emulator acilmiyor
+- SDK bulunamiyor
+- Expo Android'i gormuyor
+- package kurulumunda hata cikiyor
+- Supabase session beklenmedik davraniyor
+
+Bu durumda ekran goruntusu veya hata metniyle ilerle.
+Mobil tarafta ilk kurulum asamasi genelde en cok surtunen bolumdur.
+
+
+22. SONUC
+
+Bu geciste dogru ilk hedef "hemen tum NOXO'yu mobile tasimak" degil.
+Dogru hedef:
+- once mobil altyapiyi kurmak
+- sonra login
+- sonra cekirdek ekranlar
+
+Ilk teknik kilometre tasi:
+"Android emulator veya telefonda acilan, giris yapabilen Expo uygulamasi"
+
+Sen bu noktaya geldiginde ikinci asamaya gecmeye hazirsin.

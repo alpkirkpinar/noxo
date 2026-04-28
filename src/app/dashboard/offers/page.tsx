@@ -1101,7 +1101,13 @@ export default function OffersPage() {
   }
 
   function downloadOfferPdf(offerId: string) {
-    const anchor = document.createElement("a");
+   window.dispatchEvent(
+     new CustomEvent("noxo:notification", {
+       detail: { message: "Pdf oluşturuluyor lütfen bekleyin" },
+     })
+   );
+   const anchor = document.createElement("a");
+
     anchor.href = `/dashboard/offers/${offerId}/pdf/file`;
     if (isIosDevice()) {
       anchor.target = "_blank";
@@ -1425,11 +1431,7 @@ export default function OffersPage() {
           <button
             type="button"
             onClick={() => {
-              if (isIosDevice()) {
-                window.open(`/dashboard/offers/${contextMenu.offerId}/pdf/file`, "_blank", "noopener,noreferrer");
-              } else {
-                window.location.href = `/dashboard/offers/${contextMenu.offerId}/pdf/file`;
-              }
+              downloadOfferPdf(contextMenu.offerId);
               setContextMenu(null);
             }}
             className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
