@@ -1193,22 +1193,6 @@ export default function ServiceFormEditor({
                                     <span className={getOverlayDateDisplayClass(field)} style={getOverlayInputTextStyle(field)}>
                                       {getOverlayDisplayValue(field)}
                                     </span>
-                                    {fieldValues[field.id] && (
-                                      <button
-                                        type="button"
-                                        onPointerDown={(event) => {
-                                          event.stopPropagation();
-                                        }}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setFieldValue(field.id, "");
-                                        }}
-                                        aria-label={`${field.field_label} alanını temizle`}
-                                        className="service-form-overlay-clear-button pointer-events-none absolute right-0 top-0 z-10 flex h-full min-w-[18px] items-center justify-center bg-blue-100/80 px-1 text-[10px] font-bold text-red-600 opacity-0"
-                                      >
-                                        ✕
-                                      </button>
-                                    )}
                                   </div>
                                 ) : field.field_type === "serial_number" ? (
                                   <div
@@ -1340,6 +1324,7 @@ export default function ServiceFormEditor({
             inset: 0;
             line-height: 1;
             opacity: 0;
+            pointer-events: none;
             position: absolute;
           }
 
@@ -1363,20 +1348,6 @@ export default function ServiceFormEditor({
 
           .service-form-overlay-date-value {
             display: flex;
-          }
-
-          .service-form-overlay-clear-button {
-            opacity: 1;
-          }
-        }
-
-        @media (hover: hover) and (pointer: fine) {
-          .service-form-overlay-clear-button {
-            opacity: 0;
-          }
-
-          .group:hover .service-form-overlay-clear-button {
-            opacity: 1;
           }
         }
 
