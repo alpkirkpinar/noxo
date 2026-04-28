@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${makePdfFileName(companyName)}"`,
+        "Content-Disposition": `inline; filename="${makePdfFileName(companyName)}"`,
         "Cache-Control": "no-store",
       },
     });
