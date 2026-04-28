@@ -609,12 +609,17 @@ export default function ServiceFormEditor({
   function handleDateTimeOverlayTap(container: HTMLDivElement, field: TemplateField) {
     const currentValue = fieldValues[field.id] ?? "";
 
-    if (usePhoneOverlayInputMode && currentValue) {
-      setFieldValue(field.id, "");
-      return;
+    if (usePhoneOverlayInputMode) {
+      if (currentValue) {
+        setFieldValue(field.id, "");
+        return true;
+      }
+
+      return false;
     }
 
     activateOverlayFieldControl(container, field);
+    return true;
   }
 
   async function handleExportPdf() {
@@ -1179,8 +1184,10 @@ export default function ServiceFormEditor({
                                   <div
                                     className="group relative h-full w-full"
                                     onPointerUp={(event) => {
-                                      event.stopPropagation();
-                                      handleDateTimeOverlayTap(event.currentTarget, field);
+                                      const handled = handleDateTimeOverlayTap(event.currentTarget, field);
+                                      if (handled) {
+                                        event.stopPropagation();
+                                      }
                                     }}
                                   >
                                     <input
@@ -1188,7 +1195,13 @@ export default function ServiceFormEditor({
                                       value={fieldValues[field.id] ?? ""}
                                       onChange={(event) => setFieldValue(field.id, event.target.value)}
                                       className={getOverlayInputClass(field)}
-                                      style={getOverlayInputTextStyle(field)}
+                                      style={{
+                                        ...getOverlayInputTextStyle(field),
+                                        pointerEvents:
+                                          usePhoneOverlayInputMode && (fieldValues[field.id] ?? "") === ""
+                                            ? "auto"
+                                            : undefined,
+                                      }}
                                     />
                                     <span className={getOverlayDateDisplayClass(field)} style={getOverlayInputTextStyle(field)}>
                                       {getOverlayDisplayValue(field)}
