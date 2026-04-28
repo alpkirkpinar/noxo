@@ -64,15 +64,15 @@ export default function TicketCommentForm({
   }
 
   return (
-    <div className="rounded-xl border bg-white p-5">
-      <h2 className="mb-4 text-lg font-semibold">Yorum Ekle</h2>
+    <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+      <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Yorum Ekle</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <textarea
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
           placeholder="İç not yazın..."
-          className="min-h-[120px] w-full rounded-lg border px-3 py-2 text-sm"
+          className="min-h-[120px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-400 dark:focus:border-blue-400"
         />
 
         {errorText ? (

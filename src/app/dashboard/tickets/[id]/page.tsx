@@ -223,16 +223,16 @@ export default async function TicketDetailPage({ params }: PageProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900" data-topbar-title>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100" data-topbar-title>
             {ticket.ticket_no}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">{ticket.title}</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{ticket.title}</p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard/tickets"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             Geri
           </Link>
@@ -264,67 +264,67 @@ export default async function TicketDetailPage({ params }: PageProps) {
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(ticket.status)}`}>
                 {statusLabel(ticket.status)}
               </span>
-              <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                 {priorityLabel(ticket.priority)}
               </span>
             </div>
 
-            <h2 className="mt-5 text-lg font-semibold text-slate-900">Ticket Bilgileri</h2>
+            <h2 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">Ticket Bilgileri</h2>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Müşteri</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{customer?.company_name ?? "-"}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Müşteri</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">{customer?.company_name ?? "-"}</div>
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Makine</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{machine?.machine_name ?? "-"}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Makine</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">{machine?.machine_name ?? "-"}</div>
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Makine Kodu</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{machine?.machine_code ?? "-"}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Makine Kodu</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">{machine?.machine_code ?? "-"}</div>
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">İlgili Kişi</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{customer?.contact_name ?? "-"}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">İlgili Kişi</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">{customer?.contact_name ?? "-"}</div>
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Açan Kullanıcı</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{openedByUser?.full_name ?? "-"}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Açan Kullanıcı</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">{openedByUser?.full_name ?? "-"}</div>
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Atanan Kullanıcı</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{assignedToUser?.full_name ?? "-"}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Atanan Kullanıcı</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">{assignedToUser?.full_name ?? "-"}</div>
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Açılış Tarihi</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Açılış Tarihi</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">
                   {ticket.opened_at ? new Date(ticket.opened_at).toLocaleString("tr-TR") : "-"}
                 </div>
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Son Güncelleme</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">
+                <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Son Güncelleme</div>
+                <div className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-200">
                   {ticket.updated_at ? new Date(ticket.updated_at).toLocaleString("tr-TR") : "-"}
                 </div>
               </div>
             </div>
 
             <div className="mt-5">
-              <div className="text-xs uppercase tracking-wide text-slate-500">Açıklama</div>
-              <div className="mt-2 whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Açıklama</div>
+              <div className="mt-2 whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300">
                 {ticket.description ?? "-"}
               </div>
             </div>
@@ -341,28 +341,28 @@ export default async function TicketDetailPage({ params }: PageProps) {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Durum Geçmişi</h2>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Durum Geçmişi</h2>
 
             <div className="mt-4 space-y-3">
               {history.length === 0 ? (
-                <div className="text-sm text-slate-500">Geçmiş kayıt yok.</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">Geçmiş kayıt yok.</div>
               ) : (
                 history.map((item) => {
                   const changer = Array.isArray(item.changer) ? item.changer[0] : item.changer;
 
                   return (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-slate-900">{statusLabel(item.new_status)}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{statusLabel(item.new_status)}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           {new Date(item.changed_at).toLocaleString("tr-TR")}
                         </div>
                       </div>
 
-                      <div className="mt-2 text-sm text-slate-600">Değiştiren: {changer?.full_name ?? "-"}</div>
+                      <div className="mt-2 text-sm text-slate-600 dark:text-slate-400">Değiştiren: {changer?.full_name ?? "-"}</div>
 
-                      {item.note ? <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{item.note}</div> : null}
+                      {item.note ? <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{item.note}</div> : null}
                     </div>
                   );
                 })
@@ -370,29 +370,29 @@ export default async function TicketDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Yorumlar</h2>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Yorumlar</h2>
 
             <div className="mt-4 space-y-3">
               {comments.length === 0 ? (
-                <div className="text-sm text-slate-500">Henüz yorum yok.</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">Henüz yorum yok.</div>
               ) : (
                 comments.map((comment) => {
                   const creator = Array.isArray(comment.creator) ? comment.creator[0] : comment.creator;
 
                   return (
-                    <div key={comment.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div key={comment.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-slate-900">{creator?.full_name ?? "-"}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{creator?.full_name ?? "-"}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           {new Date(comment.created_at).toLocaleString("tr-TR")}
                         </div>
                       </div>
 
-                      <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{comment.comment_text}</div>
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{comment.comment_text}</div>
 
                       {comment.is_internal ? (
-                        <div className="mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                        <div className="mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                           İç Not
                         </div>
                       ) : null}

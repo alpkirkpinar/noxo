@@ -526,10 +526,14 @@ export default function ServiceFormEditor({
 
   function saveSignatureToField(fieldId: string) {
     const pad = signaturePadRef.current;
-    if (!pad || pad.isEmpty()) return;
+    if (!pad) return;
 
-    const dataUrl = pad.toDataURL("image/png");
-    setFieldValue(fieldId, dataUrl);
+    if (pad.isEmpty()) {
+      setFieldValue(fieldId, "");
+    } else {
+      const dataUrl = pad.toDataURL("image/png");
+      setFieldValue(fieldId, dataUrl);
+    }
     setActiveSignatureFieldId(null);
   }
 
@@ -538,6 +542,17 @@ export default function ServiceFormEditor({
     if (!pad) return;
     pad.clear();
   }
+
+  useEffect(() => {
+    if (activeSignatureFieldId && signaturePadRef.current) {
+      const existingValue = fieldValues[activeSignatureFieldId];
+      if (existingValue && existingValue.startsWith("data:image")) {
+        signaturePadRef.current.fromDataURL(existingValue);
+      } else {
+        signaturePadRef.current.clear();
+      }
+    }
+  }, [activeSignatureFieldId]);
 
   function toggleCheckbox(fieldId: string) {
     setFieldValue(fieldId, (fieldValues[fieldId] ?? "") === "true" ? "false" : "true");
@@ -1131,10 +1146,10 @@ export default function ServiceFormEditor({
                                     className={getOverlayEditableControlClass("resize-none overflow-hidden border-0 bg-transparent text-slate-900 outline-none")}
                                     style={getOverlayFieldTextStyle(field)}
                                   />
-                                ) : field.field_type === "date" ? (
-                                  <>
+                                ) : field.field_type === "date" || field.field_type === "time" ? (
+                                  <div className="group relative h-full w-full">
                                     <input
-                                      type="date"
+                                      type={field.field_type === "date" ? "date" : "time"}
                                       value={fieldValues[field.id] ?? ""}
                                       onChange={(event) => setFieldValue(field.id, event.target.value)}
                                       className={getOverlayInputClass(field)}
@@ -1143,7 +1158,19 @@ export default function ServiceFormEditor({
                                     <span className={getOverlayDateDisplayClass(field)} style={getOverlayInputTextStyle(field)}>
                                       {getOverlayDisplayValue(field)}
                                     </span>
-                                  </>
+                                    {fieldValues[field.id] && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setFieldValue(field.id, "");
+                                        }}
+                                        className="absolute right-0 top-0 flex h-full items-center bg-blue-100/80 px-1 text-[10px] font-bold text-red-600 opacity-0 group-hover:opacity-100 dark:bg-slate-800/80"
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
                                 ) : field.field_type === "serial_number" ? (
                                   <div
                                     className={getOverlayControlClass("overflow-hidden whitespace-nowrap border-0 bg-transparent text-slate-900 outline-none")}
@@ -1188,13 +1215,13 @@ export default function ServiceFormEditor({
 
             {activeSignatureField ? (
               <div
-                className="fixed left-1/2 top-1/2 z-50 w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-white p-4 shadow-2xl"
+                className="fixed left-1/2 top-1/2 z-50 w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="mb-3 text-sm font-semibold">{activeSignatureField.field_label}</div>
+                <div className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">{activeSignatureField.field_label}</div>
 
                 <div className="space-y-3">
-                  <div className="overflow-hidden rounded-lg border bg-white">
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700">
                     <SignatureCanvas
                       ref={(ref) => {
                         signaturePadRef.current = ref;
@@ -1212,7 +1239,7 @@ export default function ServiceFormEditor({
                     <button
                       type="button"
                       onClick={clearSignaturePad}
-                      className="rounded-lg border px-3 py-2 text-sm"
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                       Temizle
                     </button>
@@ -1221,7 +1248,7 @@ export default function ServiceFormEditor({
                       <button
                         type="button"
                         onClick={() => setActiveSignatureFieldId(null)}
-                        className="rounded-lg border px-3 py-2 text-sm"
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                       >
                         Kapat
                       </button>
@@ -1229,7 +1256,7 @@ export default function ServiceFormEditor({
                       <button
                         type="button"
                         onClick={() => saveSignatureToField(activeSignatureField.id)}
-                        className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white"
+                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
                       >
                         Kaydet
                       </button>
