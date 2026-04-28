@@ -43,8 +43,100 @@ export default function CustomerForm({
   const labelClassName = "text-sm font-medium text-slate-700 dark:text-slate-300";
   const inputClassName =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400";
+  const [companyName, setCompanyName] = useState(initialValues?.company_name ?? "");
+  const [contactName, setContactName] = useState(initialValues?.contact_name ?? "");
+  const [phone, setPhone] = useState(initialValues?.phone ?? "");
+  const [email, setEmail] = useState(initialValues?.email ?? "");
+  const [address, setAddress] = useState(initialValues?.address ?? "");
+  const [city, setCity] = useState(initialValues?.city ?? "");
+  const [country, setCountry] = useState(initialValues?.country ?? "");
+  const [taxOffice, setTaxOffice] = useState(initialValues?.tax_office ?? "");
+  const [taxNumber, setTaxNumber] = useState(initialValues?.tax_number ?? "");
+  const [notes, setNotes] = useState(initialValues?.notes ?? "");
+  const [isActive, setIsActive] = useState(initialValues?.is_active ?? true);
+  const [saving, setSaving] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
-  // ... (existing state)
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorText("");
+
+    if (!canSubmit) {
+      setErrorText(
+        mode === "create" ? "Müşteri oluşturma yetkiniz yok." : "Müşteri düzenleme yetkiniz yok."
+      );
+      return;
+    }
+
+    if (!companyName.trim()) {
+      setErrorText("Firma adı zorunludur.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const payload = {
+        companyId,
+        createdBy,
+        company_name: companyName,
+        contact_name: contactName,
+        phone,
+        email,
+        address,
+        city,
+        country,
+        tax_office: taxOffice,
+        tax_number: taxNumber,
+        notes,
+        is_active: isActive,
+      };
+
+      const response = await fetch(
+        mode === "create" ? "/api/customers" : `/api/customers/${initialValues?.id ?? ""}`,
+        {
+          method: mode === "create" ? "POST" : "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            (mode === "create" ? "Müşteri kaydedilemedi." : "Müşteri güncellenemedi.")
+        );
+      }
+
+      router.refresh();
+
+      if (onCancel) {
+        onCancel();
+        return;
+      }
+
+      if (cancelHref) {
+        router.push(cancelHref);
+        return;
+      }
+
+      const customerId = String(data?.customer?.id ?? initialValues?.id ?? "");
+      if (customerId) {
+        router.push(`/dashboard/customers/${customerId}`);
+        return;
+      }
+
+      router.push("/dashboard/customers");
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "İşlem tamamlanamadı.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5">

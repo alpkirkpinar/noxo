@@ -46,6 +46,7 @@ function dateValue(value?: string | null) {
 
 export default function MachineForm({
   companyId,
+  createdBy,
   customers,
   mode = "create",
   initialValues,
@@ -59,8 +60,114 @@ export default function MachineForm({
   const inputClass =
     "min-w-0 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400";
   const labelClass = "mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300";
+  const [customerId, setCustomerId] = useState(initialValues?.customer_id ?? "");
+  const [machineCode, setMachineCode] = useState(initialValues?.machine_code ?? "");
+  const [machineName, setMachineName] = useState(initialValues?.machine_name ?? "");
+  const [brand, setBrand] = useState(initialValues?.brand ?? "");
+  const [model, setModel] = useState(initialValues?.model ?? "");
+  const [serialNumber, setSerialNumber] = useState(initialValues?.serial_number ?? "");
+  const [installationDate, setInstallationDate] = useState(dateValue(initialValues?.installation_date));
+  const [warrantyEndDate, setWarrantyEndDate] = useState(dateValue(initialValues?.warranty_end_date));
+  const [maintenancePeriodDays, setMaintenancePeriodDays] = useState(
+    initialValues?.maintenance_period_days != null ? String(initialValues.maintenance_period_days) : ""
+  );
+  const [lastMaintenanceDate, setLastMaintenanceDate] = useState(dateValue(initialValues?.last_maintenance_date));
+  const [locationText, setLocationText] = useState(initialValues?.location_text ?? "");
+  const [notes, setNotes] = useState(initialValues?.notes ?? "");
+  const [status, setStatus] = useState(initialValues?.status ?? "active");
+  const [saving, setSaving] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
-  // ... (existing state)
+  const computedNextMaintenanceDate = computeNextMaintenanceDate({
+    maintenancePeriodDays: Number(maintenancePeriodDays) || null,
+    lastMaintenanceDate,
+    installationDate,
+  });
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorText("");
+
+    if (!canSubmit) {
+      setErrorText(isEdit ? "Makine düzenleme yetkiniz yok." : "Makine oluşturma yetkiniz yok.");
+      return;
+    }
+
+    if (!customerId) {
+      setErrorText("Müşteri seçmek zorunludur.");
+      return;
+    }
+
+    if (!machineName.trim()) {
+      setErrorText("Makine adı zorunludur.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const payload = {
+        companyId,
+        createdBy,
+        customer_id: customerId,
+        machine_code: machineCode,
+        machine_name: machineName,
+        brand,
+        model,
+        serial_number: serialNumber,
+        installation_date: installationDate,
+        warranty_end_date: warrantyEndDate,
+        maintenance_period_days: maintenancePeriodDays,
+        last_maintenance_date: lastMaintenanceDate,
+        location_text: locationText,
+        notes,
+        status,
+      };
+
+      const response = await fetch(
+        isEdit ? `/api/machines/${initialValues?.id ?? ""}` : "/api/machines",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || (isEdit ? "Makine güncellenemedi." : "Makine kaydedilemedi.")
+        );
+      }
+
+      router.refresh();
+
+      if (onCancel) {
+        onCancel();
+        return;
+      }
+
+      if (cancelHref) {
+        router.push(cancelHref);
+        return;
+      }
+
+      const machineId = String(data?.machine?.id ?? initialValues?.id ?? "");
+      if (machineId) {
+        router.push(`/dashboard/machines/${machineId}`);
+        return;
+      }
+
+      router.push("/dashboard/machines");
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "İşlem tamamlanamadı.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5">
