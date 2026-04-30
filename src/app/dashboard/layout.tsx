@@ -22,6 +22,7 @@ export default async function DashboardLayout({
         companyModules={identity.company_modules}
         companyActive={identity.company_active ?? undefined}
         role={String(identity.role ?? "")}
+        email={identity.email ?? user.email ?? null}
         superUser={user.app_metadata?.super_user === true}
       />
 

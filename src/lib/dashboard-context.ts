@@ -26,6 +26,7 @@ export const getDashboardContext = cache(async () => {
 
   const identity: PermissionIdentity = {
     role: typeof user?.app_metadata?.role === "string" ? user.app_metadata.role : null,
+    email: user?.email ?? null,
     super_user: user?.app_metadata?.super_user === true,
     company_modules: Array.isArray(user?.app_metadata?.company_modules)
       ? user.app_metadata.company_modules.map(String)

@@ -114,6 +114,7 @@ export type PermissionIdentity = {
   company_modules?: string[]
   company_active?: boolean | null
   role?: string | null
+  email?: string | null
   super_user?: boolean | null
 }
 
@@ -138,11 +139,11 @@ export const ROUTE_PERMISSIONS: Array<{
 ]
 
 export function isSuperUser(identity: PermissionIdentity) {
-  return identity.super_user === true || identity.role === "super_user" || identity.role === "master"
+  return identity.super_user === true || identity.role === "super_user" || isMasterUser(identity)
 }
 
 export function isMasterUser(identity: PermissionIdentity) {
-  return identity.role === "master"
+  return identity.role === "master" && String(identity.email ?? "").trim().toLowerCase() === "master@noxo.local"
 }
 
 export function normalizeAppModules(modules: unknown) {

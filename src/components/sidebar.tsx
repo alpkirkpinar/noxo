@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { NoxoMark } from "@/components/noxo-mark"
-import { hasPermission, PERMISSIONS, type PermissionIdentity } from "@/lib/permissions"
+import { hasPermission, isMasterUser, PERMISSIONS, type PermissionIdentity } from "@/lib/permissions"
 
 type IconName =
   | "dashboard"
@@ -197,12 +197,14 @@ export default function Sidebar({
   companyModules,
   companyActive,
   role,
+  email,
   superUser,
 }: {
   permissions: string[]
   companyModules?: string[]
   companyActive?: boolean
   role?: string | null
+  email?: string | null
   superUser?: boolean | null
 }) {
   const pathname = usePathname()
@@ -214,13 +216,14 @@ export default function Sidebar({
     company_modules: companyModules,
     company_active: companyActive,
     role,
+    email,
     super_user: superUser,
   }
 
   const visibleMenuItems = menuItems
     .map((group) => {
       if (group.href === "/dashboard/master") {
-        return role === "master" ? group : null
+        return isMasterUser(identity) ? group : null
       }
 
       if (group.href) {

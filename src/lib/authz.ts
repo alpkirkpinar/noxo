@@ -44,6 +44,7 @@ export async function getServerIdentity(requiredPermission?: string) {
     appUserId: String(appUser.id),
     companyId: String(appUser.company_id),
     role: metadata.role,
+    email: freshUser.user.email ?? user.email ?? null,
     super_user: metadata.super_user,
     company_modules: Array.isArray(metadata.company_modules)
       ? metadata.company_modules.map(String)

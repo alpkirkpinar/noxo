@@ -128,7 +128,7 @@ async function getMasterAuth() {
   if (!user) return { response: NextResponse.json({ error: "Oturum bulunamadi." }, { status: 401 }) }
 
   const { data: freshUser } = await admin.auth.admin.getUserById(user.id)
-  if (!isMasterUser({ role: freshUser.user?.app_metadata?.role })) {
+  if (!isMasterUser({ role: freshUser.user?.app_metadata?.role, email: freshUser.user?.email ?? user.email ?? null })) {
     return { response: NextResponse.json({ error: "Master yetkisi gerekli." }, { status: 403 }) }
   }
 

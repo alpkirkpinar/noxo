@@ -12,8 +12,8 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [email, setEmail] = useState("admin@noxo.local");
-  const [password, setPassword] = useState("Admin12345!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
@@ -69,6 +69,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="E-posta veya master"
+              autoComplete="username"
               required
             />
           </div>
@@ -83,6 +84,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Şifre"
+              autoComplete="current-password"
               required
             />
           </div>

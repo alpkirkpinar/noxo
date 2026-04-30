@@ -19,7 +19,7 @@ export default async function MasterPanelPage() {
 
   const { data: freshUser } = await admin.auth.admin.getUserById(user.id)
 
-  if (!isMasterUser({ role: freshUser.user?.app_metadata?.role })) {
+  if (!isMasterUser({ role: freshUser.user?.app_metadata?.role, email: freshUser.user?.email ?? user.email ?? null })) {
     redirect("/dashboard/unauthorized")
   }
 
