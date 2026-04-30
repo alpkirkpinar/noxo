@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -12,7 +12,7 @@ function normalizeRedirect(value: string | null) {
   return value;
 }
 
-export default function MobileAuthPage() {
+function MobileAuthContent() {
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
   const [errorText, setErrorText] = useState("");
@@ -56,6 +56,10 @@ export default function MobileAuthPage() {
     };
   }, [searchParams, supabase]);
 
+  return <MobileAuthShell errorText={errorText} />;
+}
+
+function MobileAuthShell({ errorText = "" }: { errorText?: string }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
       <div className="w-full max-w-md rounded-[28px] border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl">
@@ -65,5 +69,13 @@ export default function MobileAuthPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function MobileAuthPage() {
+  return (
+    <Suspense fallback={<MobileAuthShell />}>
+      <MobileAuthContent />
+    </Suspense>
   );
 }
