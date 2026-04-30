@@ -9,6 +9,7 @@ type PatchBody = {
   phone?: string
   title?: string
   permissions?: string[]
+  calendarColor?: string
 }
 
 export async function GET(
@@ -88,7 +89,8 @@ export async function PATCH(
       body.fullName !== undefined ||
       body.email !== undefined ||
       body.phone !== undefined ||
-      body.title !== undefined
+      body.title !== undefined ||
+      body.calendarColor !== undefined
 
     if (wantsInfoUpdate && !hasPermission(identity, PERMISSIONS.employeeEdit)) {
       return NextResponse.json(
@@ -126,6 +128,22 @@ export async function PATCH(
 
     if (body.title !== undefined) {
       updates.title = String(body.title).trim() || null
+    }
+
+    if (body.calendarColor !== undefined) {
+      const supportsCalendarColor = await appUsersSupportsCalendarColor(admin)
+      if (!supportsCalendarColor) {
+        return NextResponse.json(
+          { error: "Takvim rengi icin veritabani migration'i henuz uygulanmamis." },
+          { status: 400 }
+        )
+      }
+
+      const calendarColor = normalizeCalendarColor(body.calendarColor)
+      if (!calendarColor) {
+        return NextResponse.json({ error: "GeÃ§erli bir renk girin." }, { status: 400 })
+      }
+      updates.calendar_color = calendarColor
     }
 
     if (Object.keys(updates).length > 0) {
@@ -209,12 +227,11 @@ export async function PATCH(
       }
     }
 
-    const { data: updatedEmployee, error: selectError } = await admin
-      .from("app_users")
-      .select("id, auth_user_id, full_name, email, phone, title")
-      .eq("id", id)
-      .eq("company_id", identity.companyId)
-      .single()
+    const { data: updatedEmployee, error: selectError } = await selectEmployeeWithOptionalColor(
+      admin,
+      id,
+      identity.companyId
+    )
 
     if (selectError || !updatedEmployee) {
       return NextResponse.json(
@@ -231,7 +248,7 @@ export async function PATCH(
 
     return NextResponse.json({
       employee: {
-        ...updatedEmployee,
+        ...withResolvedCalendarColor(updatedEmployee),
         permissions: Array.isArray(permissions) ? permissions.map(String) : [],
         is_super_user:
           updatedAuthUserData.user?.app_metadata?.super_user === true ||
@@ -403,5 +420,92 @@ function getValidAuthUserId(employee: { auth_user_id?: string | null } | null) {
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     value
+  )
+}
+
+const EMPLOYEE_CALENDAR_COLOR_PALETTE = [
+  "#E11D48",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#14B8A6",
+  "#06B6D4",
+  "#3B82F6",
+  "#6366F1",
+  "#8B5CF6",
+  "#A855F7",
+  "#D946EF",
+  "#EC4899",
+  "#F43F5E",
+  "#84CC16",
+  "#10B981",
+  "#0EA5E9",
+]
+
+function normalizeCalendarColor(value: unknown) {
+  const text = String(value ?? "").trim().toUpperCase()
+  if (!text) return null
+  if (!/^#[0-9A-F]{6}$/.test(text)) return null
+  return text
+}
+
+function deriveCalendarColor(seed: string) {
+  let hash = 0
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0
+  }
+
+  return EMPLOYEE_CALENDAR_COLOR_PALETTE[hash % EMPLOYEE_CALENDAR_COLOR_PALETTE.length]
+}
+
+function withResolvedCalendarColor<T extends { id: string; auth_user_id?: string | null; calendar_color?: string | null }>(
+  employee: T
+) {
+  return {
+    ...employee,
+    calendar_color:
+      normalizeCalendarColor(employee.calendar_color) ||
+      deriveCalendarColor(String(employee.auth_user_id ?? employee.id)),
+  }
+}
+
+async function selectEmployeeWithOptionalColor(
+  admin: ReturnType<typeof createAdminClient>,
+  id: string,
+  companyId: string
+) {
+  const withColor = await admin
+    .from("app_users")
+    .select("id, auth_user_id, full_name, email, phone, title, calendar_color")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .single()
+
+  if (!hasMissingCalendarColorColumn(withColor.error)) {
+    return withColor
+  }
+
+  return admin
+    .from("app_users")
+    .select("id, auth_user_id, full_name, email, phone, title")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .single()
+}
+
+async function appUsersSupportsCalendarColor(admin: ReturnType<typeof createAdminClient>) {
+  const result = await admin.from("app_users").select("calendar_color").limit(1)
+  return !hasMissingCalendarColorColumn(result.error)
+}
+
+function hasMissingCalendarColorColumn(
+  error: { code?: string | null; message?: string | null } | null
+) {
+  if (!error) return false
+
+  return (
+    error.code === "42703" &&
+    String(error.message ?? "").toLowerCase().includes("calendar_color")
   )
 }

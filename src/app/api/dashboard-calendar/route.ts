@@ -68,6 +68,123 @@ async function getCurrentAppUser(supabase: Awaited<ReturnType<typeof createSupab
   return { error: null, status: 200 as const, user, appUser }
 }
 
+const EMPLOYEE_CALENDAR_COLOR_PALETTE = [
+  "#E11D48",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#14B8A6",
+  "#06B6D4",
+  "#3B82F6",
+  "#6366F1",
+  "#8B5CF6",
+  "#A855F7",
+  "#D946EF",
+  "#EC4899",
+  "#F43F5E",
+  "#84CC16",
+  "#10B981",
+  "#0EA5E9",
+]
+
+function normalizeCalendarColor(value: unknown) {
+  const text = String(value ?? "").trim().toUpperCase()
+  if (!text) return null
+  if (!/^#[0-9A-F]{6}$/.test(text)) return null
+  return text
+}
+
+function deriveCalendarColor(seed: string) {
+  let hash = 0
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0
+  }
+
+  return EMPLOYEE_CALENDAR_COLOR_PALETTE[hash % EMPLOYEE_CALENDAR_COLOR_PALETTE.length]
+}
+
+async function attachCreatorMeta(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  companyId: string,
+  events: Array<{
+    id: string
+    title: string
+    note: string | null
+    start_date: string
+    end_date: string
+    start_time: string | null
+    end_time: string | null
+    created_at: string
+    updated_at: string
+    created_by: string | null
+  }>
+) {
+  const creatorIds = Array.from(
+    new Set(events.map((event) => event.created_by).filter((value): value is string => Boolean(value)))
+  )
+
+  const creatorMap = new Map<string, { full_name: string | null; calendar_color: string | null }>()
+
+  if (creatorIds.length > 0) {
+    const creatorsResult = await selectCreatorsWithOptionalColor(supabase, companyId, creatorIds)
+
+    for (const creator of creatorsResult.data ?? []) {
+      creatorMap.set(String(creator.id), {
+        full_name: creator.full_name ?? null,
+        calendar_color: normalizeCalendarColor(
+          "calendar_color" in creator ? creator.calendar_color : null
+        ),
+      })
+    }
+  }
+
+  return events.map((event) => {
+    const creator = event.created_by ? creatorMap.get(event.created_by) : null
+
+    return {
+      ...event,
+      creator_name: creator?.full_name ?? null,
+      creator_color:
+        creator?.calendar_color ||
+        deriveCalendarColor(String(event.created_by ?? event.id)),
+    }
+  })
+}
+
+async function selectCreatorsWithOptionalColor(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  companyId: string,
+  creatorIds: string[]
+) {
+  const withColor = await supabase
+    .from("app_users")
+    .select("id, full_name, calendar_color")
+    .eq("company_id", companyId)
+    .in("id", creatorIds)
+
+  if (!hasMissingCalendarColorColumn(withColor.error)) {
+    return withColor
+  }
+
+  return supabase
+    .from("app_users")
+    .select("id, full_name")
+    .eq("company_id", companyId)
+    .in("id", creatorIds)
+}
+
+function hasMissingCalendarColorColumn(
+  error: { code?: string | null; message?: string | null } | null
+) {
+  if (!error) return false
+
+  return (
+    error.code === "42703" &&
+    String(error.message ?? "").toLowerCase().includes("calendar_color")
+  )
+}
+
 export async function GET(request: Request) {
   try {
     const permission = await getServerIdentity(PERMISSIONS.dashboard)
@@ -92,7 +209,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from("dashboard_calendar_events")
-      .select("id, title, note, start_date, end_date, start_time, end_time, created_at, updated_at")
+      .select("id, title, note, start_date, end_date, start_time, end_time, created_at, updated_at, created_by")
       .eq("company_id", identity.appUser.company_id)
       .lte("start_date", end)
       .gte("end_date", start)
@@ -104,7 +221,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ events: data ?? [] })
+    return NextResponse.json({
+      events: await attachCreatorMeta(supabase, identity.appUser.company_id, data ?? []),
+    })
   } catch (error: unknown) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Takvim verisi alınamadı." },
@@ -156,14 +275,15 @@ export async function POST(request: Request) {
         end_time: endTime,
         created_by: identity.appUser.id,
       })
-      .select("id, title, note, start_date, end_date, start_time, end_time, created_at, updated_at")
+      .select("id, title, note, start_date, end_date, start_time, end_time, created_at, updated_at, created_by")
       .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ event: data })
+    const [event] = await attachCreatorMeta(supabase, identity.appUser.company_id, [data])
+    return NextResponse.json({ event })
   } catch (error: unknown) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Takvim kaydı eklenemedi." },
@@ -221,14 +341,15 @@ export async function PATCH(request: Request) {
       })
       .eq("id", id)
       .eq("company_id", identity.appUser.company_id)
-      .select("id, title, note, start_date, end_date, start_time, end_time, created_at, updated_at")
+      .select("id, title, note, start_date, end_date, start_time, end_time, created_at, updated_at, created_by")
       .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ event: data })
+    const [event] = await attachCreatorMeta(supabase, identity.appUser.company_id, [data])
+    return NextResponse.json({ event })
   } catch (error: unknown) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Etkinlik güncellenemedi." },

@@ -4,6 +4,7 @@ import { PDFDocument, PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { NextResponse } from "next/server";
 import { getServerIdentity } from "@/lib/authz";
+import { getMobileRouteIdentity } from "@/lib/mobile-route-auth";
 import { PERMISSIONS } from "@/lib/permissions";
 
 export const runtime = "nodejs";
@@ -192,21 +193,28 @@ async function maybeSingle<T>(
   return data;
 }
 
-export async function GET(_request: Request, context: RouteContext) {
-  const auth = await getServerIdentity(PERMISSIONS.serviceFormPdf);
-
-  if ("error" in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+export async function GET(request: Request, context: RouteContext) {
+  const mobileAuth = await getMobileRouteIdentity(request, PERMISSIONS.serviceFormPdf);
+  if (mobileAuth && "error" in mobileAuth) {
+    return NextResponse.json({ error: mobileAuth.error }, { status: mobileAuth.status });
   }
+
+  const serverAuth = mobileAuth ? null : await getServerIdentity(PERMISSIONS.serviceFormPdf);
+  if (serverAuth && "error" in serverAuth) {
+    return NextResponse.json({ error: serverAuth.error }, { status: serverAuth.status });
+  }
+
+  const identity = mobileAuth ? mobileAuth.identity : serverAuth!.identity;
+  const db = mobileAuth ? mobileAuth.admin : serverAuth!.supabase;
 
   try {
     const { id } = await context.params;
 
-    const { data: form, error: formError } = await auth.supabase
+    const { data: form, error: formError } = await db
       .from("service_forms")
       .select("id, form_no, template_id, customer_id, machine_id, ticket_id, service_date")
       .eq("id", id)
-      .eq("company_id", auth.identity.companyId)
+      .eq("company_id", identity.companyId)
       .single();
 
     if (formError || !form) {
@@ -217,18 +225,18 @@ export async function GET(_request: Request, context: RouteContext) {
 
     const [{ data: template, error: templateError }, { data: fields, error: fieldsError }, { data: values, error: valuesError }] =
       await Promise.all([
-        auth.supabase
+        db
           .from("pdf_templates")
           .select("id, template_name, file_path")
           .eq("id", serviceForm.template_id)
-          .eq("company_id", auth.identity.companyId)
+          .eq("company_id", identity.companyId)
           .single(),
-        auth.supabase
+        db
           .from("pdf_template_fields")
           .select("id, field_key, field_label, page_number, pos_x, pos_y, width, height, font_size, field_type, data_source, options_json, text_align")
           .eq("template_id", serviceForm.template_id)
           .order("sort_order", { ascending: true }),
-        auth.supabase
+        db
           .from("service_form_field_values")
           .select("template_field_id, value_text")
           .eq("service_form_id", serviceForm.id),
@@ -254,37 +262,37 @@ export async function GET(_request: Request, context: RouteContext) {
     const [customer, machine, ticket] = await Promise.all([
       serviceForm.customer_id
         ? maybeSingle<Customer>(
-            auth.supabase
+            db
               .from("customers")
               .select("company_name")
               .eq("id", serviceForm.customer_id)
-              .eq("company_id", auth.identity.companyId)
+              .eq("company_id", identity.companyId)
               .maybeSingle()
           )
         : Promise.resolve(null),
       serviceForm.machine_id
         ? maybeSingle<Machine>(
-            auth.supabase
+            db
               .from("machines")
               .select("machine_name, machine_code")
               .eq("id", serviceForm.machine_id)
-              .eq("company_id", auth.identity.companyId)
+              .eq("company_id", identity.companyId)
               .maybeSingle()
           )
         : Promise.resolve(null),
       serviceForm.ticket_id
         ? maybeSingle<Ticket>(
-            auth.supabase
+            db
               .from("tickets")
               .select("ticket_no, title")
               .eq("id", serviceForm.ticket_id)
-              .eq("company_id", auth.identity.companyId)
+              .eq("company_id", identity.companyId)
               .maybeSingle()
           )
         : Promise.resolve(null),
     ]);
 
-    const { data: pdfBlob, error: pdfDownloadError } = await auth.supabase.storage
+    const { data: pdfBlob, error: pdfDownloadError } = await db.storage
       .from(STORAGE_BUCKET)
       .download(pdfTemplate.file_path);
 

@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse } from "next/server";
+import { getMobileRouteIdentity } from "@/lib/mobile-route-auth";
 import { createClient } from "@/lib/supabase/server";
 import OfferPdfDocument from "@/lib/pdf/offer-pdf-document";
 
@@ -40,30 +41,38 @@ type SalesRepRow = {
   phone: string | null;
 };
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const supabase = await createClient();
+  const mobileAuth = await getMobileRouteIdentity(request);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 401 });
+  if (mobileAuth && "error" in mobileAuth) {
+    return NextResponse.json({ error: mobileAuth.error }, { status: mobileAuth.status });
   }
 
-  const { data: appUser, error: appUserError } = await supabase
-    .from("app_users")
-    .select("company_id, full_name, email, phone")
-    .eq("auth_user_id", user.id)
-    .single();
+  const supabase = mobileAuth ? mobileAuth.admin : await createClient();
+  const user = mobileAuth
+    ? { id: mobileAuth.identity.authUserId, email: null }
+    : (await supabase.auth.getUser()).data.user;
+
+  if (!user) {
+    return NextResponse.json({ error: "Kullanici bulunamadi." }, { status: 401 });
+  }
+
+  const { data: appUser, error: appUserError } = mobileAuth
+    ? await supabase
+        .from("app_users")
+        .select("company_id, full_name, email, phone")
+        .eq("id", mobileAuth.identity.appUserId)
+        .single()
+    : await supabase
+        .from("app_users")
+        .select("company_id, full_name, email, phone")
+        .eq("auth_user_id", user.id)
+        .single();
 
   if (appUserError || !appUser?.company_id) {
     return NextResponse.json(
-      { error: appUserError?.message || "company_id bulunamadı." },
+      { error: appUserError?.message || "company_id bulunamadi." },
       { status: 400 }
     );
   }
@@ -72,8 +81,7 @@ export async function GET(
 
   const { data: offer, error: offerError } = await supabase
     .from("offers")
-    .select(
-      `
+    .select(`
       id,
       offer_no,
       customer_id,
@@ -86,15 +94,14 @@ export async function GET(
       tax_total,
       grand_total,
       notes
-    `
-    )
+    `)
     .eq("company_id", appUser.company_id)
     .eq("id", id)
     .single();
 
   if (offerError || !offer) {
     return NextResponse.json(
-      { error: offerError?.message || "Teklif bulunamadı." },
+      { error: offerError?.message || "Teklif bulunamadi." },
       { status: 404 }
     );
   }
@@ -115,8 +122,7 @@ export async function GET(
       .maybeSingle(),
     supabase
       .from("offer_items")
-      .select(
-        `
+      .select(`
         id,
         item_code,
         item_name,
@@ -125,8 +131,7 @@ export async function GET(
         unit,
         unit_price,
         line_total
-      `
-      )
+      `)
       .eq("company_id", appUser.company_id)
       .eq("offer_id", id)
       .order("created_at", { ascending: true }),
@@ -180,7 +185,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "PDF oluşturulamadı.";
+    const message = error instanceof Error ? error.message : "PDF olusturulamadi.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

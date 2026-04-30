@@ -11,6 +11,7 @@ export type Employee = {
   email?: string | null
   phone?: string | null
   title?: string | null
+  calendar_color?: string | null
   permissions?: string[]
   is_super_user?: boolean
 }
@@ -24,6 +25,7 @@ type EmployeeForm = {
   email: string
   phone: string
   title: string
+  calendarColor: string
 }
 
 type ContextMenuState = {
@@ -37,6 +39,7 @@ const EMPTY_FORM: EmployeeForm = {
   email: "",
   phone: "",
   title: "",
+  calendarColor: "#3B82F6",
 }
 
 const PERMISSION_GROUPS = [
@@ -141,9 +144,40 @@ const PERMISSION_GROUPS = [
 ]
 
 const ALL_PERMISSIONS = PERMISSION_GROUPS.flatMap((group) => group.permissions)
+const EMPLOYEE_CALENDAR_COLOR_PALETTE = [
+  "#E11D48",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#14B8A6",
+  "#06B6D4",
+  "#3B82F6",
+  "#6366F1",
+  "#8B5CF6",
+  "#A855F7",
+  "#D946EF",
+  "#EC4899",
+  "#F43F5E",
+  "#84CC16",
+  "#10B981",
+  "#0EA5E9",
+]
 
 function normalizePermissions(permissions: string[]) {
   return permissions.filter((permission) => ALL_PERMISSIONS.includes(permission))
+}
+
+function getNextEmployeeColor(employees: Employee[]) {
+  const usedColors = new Set(
+    employees
+      .map((employee) => String(employee.calendar_color ?? "").trim().toUpperCase())
+      .filter(Boolean)
+  )
+
+  return (
+    EMPLOYEE_CALENDAR_COLOR_PALETTE.find((color) => !usedColors.has(color)) ??
+    EMPLOYEE_CALENDAR_COLOR_PALETTE[0]
+  )
 }
 
 export default function EmployeeCards({ employees }: Props) {
@@ -213,7 +247,7 @@ export default function EmployeeCards({ employees }: Props) {
     : null
 
   function openCreateModal() {
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, calendarColor: getNextEmployeeColor(rowsState) })
     setInitialPassword("")
     resetMessages()
     setNewEmployeeOpen(true)
@@ -476,6 +510,11 @@ export default function EmployeeCards({ employees }: Props) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-white shadow-[0_0_0_1px_rgba(148,163,184,0.35)]"
+                          style={{ backgroundColor: employee.calendar_color ?? "#3B82F6" }}
+                          aria-hidden="true"
+                        />
                         <h3 className="text-lg font-semibold text-slate-900">
                           {employee.full_name}
                         </h3>
@@ -508,6 +547,15 @@ export default function EmployeeCards({ employees }: Props) {
                   </div>
 
                   <div className="mt-5 space-y-2 text-sm text-slate-700">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-900">Takvim Rengi:</span>
+                      <span
+                        className="h-4 w-4 rounded-full border border-slate-200"
+                        style={{ backgroundColor: employee.calendar_color ?? "#3B82F6" }}
+                        aria-hidden="true"
+                      />
+                      <span>{employee.calendar_color ?? "#3B82F6"}</span>
+                    </div>
                     <div>
                       <span className="font-medium text-slate-900">E-posta:</span>{" "}
                       {employee.email || "-"}
@@ -714,6 +762,11 @@ function EmployeeFormModal({
             value={form.title}
             onChange={(value) => onChange({ ...form, title: value })}
           />
+          <ColorField
+            label="Takvim Rengi"
+            value={form.calendarColor}
+            onChange={(value) => onChange({ ...form, calendarColor: value })}
+          />
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
@@ -880,11 +933,40 @@ function InputField({
   )
 }
 
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+      <div className="flex items-center gap-3 rounded-xl border border-slate-300 px-3 py-2.5">
+        <input
+          type="color"
+          value={value}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          className="h-10 w-14 cursor-pointer rounded-lg border-0 bg-transparent p-0"
+        />
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-slate-800">{value}</div>
+          <div className="text-xs text-slate-500">Takvim etkinliklerinde bu renk kullanılır.</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function toForm(employee: Employee): EmployeeForm {
   return {
     fullName: employee.full_name,
     email: employee.email ?? "",
     phone: employee.phone ?? "",
     title: employee.title ?? "",
+    calendarColor: employee.calendar_color ?? "#3B82F6",
   }
 }

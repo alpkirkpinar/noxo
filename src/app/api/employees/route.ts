@@ -8,7 +8,27 @@ type EmployeePayload = {
   email?: string
   phone?: string
   title?: string
+  calendarColor?: string
 }
+
+const EMPLOYEE_CALENDAR_COLOR_PALETTE = [
+  "#E11D48",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#14B8A6",
+  "#06B6D4",
+  "#3B82F6",
+  "#6366F1",
+  "#8B5CF6",
+  "#A855F7",
+  "#D946EF",
+  "#EC4899",
+  "#F43F5E",
+  "#84CC16",
+  "#10B981",
+  "#0EA5E9",
+]
 
 export async function GET() {
   try {
@@ -57,11 +77,10 @@ export async function GET() {
 
     const admin = createAdminClient()
 
-    const { data: employees, error: employeesError } = await supabase
-      .from("app_users")
-      .select("id, auth_user_id, full_name, email, phone, title")
-      .eq("company_id", currentAppUser.company_id)
-      .order("full_name", { ascending: true })
+    const { data: employees, error: employeesError } = await selectEmployeesForCompany(
+      supabase,
+      currentAppUser.company_id
+    )
 
     if (employeesError) {
       return NextResponse.json({ error: employeesError.message }, { status: 500 })
@@ -73,7 +92,7 @@ export async function GET() {
 
         if (!isUuid(authUserId)) {
           return {
-            ...employee,
+            ...withResolvedCalendarColor(employee),
             permissions: [],
             is_super_user: false,
           }
@@ -84,7 +103,7 @@ export async function GET() {
 
         if (authUserError || !authUserData.user) {
           return {
-            ...employee,
+            ...withResolvedCalendarColor(employee),
             permissions: [],
             is_super_user: false,
           }
@@ -93,7 +112,7 @@ export async function GET() {
         const appMetadata = authUserData.user.app_metadata ?? {}
 
         return {
-          ...employee,
+          ...withResolvedCalendarColor(employee),
           permissions: Array.isArray(appMetadata.permissions)
             ? appMetadata.permissions.map(String)
             : [],
@@ -121,7 +140,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 401 })
+      return NextResponse.json({ error: "Oturum bulunamadi." }, { status: 401 })
     }
 
     if (
@@ -140,7 +159,7 @@ export async function POST(request: Request) {
         PERMISSIONS.employeeCreate
       )
     ) {
-      return NextResponse.json({ error: "Çalışan oluşturma yetkiniz yok." }, { status: 403 })
+      return NextResponse.json({ error: "Calisan olusturma yetkiniz yok." }, { status: 403 })
     }
 
     const { data: currentAppUser, error: appUserError } = await supabase
@@ -151,7 +170,7 @@ export async function POST(request: Request) {
 
     if (appUserError || !currentAppUser?.company_id) {
       return NextResponse.json(
-        { error: appUserError?.message || "company_id bulunamadı." },
+        { error: appUserError?.message || "company_id bulunamadi." },
         { status: 400 }
       )
     }
@@ -161,18 +180,28 @@ export async function POST(request: Request) {
     const email = String(body?.email ?? "").trim().toLowerCase()
     const phone = String(body?.phone ?? "").trim()
     const title = String(body?.title ?? "").trim()
+    const calendarColor = normalizeCalendarColor(body?.calendarColor)
 
     if (!fullName) {
       return NextResponse.json({ error: "Ad Soyad zorunludur." }, { status: 400 })
     }
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Geçerli bir e-posta girin." }, { status: 400 })
+      return NextResponse.json({ error: "Gecerli bir e-posta girin." }, { status: 400 })
+    }
+
+    if (body?.calendarColor !== undefined && !calendarColor) {
+      return NextResponse.json({ error: "Gecerli bir renk girin." }, { status: 400 })
     }
 
     const admin = createAdminClient()
     const password = generateInitialPassword()
     const username = await generateUniqueUsername(admin, email)
+    const supportsCalendarColor = await appUsersSupportsCalendarColor(admin)
+    const assignedCalendarColor = supportsCalendarColor
+      ? calendarColor ||
+        (await pickAvailableCalendarColor(admin, currentAppUser.company_id, email))
+      : null
 
     const { data: authData, error: createAuthError } = await admin.auth.admin.createUser({
       email,
@@ -195,39 +224,48 @@ export async function POST(request: Request) {
 
     if (createAuthError || !authData.user) {
       return NextResponse.json(
-        { error: createAuthError?.message || "Auth kullanıcısı oluşturulamadı." },
+        { error: createAuthError?.message || "Auth kullanicisi olusturulamadi." },
         { status: 500 }
       )
     }
 
     createdAuthUserId = authData.user.id
 
-    const { data: employee, error: insertError } = await admin
-      .from("app_users")
-      .insert({
-        auth_user_id: createdAuthUserId,
-        company_id: currentAppUser.company_id,
-        username,
-        full_name: fullName,
-        email,
-        phone: phone || null,
-        title: title || null,
-      })
-      .select("id, auth_user_id, full_name, email, phone, title")
-      .single()
+    const insertPayload = {
+      auth_user_id: createdAuthUserId,
+      company_id: currentAppUser.company_id,
+      username,
+      full_name: fullName,
+      email,
+      phone: phone || null,
+      title: title || null,
+      ...(supportsCalendarColor ? { calendar_color: assignedCalendarColor } : {}),
+    }
+
+    const insertQuery = admin.from("app_users").insert(insertPayload)
+    const employeeResult = supportsCalendarColor
+      ? await insertQuery
+          .select("id, auth_user_id, full_name, email, phone, title, calendar_color")
+          .single()
+      : await insertQuery.select("id, auth_user_id, full_name, email, phone, title").single()
+
+    const { data: employee, error: insertError } = employeeResult
 
     if (insertError || !employee) {
       await admin.auth.admin.deleteUser(createdAuthUserId)
 
       return NextResponse.json(
-        { error: insertError?.message || "Çalışan kaydı oluşturulamadı." },
+        { error: insertError?.message || "Calisan kaydi olusturulamadi." },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ employee, initialPassword: password }, { status: 201 })
+    return NextResponse.json(
+      { employee: withResolvedCalendarColor(employee), initialPassword: password },
+      { status: 201 }
+    )
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Çalışan oluşturulamadı."
+    const message = error instanceof Error ? error.message : "Calisan olusturulamadi."
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
@@ -274,5 +312,94 @@ async function generateUniqueUsername(
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     value
+  )
+}
+
+function normalizeCalendarColor(value: unknown) {
+  const text = String(value ?? "").trim().toUpperCase()
+  if (!text) return null
+  if (!/^#[0-9A-F]{6}$/.test(text)) return null
+  return text
+}
+
+function deriveCalendarColor(seed: string) {
+  let hash = 0
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0
+  }
+
+  return EMPLOYEE_CALENDAR_COLOR_PALETTE[hash % EMPLOYEE_CALENDAR_COLOR_PALETTE.length]
+}
+
+function withResolvedCalendarColor<T extends { id: string; auth_user_id?: string | null; calendar_color?: string | null }>(
+  employee: T
+) {
+  return {
+    ...employee,
+    calendar_color:
+      normalizeCalendarColor(employee.calendar_color) ||
+      deriveCalendarColor(String(employee.auth_user_id ?? employee.id)),
+  }
+}
+
+async function pickAvailableCalendarColor(
+  admin: ReturnType<typeof createAdminClient>,
+  companyId: string,
+  seed: string
+) {
+  const { data, error } = await admin
+    .from("app_users")
+    .select("calendar_color")
+    .eq("company_id", companyId)
+
+  if (error) {
+    throw error
+  }
+
+  const usedColors = new Set(
+    (data ?? [])
+      .map((item) => normalizeCalendarColor(item.calendar_color))
+      .filter((value): value is string => Boolean(value))
+  )
+
+  const unusedColor = EMPLOYEE_CALENDAR_COLOR_PALETTE.find((color) => !usedColors.has(color))
+  return unusedColor || deriveCalendarColor(seed)
+}
+
+async function selectEmployeesForCompany(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string
+) {
+  const withColor = await supabase
+    .from("app_users")
+    .select("id, auth_user_id, full_name, email, phone, title, calendar_color")
+    .eq("company_id", companyId)
+    .order("full_name", { ascending: true })
+
+  if (!hasMissingCalendarColorColumn(withColor.error)) {
+    return withColor
+  }
+
+  return supabase
+    .from("app_users")
+    .select("id, auth_user_id, full_name, email, phone, title")
+    .eq("company_id", companyId)
+    .order("full_name", { ascending: true })
+}
+
+async function appUsersSupportsCalendarColor(admin: ReturnType<typeof createAdminClient>) {
+  const result = await admin.from("app_users").select("calendar_color").limit(1)
+  return !hasMissingCalendarColorColumn(result.error)
+}
+
+function hasMissingCalendarColorColumn(
+  error: { code?: string | null; message?: string | null } | null
+) {
+  if (!error) return false
+
+  return (
+    error.code === "42703" &&
+    String(error.message ?? "").toLowerCase().includes("calendar_color")
   )
 }

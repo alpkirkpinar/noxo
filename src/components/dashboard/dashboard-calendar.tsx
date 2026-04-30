@@ -12,6 +12,9 @@ type CalendarEvent = {
   end_time: string | null
   created_at: string
   updated_at: string
+  created_by: string | null
+  creator_name: string | null
+  creator_color: string
 }
 
 type EventFormState = {
@@ -73,6 +76,11 @@ function formatTimeRange(startTime: string | null, endTime: string | null) {
   if (startTime) return startTime
   if (endTime) return endTime
   return ""
+}
+
+function getCalendarEventLabel(event: CalendarEvent) {
+  const firstWord = event.title.trim().split(/\s+/).filter(Boolean)[0] || "Etkinlik"
+  return event.start_time ? `${event.start_time} ${firstWord}` : firstWord
 }
 
 function getCalendarStart(date: Date) {
@@ -464,10 +472,10 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                             : "",
                         ].join(" ")}
                       >
-                        <div className="absolute left-1 top-1 flex max-w-[calc(100%-0.5rem)] items-start justify-between sm:left-2 sm:top-2 sm:max-w-[calc(100%-1rem)]">
+                        <div className="absolute left-0.5 top-0.5 flex max-w-[calc(100%-0.25rem)] items-start justify-between sm:left-1 sm:top-1 sm:max-w-[calc(100%-0.5rem)]">
                           <span
                             className={[
-                              "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold sm:h-8 sm:w-8 sm:text-sm 2xl:h-10 2xl:w-10 2xl:text-base",
+                              "inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold sm:h-7 sm:min-w-7 sm:px-2 sm:text-sm 2xl:h-8 2xl:min-w-8 2xl:text-[15px]",
                               isToday
                                 ? "bg-blue-600 text-white shadow-sm"
                                 : "bg-slate-100 text-slate-700",
@@ -478,7 +486,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
 
                         </div>
 
-                        <div className="mt-8 space-y-1 sm:mt-10 2xl:mt-12">
+                        <div className="mt-7 space-y-1 sm:mt-9 2xl:mt-10">
                           {dayEvents.slice(0, 2).map((event) => (
                             <div
                               key={`${iso}-${event.id}`}
@@ -495,10 +503,14 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                                   openEditForm(event)
                                 }
                               }}
-                              className="block w-full cursor-pointer truncate rounded-md border border-violet-200 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 px-1 py-0.5 text-left text-[9px] font-medium text-white shadow-sm transition-opacity hover:opacity-90 sm:rounded-xl sm:px-2 sm:py-1 sm:text-[10px]"
+                              className="block w-full cursor-pointer truncate rounded-md border px-1 py-0.5 text-left text-[9px] font-medium text-white shadow-sm transition-opacity hover:opacity-90 sm:rounded-xl sm:px-2 sm:py-1 sm:text-[10px]"
+                              style={{
+                                backgroundColor: event.creator_color,
+                                borderColor: event.creator_color,
+                              }}
+                              title={event.title}
                             >
-                              {event.start_time ? `${event.start_time} ` : ""}
-                              {event.title}
+                              {getCalendarEventLabel(event)}
                             </div>
                           ))}
 
@@ -565,7 +577,11 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                             openEditForm(event)
                           }
                         }}
-                        className="block w-full cursor-pointer rounded-xl border border-violet-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-violet-50 px-4 py-3 text-left transition-all duration-150 hover:shadow-sm"
+                        className="block w-full cursor-pointer rounded-xl border px-4 py-3 text-left transition-all duration-150 hover:shadow-sm"
+                        style={{
+                          borderColor: `${event.creator_color}33`,
+                          backgroundColor: `${event.creator_color}14`,
+                        }}
                       >
                         <div className="text-sm font-semibold text-slate-900">
                           {event.title}
