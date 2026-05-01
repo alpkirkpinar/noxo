@@ -1,9 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getServerIdentity } from "@/lib/authz";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
-import FormTemplateActions from "@/components/form-templates/form-template-actions";
 import PdfTemplateEditorClient from "@/components/form-templates/pdf-template-editor-client";
 
 type PageProps = {
@@ -30,7 +27,7 @@ type TemplateFieldRow = {
   default_value?: string | null;
 };
 
-export default async function FormTemplateDetailPage({ params }: PageProps) {
+export default async function FormTemplateLayoutPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
@@ -102,78 +99,25 @@ export default async function FormTemplateDetailPage({ params }: PageProps) {
     vertical_align: "middle",
   }));
 
-  async function deleteTemplate() {
-    "use server";
-
-    const auth = await getServerIdentity(PERMISSIONS.formTemplateDelete);
-    if ("error" in auth) {
-      throw new Error(auth.error);
-    }
-
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) redirect("/login");
-
-    const { data: appUser } = await supabase
-      .from("app_users")
-      .select("company_id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (!appUser?.company_id) {
-      throw new Error("company_id bulunamadı.");
-    }
-
-    const { error: fieldsDeleteError } = await supabase
-      .from("pdf_template_fields")
-      .delete()
-      .eq("template_id", id);
-
-    if (fieldsDeleteError) {
-      throw new Error(fieldsDeleteError.message);
-    }
-
-    const { error: templateDeleteError } = await supabase
-      .from("pdf_templates")
-      .delete()
-      .eq("id", id)
-      .eq("company_id", auth.identity.companyId);
-
-    if (templateDeleteError) {
-      throw new Error(templateDeleteError.message);
-    }
-
-    redirect("/dashboard/form-templates");
-  }
-
-  const canDelete = hasPermission(
-    {
-      permissions: Array.isArray(user.app_metadata?.permissions)
-        ? user.app_metadata.permissions.map(String)
-        : [],
-      role: typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null,
-      super_user: user.app_metadata?.super_user === true,
-    },
-    PERMISSIONS.formTemplateDelete
-  );
+  const actionButtonClass =
+    "inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-colors duration-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Form Şablonu Düzenle</h1>
-          <p className="text-sm text-gray-500">PDF alanlarını güncelleyin</p>
+          <h1 className="text-2xl font-semibold">Form Düzenleme</h1>
+          <p className="text-sm text-gray-500">Alan sırası ve form satır yerleşimini rahatça düzenleyin</p>
         </div>
 
-        <FormTemplateActions
-          templateId={template.id}
-          canDelete={canDelete}
-          deleteAction={deleteTemplate}
-        />
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/dashboard/form-templates/${template.id}`}
+            className={actionButtonClass}
+          >
+            Şablona Dön
+          </Link>
+        </div>
       </div>
 
       <PdfTemplateEditorClient
@@ -182,7 +126,7 @@ export default async function FormTemplateDetailPage({ params }: PageProps) {
         mode="edit"
         initialTemplate={template}
         initialFields={normalizedFields}
-        editorMode="template"
+        editorMode="layout"
       />
     </div>
   );

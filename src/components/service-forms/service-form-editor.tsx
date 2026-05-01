@@ -36,6 +36,8 @@ type TemplateField = {
   show_in_input_panel: boolean;
   is_readonly: boolean;
   text_align: "left" | "center" | "right";
+  default_value?: string | null;
+  form_row_id?: string | null;
 };
 
 type FormFieldValue = {
@@ -60,6 +62,7 @@ type InitialServiceForm = {
 };
 
 type SelectDataSource = "" | "customers" | "machines" | "tickets" | "employees";
+type FillViewMode = "pdf" | "form";
 
 type CustomerOption = {
   id: string;
@@ -107,6 +110,19 @@ const MAX_ZOOM = 150;
 const MOBILE_MIN_ZOOM = 26;
 const PDF_FONT_PATH = "/fonts/arial.ttf";
 const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
+
+function parseFieldLayoutMeta(value: string | null | undefined) {
+  if (!value) return { form_row_id: null as string | null };
+
+  try {
+    const parsed = JSON.parse(value) as { form_row_id?: unknown };
+    return {
+      form_row_id: typeof parsed.form_row_id === "string" && parsed.form_row_id.trim() ? parsed.form_row_id : null,
+    };
+  } catch {
+    return { form_row_id: null as string | null };
+  }
+}
 
 function normalizeExistingValues(initialFields: FormFieldValue[] | undefined): Record<string, string> {
   const map: Record<string, string> = {};
@@ -294,6 +310,7 @@ export default function ServiceFormEditor({
   const [pdfUrl, setPdfUrl] = useState("");
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(getInitialZoom);
+  const [viewMode, setViewMode] = useState<FillViewMode>("pdf");
   const [usePhoneOverlayInputMode, setUsePhoneOverlayInputMode] = useState(false);
   const [selectSourceOptions, setSelectSourceOptions] = useState<Record<SelectDataSource, string[]>>({
     "": [],
@@ -324,6 +341,40 @@ export default function ServiceFormEditor({
   const activeSignatureField = useMemo(
     () => templateFields.find((x) => x.id === activeSignatureFieldId) ?? null,
     [templateFields, activeSignatureFieldId]
+  );
+  const visibleFormFields = useMemo(
+    () => templateFields.filter((field) => field.show_in_input_panel !== false),
+    [templateFields]
+  );
+  const formFieldRows = useMemo(() => {
+    const rows: TemplateField[][] = [];
+
+    for (let index = 0; index < visibleFormFields.length; index += 1) {
+      const field = visibleFormFields[index];
+
+      if (!field.form_row_id) {
+        rows.push([field]);
+        continue;
+      }
+
+      const row = [field];
+      let cursor = index + 1;
+
+      while (cursor < visibleFormFields.length && visibleFormFields[cursor].form_row_id === field.form_row_id) {
+        row.push(visibleFormFields[cursor]);
+        cursor += 1;
+      }
+
+      rows.push(row);
+      index = cursor - 1;
+    }
+
+    return rows;
+  }, [visibleFormFields]);
+  const visibleFormFieldIndexById = useMemo(
+    () =>
+      new Map(visibleFormFields.map((field, index) => [field.id, index + 1])),
+    [visibleFormFields]
   );
   useEffect(() => {
     function isEditingFormField() {
@@ -384,7 +435,8 @@ export default function ServiceFormEditor({
           options_json,
           show_in_input_panel,
           is_readonly,
-          text_align
+          text_align,
+          default_value
         `)
         .eq("template_id", templateId)
         .order("sort_order", { ascending: true });
@@ -395,7 +447,12 @@ export default function ServiceFormEditor({
         return;
       }
 
-      setTemplateFields((fields ?? []) as TemplateField[]);
+      setTemplateFields(
+        ((fields ?? []) as TemplateField[]).map((field) => ({
+          ...field,
+          form_row_id: parseFieldLayoutMeta(field.default_value).form_row_id,
+        }))
+      );
 
       const template = templates.find((x) => x.id === templateId);
       if (template?.file_path) {
@@ -962,6 +1019,148 @@ export default function ServiceFormEditor({
 
     return `pointer-events-none hidden h-full w-full items-center overflow-hidden whitespace-nowrap text-slate-900 ${alignClass} service-form-overlay-date-value`;
   };
+  const renderFormFieldControl = (field: TemplateField) => {
+    const rawValue = field.field_type === "serial_number" ? getSerialNumberValue() : fieldValues[field.id] ?? "";
+    const baseClassName =
+      "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-50";
+
+    if (field.field_type === "select") {
+      if (isMultiSelectField(field)) {
+        return (
+          <select
+            multiple
+            value={parseMultiSelectValue(rawValue)}
+            onChange={(event) =>
+              setFieldValue(
+                field.id,
+                serializeMultiSelectValue(Array.from(event.target.selectedOptions, (option) => option.value))
+              )
+            }
+            disabled={field.is_readonly}
+            className={`${baseClassName} min-h-36`}
+          >
+            {getVisibleSelectOptions(field.options_json)
+              .sort((a, b) => a.localeCompare(b, "tr", { sensitivity: "base" }))
+              .map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+          </select>
+        );
+      }
+
+      return (
+        <select
+          value={rawValue}
+          onChange={(event) => setFieldValue(field.id, event.target.value)}
+          disabled={field.is_readonly}
+          className={baseClassName}
+        >
+          <option value="">Seçin</option>
+          {getVisibleSelectOptions(field.options_json)
+            .sort((a, b) => a.localeCompare(b, "tr", { sensitivity: "base" }))
+            .map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+        </select>
+      );
+    }
+
+    if (field.field_type === "checkbox") {
+      return (
+        <label className="inline-flex items-center gap-3 rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900">
+          <input
+            type="checkbox"
+            checked={rawValue === "true"}
+            onChange={() => toggleCheckbox(field.id)}
+            disabled={field.is_readonly}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          <span>İşaretle</span>
+        </label>
+      );
+    }
+
+    if (field.field_type === "signature") {
+      const hasSignature = rawValue.startsWith("data:image");
+
+      return (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setActiveSignatureFieldId(field.id)}
+            disabled={field.is_readonly}
+            className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            {hasSignature ? "İmzayı Güncelle" : "İmza Ekle"}
+          </button>
+
+          {hasSignature ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <img src={rawValue} alt={field.field_label} className="max-h-40 max-w-full object-contain" />
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (field.field_type === "textarea") {
+      return (
+        <textarea
+          value={rawValue}
+          onChange={(event) => setFieldValue(field.id, event.target.value)}
+          readOnly={field.is_readonly}
+          className={`${baseClassName} min-h-32 resize-y`}
+        />
+      );
+    }
+
+    if (field.field_type === "date") {
+      return (
+        <input
+          type="date"
+          value={rawValue}
+          onChange={(event) => setFieldValue(field.id, event.target.value)}
+          readOnly={field.is_readonly}
+          className={baseClassName}
+        />
+      );
+    }
+
+    if (field.field_type === "time") {
+      return (
+        <input
+          type="time"
+          value={rawValue}
+          onChange={(event) => setFieldValue(field.id, event.target.value)}
+          readOnly={field.is_readonly}
+          className={baseClassName}
+        />
+      );
+    }
+
+    if (field.field_type === "serial_number") {
+      return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700">
+          {rawValue || "-"}
+        </div>
+      );
+    }
+
+    return (
+      <input
+        type={field.field_type === "number" ? "number" : "text"}
+        inputMode={field.field_type === "number" ? "decimal" : undefined}
+        value={rawValue}
+        onChange={(event) => setFieldValue(field.id, event.target.value)}
+        readOnly={field.is_readonly}
+        className={baseClassName}
+      />
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -1010,7 +1209,7 @@ export default function ServiceFormEditor({
       </div>
 
       <div className="rounded-xl border bg-white p-4">
-        <div className="inline-grid gap-3 md:grid-cols-[minmax(280px,360px)]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_auto] lg:items-end">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Form Seçimi
             <select
@@ -1026,6 +1225,29 @@ export default function ServiceFormEditor({
               ))}
             </select>
           </label>
+          <div className="grid gap-1 text-sm font-medium text-slate-700">
+            Doldurma Görünümü
+            <div className="inline-flex w-fit self-start rounded-xl border border-slate-300 bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("pdf")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  viewMode === "pdf" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                }`}
+              >
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("form")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  viewMode === "form" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                }`}
+              >
+                FORM
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1049,6 +1271,50 @@ export default function ServiceFormEditor({
         ) : loadingTemplate ? (
           <div className="flex min-h-[500px] items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
             Form yükleniyor...
+          </div>
+        ) : viewMode === "form" ? (
+          <div className="mx-auto max-w-4xl space-y-4 p-2 sm:p-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              PDF önizleme gizli. Alanları aşağıdan doldurabilir, isterseniz üstteki butondan PDF indirebilirsiniz.
+            </div>
+
+            {visibleFormFields.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500">
+                Bu şablonda form arayüzünde gösterilecek alan bulunmuyor.
+              </div>
+            ) : (
+              formFieldRows.map((row) => (
+                <div
+                  key={row.map((field) => field.id).join(":")}
+                  className="grid gap-4"
+                  style={row.length > 1 ? { gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` } : undefined}
+                >
+                  {row.map((field) => (
+                    <div key={field.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <label className="text-sm font-semibold text-slate-900">
+                            {visibleFormFieldIndexById.get(field.id) ?? "-"}. {field.field_label}
+                            {field.is_required ? <span className="ml-1 text-rose-600">*</span> : null}
+                          </label>
+                          <div className="mt-1 text-xs text-slate-500">
+                            Sayfa {field.page_number} · {field.field_type === "serial_number" ? "Seri Numarası" : field.field_type}
+                          </div>
+                        </div>
+
+                        {field.is_readonly ? (
+                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                            Salt okunur
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {renderFormFieldControl(field)}
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
           </div>
         ) : !pdfUrl ? (
           <div className="flex min-h-[500px] items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
@@ -1249,64 +1515,65 @@ export default function ServiceFormEditor({
               />
             </div>
 
-            {activeSignatureField ? (
-              <div
-                className="fixed left-1/2 top-1/2 z-50 w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="mb-3 text-sm font-semibold text-slate-950 dark:text-slate-900">{activeSignatureField.field_label}</div>
-
-                <div className="space-y-3">
-                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-white">
-                    <SignatureCanvas
-                      ref={(ref) => {
-                        signaturePadRef.current = ref;
-                      }}
-                      penColor="black"
-                      onBegin={() => {
-                        signaturePadClearedRef.current = false;
-                      }}
-                      canvasProps={{
-                        width: 290,
-                        height: 150,
-                        className: "block w-full bg-white",
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={clearSignaturePad}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Temizle
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setActiveSignatureFieldId(null)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Kapat
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => saveSignatureToField(activeSignatureField.id)}
-                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-                      >
-                        Kaydet
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </div>
         )}
       </div>
+
+      {activeSignatureField ? (
+        <div
+          className="fixed left-1/2 top-1/2 z-50 w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-3 text-sm font-semibold text-slate-950 dark:text-slate-900">{activeSignatureField.field_label}</div>
+
+          <div className="space-y-3">
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-white">
+              <SignatureCanvas
+                ref={(ref) => {
+                  signaturePadRef.current = ref;
+                }}
+                penColor="black"
+                onBegin={() => {
+                  signaturePadClearedRef.current = false;
+                }}
+                canvasProps={{
+                  width: 290,
+                  height: 150,
+                  className: "block w-full bg-white",
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={clearSignaturePad}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+              >
+                Temizle
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveSignatureFieldId(null)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                >
+                  Kapat
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => saveSignatureToField(activeSignatureField.id)}
+                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                >
+                  Kaydet
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <style jsx global>{`
         @media (min-width: 1024px) and (pointer: fine) {

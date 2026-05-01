@@ -13,6 +13,7 @@ type Props = {
   mode: "create" | "edit";
   initialTemplate?: any;
   initialFields?: any[];
+  editorMode?: "template" | "layout";
 };
 
 export default function PdfTemplateEditorClient(props: Props) {

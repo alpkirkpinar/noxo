@@ -10,8 +10,14 @@ type TemplateItem = {
   page_count: number | null;
 };
 
-export default async function NewServiceFormPage() {
+type PageProps = {
+  searchParams?: Promise<{ template?: string }>;
+};
+
+export default async function NewServiceFormPage({ searchParams }: PageProps) {
   const { supabase, user, appUser } = await getCurrentAppUser("id, company_id");
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const initialTemplateId = typeof resolvedSearchParams.template === "string" ? resolvedSearchParams.template : null;
 
   if (!user) redirect("/login");
 
@@ -33,6 +39,7 @@ export default async function NewServiceFormPage() {
         userId={String(appUser.id)}
         mode="create"
         templates={(templates ?? []) as TemplateItem[]}
+        initialForm={initialTemplateId ? { template_id: initialTemplateId } : undefined}
         pageTitle="Yeni Form"
         backHref="/dashboard/service-forms"
       />

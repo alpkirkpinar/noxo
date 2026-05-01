@@ -144,7 +144,7 @@ export default async function ServiceFormsByTemplatePage({ params }: PageProps) 
         forms={normalizedForms}
         columnPreferenceUserId={String(appUser.id)}
         backHref="/dashboard/service-forms"
-        newFormHref="/dashboard/service-forms/new"
+        newFormHref={`/dashboard/service-forms/new?template=${template.id}`}
       />
     </div>
   );
