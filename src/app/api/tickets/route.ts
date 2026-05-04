@@ -64,7 +64,7 @@ export async function GET() {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
 
-  const [ticketsResult, historyResult, customersResult, machinesResult, employeesResult] =
+  const [ticketsResult, customersResult, machinesResult, employeesResult] =
     await Promise.all([
       auth.supabase
         .from("tickets")
@@ -80,13 +80,6 @@ export async function GET() {
         `)
         .eq("company_id", auth.identity.companyId)
         .order("created_at", { ascending: false }),
-
-      auth.supabase
-        .from("ticket_status_history")
-        .select("ticket_id, note, changed_at")
-        .eq("company_id", auth.identity.companyId)
-        .not("note", "is", null)
-        .order("changed_at", { ascending: false }),
 
       auth.supabase
         .from("customers")
@@ -111,6 +104,17 @@ export async function GET() {
   if (ticketsResult.error) {
     return NextResponse.json({ error: localizeErrorMessage(ticketsResult.error.message, "Ticket listesi alınamadı.") }, { status: 500 })
   }
+
+  const rawTickets = (ticketsResult.data ?? []) as RawTicketRow[]
+  const ticketIds = rawTickets.map((ticket) => ticket.id)
+  const historyResult = ticketIds.length
+    ? await auth.supabase
+        .from("ticket_status_history")
+        .select("ticket_id, note, changed_at")
+        .eq("company_id", auth.identity.companyId)
+        .in("ticket_id", ticketIds)
+        .order("changed_at", { ascending: false })
+    : { data: [], error: null }
 
   if (historyResult.error) {
     return NextResponse.json({ error: localizeErrorMessage(historyResult.error.message, "Ticket geçmişi alınamadı.") }, { status: 500 })
@@ -142,7 +146,7 @@ export async function GET() {
     }
   }
 
-  const tickets = ((ticketsResult.data ?? []) as RawTicketRow[]).map((row) => ({
+  const tickets = rawTickets.map((row) => ({
     id: row.id,
     ticket_no: row.ticket_no,
     title: row.title,

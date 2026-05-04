@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import TicketStatusForm from "@/components/tickets/ticket-status-form";
 import TicketCommentForm from "@/components/tickets/ticket-comment-form";
 import TicketEditDialog from "@/components/tickets/ticket-edit-dialog";
+import { getDashboardContext } from "@/lib/dashboard-context";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 type TicketStatus =
@@ -82,25 +82,17 @@ function statusBadgeClass(status: TicketStatus) {
 }
 
 async function getPageData(ticketId: string) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user, appUser, identity } = await getDashboardContext();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { data: appUser, error: appUserError } = await supabase
-    .from("app_users")
-    .select("id, company_id, full_name")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (appUserError || !appUser) {
+  if (!appUser?.id || !appUser.company_id) {
     throw new Error("Uygulama kullanıcısı bulunamadı.");
   }
+
+  const canEdit = hasPermission(identity, PERMISSIONS.ticketEdit);
 
   const { data: ticket, error: ticketError } = await supabase
     .from("tickets")
@@ -160,18 +152,22 @@ async function getPageData(ticketId: string) {
       .eq("company_id", appUser.company_id)
       .order("changed_at", { ascending: false }),
 
-    supabase
-      .from("customers")
-      .select("id, company_name")
-      .eq("company_id", appUser.company_id)
-      .eq("is_active", true)
-      .order("company_name", { ascending: true }),
+    canEdit
+      ? supabase
+          .from("customers")
+          .select("id, company_name")
+          .eq("company_id", appUser.company_id)
+          .eq("is_active", true)
+          .order("company_name", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
 
-    supabase
-      .from("machines")
-      .select("id, customer_id, machine_name, machine_code")
-      .eq("company_id", appUser.company_id)
-      .order("machine_name", { ascending: true }),
+    canEdit
+      ? supabase
+          .from("machines")
+          .select("id, customer_id, machine_name, machine_code")
+          .eq("company_id", appUser.company_id)
+          .order("machine_name", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (commentsResult.error) {
@@ -192,13 +188,7 @@ async function getPageData(ticketId: string) {
 
   return {
     appUser,
-    permissionIdentity: {
-      role: user.app_metadata?.role,
-      super_user: user.app_metadata?.super_user,
-      permissions: Array.isArray(user.app_metadata?.permissions)
-        ? user.app_metadata.permissions.map(String)
-        : [],
-    },
+    permissionIdentity: identity,
     ticket,
     comments: commentsResult.data ?? [],
     history: historyResult.data ?? [],

@@ -200,10 +200,6 @@ export default function TicketsListClient({
   const searchParams = useSearchParams();
   const deleteConfirm = useConfirmDialog();
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
-  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((ticketId, x, y) => {
-    setContextMenu({ x, y, ticketId });
-  });
-  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   const [rows, setRows] = useState<TicketRow[]>(initialTickets);
   const [search, setSearch] = useState("");
@@ -217,6 +213,10 @@ export default function TicketsListClient({
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
   const [showNewTicketModal, setShowNewTicketModal] = useState(false);
+  const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((ticketId, x, y) => {
+    setContextMenu({ x, y, ticketId });
+  });
+  useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
 
   useEffect(() => {
     setRows(initialTickets);
@@ -244,6 +244,14 @@ export default function TicketsListClient({
 
   function openNewTicketModal() {
     setShowNewTicketModal(true);
+  }
+
+  function prefetchTicketDetail(ticketId: string) {
+    router.prefetch(`/dashboard/tickets/${ticketId}`);
+  }
+
+  function openTicketDetail(ticketId: string) {
+    router.push(`/dashboard/tickets/${ticketId}`);
   }
 
   function closeNewTicketModal() {
@@ -322,7 +330,6 @@ export default function TicketsListClient({
     );
     setContextMenu(null);
     setSuccessText("Ticket tamamlandı olarak güncellendi.");
-    router.refresh();
   }
 
   async function deleteTicket(ticketId: string) {
@@ -355,7 +362,6 @@ export default function TicketsListClient({
     setRows((prev) => prev.filter((row) => row.id !== ticketId));
     setContextMenu(null);
     setSuccessText("Ticket silindi.");
-    router.refresh();
   }
 
   async function bulkMarkCompleted() {
@@ -399,7 +405,6 @@ export default function TicketsListClient({
     setSelectedIds([]);
     setSelectionMode(false);
     setSuccessText("Seçili ticketlar silindi.");
-    router.refresh();
   }
 
   const filteredRows = useMemo(() => {
@@ -671,8 +676,10 @@ export default function TicketsListClient({
                         return;
                       }
 
-                      router.push(`/dashboard/tickets/${ticket.id}`);
+                      openTicketDetail(ticket.id);
                     }}
+                    onMouseEnter={() => prefetchTicketDetail(ticket.id)}
+                    onFocus={() => prefetchTicketDetail(ticket.id)}
                     {...bindRow(ticket.id)}
                     className={`cursor-pointer border-b border-slate-200 last:border-b-0 transition-all duration-150 hover:bg-slate-200/80 hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] ${
                       activeId === ticket.id ? "bg-slate-300/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.14)]" : ""
@@ -746,7 +753,7 @@ export default function TicketsListClient({
           <button
             type="button"
             onClick={() => {
-              router.push(`/dashboard/tickets/${contextMenu.ticketId}`);
+              openTicketDetail(contextMenu.ticketId);
               setContextMenu(null);
             }}
             className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
