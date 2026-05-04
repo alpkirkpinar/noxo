@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { sendNewEmployeeCredentialsEmail } from "@/lib/email"
 import { hasPermission, PERMISSIONS } from "@/lib/permissions"
 
 type EmployeePayload = {
@@ -260,8 +261,25 @@ export async function POST(request: Request) {
       )
     }
 
+    const companyName = await getCompanyName(admin, currentAppUser.company_id)
+    const emailDelivery = await sendNewEmployeeCredentialsEmail({
+      fullName,
+      email,
+      password,
+      companyName,
+      loginUrl: getLoginUrl(request),
+    })
+
+    if (!emailDelivery.sent) {
+      console.error("Employee credentials email could not be sent:", emailDelivery.error)
+    }
+
     return NextResponse.json(
-      { employee: withResolvedCalendarColor(employee), initialPassword: password },
+      {
+        employee: withResolvedCalendarColor(employee),
+        initialPassword: password,
+        emailDelivery,
+      },
       { status: 201 }
     )
   } catch (error: unknown) {
@@ -365,6 +383,28 @@ async function pickAvailableCalendarColor(
 
   const unusedColor = EMPLOYEE_CALENDAR_COLOR_PALETTE.find((color) => !usedColors.has(color))
   return unusedColor || deriveCalendarColor(seed)
+}
+
+async function getCompanyName(admin: ReturnType<typeof createAdminClient>, companyId: string) {
+  const { data: settings } = await admin
+    .from("system_settings")
+    .select("company_name")
+    .eq("company_id", companyId)
+    .maybeSingle()
+
+  const companyName = String(settings?.company_name ?? "").trim()
+  return companyName || "Noxo"
+}
+
+function getLoginUrl(request: Request) {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim()
+
+  if (configuredUrl) {
+    return `${configuredUrl.replace(/\/+$/, "")}/login`
+  }
+
+  return new URL("/login", request.url).toString()
 }
 
 async function selectEmployeesForCompany(

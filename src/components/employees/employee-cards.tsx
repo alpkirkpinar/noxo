@@ -333,7 +333,7 @@ export default function EmployeeCards({ employees }: Props) {
       setNewEmployeeOpen(false)
       setForm(EMPTY_FORM)
       setInitialPassword(String(data.initialPassword ?? ""))
-      setSuccessText("Çalışan oluşturuldu. Başlangıç şifresini kullanıcıya manuel olarak iletin.")
+      setSuccessText(getEmployeeCreateSuccessMessage(data))
     } catch (error: unknown) {
       setErrorText(error instanceof Error ? error.message : "Çalışan oluşturulamadı.")
     } finally {
@@ -969,4 +969,22 @@ function toForm(employee: Employee): EmployeeForm {
     title: employee.title ?? "",
     calendarColor: employee.calendar_color ?? "#3B82F6",
   }
+}
+
+function getEmployeeCreateSuccessMessage(data: {
+  emailDelivery?: { sent?: boolean; skipped?: boolean; error?: string }
+}) {
+  if (data.emailDelivery?.sent) {
+    return "Çalışan oluşturuldu. Giriş bilgileri e-posta ile gönderildi."
+  }
+
+  if (data.emailDelivery?.skipped) {
+    return "Çalışan oluşturuldu. Mail ayarları eksik olduğu için başlangıç şifresini manuel iletin."
+  }
+
+  if (data.emailDelivery?.error) {
+    return `Çalışan oluşturuldu ancak e-posta gönderilemedi: ${data.emailDelivery.error}`
+  }
+
+  return "Çalışan oluşturuldu. Başlangıç şifresini kullanıcıya manuel olarak iletin."
 }
