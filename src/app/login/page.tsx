@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { NoxoMark } from "@/components/noxo-mark";
 import { localizeErrorMessage } from "@/lib/error-messages";
@@ -10,7 +10,8 @@ const LOGIN_BACKGROUND_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/stor
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const [isPending, startTransition] = useTransition();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,8 +43,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    startTransition(() => {
+      router.replace("/dashboard");
+    });
   }
 
   return (
@@ -97,10 +99,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isPending}
             className="w-full rounded-xl bg-slate-900 px-4 py-3 text-white font-medium transition hover:bg-slate-800 disabled:opacity-60"
           >
-            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+            {loading || isPending ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
         </form>
       </div>

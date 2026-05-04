@@ -2,6 +2,51 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getRoutePermission, hasPermission } from "@/lib/permissions"
 
+function getAuthStorageKey() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+
+  if (!supabaseUrl) {
+    return null
+  }
+
+  try {
+    const hostname = new URL(supabaseUrl).hostname
+    return `sb-${hostname.split(".")[0]}-auth-token`
+  } catch {
+    return null
+  }
+}
+
+function clearAuthCookies(request: NextRequest, response: NextResponse) {
+  const storageKey = getAuthStorageKey()
+
+  if (!storageKey) {
+    return
+  }
+
+  request.cookies
+    .getAll()
+    .filter(({ name }) => name === storageKey || name.startsWith(`${storageKey}.`))
+    .forEach(({ name }) => {
+      response.cookies.delete(name)
+    })
+}
+
+function isMissingRefreshTokenError(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const error = value as { code?: unknown; message?: unknown; name?: unknown }
+
+  return (
+    error.name === "AuthApiError" &&
+    (error.code === "refresh_token_not_found" ||
+      (typeof error.message === "string" &&
+        error.message.includes("Invalid Refresh Token: Refresh Token Not Found")))
+  )
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
@@ -33,10 +78,19 @@ export async function proxy(request: NextRequest) {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
 
+  if (authError && isMissingRefreshTokenError(authError)) {
+    const redirectResponse = NextResponse.redirect(new URL("/login", request.url))
+    clearAuthCookies(request, redirectResponse)
+    return redirectResponse
+  }
+
   if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url))
+    const redirectResponse = NextResponse.redirect(new URL("/login", request.url))
+    clearAuthCookies(request, redirectResponse)
+    return redirectResponse
   }
 
   const requiredPermission = getRoutePermission(pathname)
