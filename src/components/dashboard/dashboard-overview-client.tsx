@@ -24,6 +24,21 @@ type ServiceFormRow = {
   } | { company_name: string | null }[] | null
 }
 
+type CalendarEvent = {
+  id: string
+  title: string
+  note: string | null
+  start_date: string
+  end_date: string
+  start_time: string | null
+  end_time: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  creator_name: string | null
+  creator_color: string
+}
+
 type Props = {
   totalTickets: number
   activeTickets: number
@@ -35,6 +50,11 @@ type Props = {
   canViewTickets: boolean
   canViewServiceForms: boolean
   canManageCalendar: boolean
+  initialCalendarEvents: CalendarEvent[]
+  initialCalendarRange: {
+    start: string
+    end: string
+  }
 }
 
 function formatDate(value: string | null | undefined) {
@@ -136,6 +156,8 @@ export default function DashboardOverviewClient({
   canViewTickets,
   canViewServiceForms,
   canManageCalendar,
+  initialCalendarEvents,
+  initialCalendarRange,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -301,7 +323,11 @@ export default function DashboardOverviewClient({
         </div>
       </div>
 
-      <DashboardCalendar canManageEvents={canManageCalendar} />
+      <DashboardCalendar
+        canManageEvents={canManageCalendar}
+        initialEvents={initialCalendarEvents}
+        initialRange={initialCalendarRange}
+      />
     </div>
   )
 }

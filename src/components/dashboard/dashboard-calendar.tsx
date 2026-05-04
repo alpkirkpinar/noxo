@@ -29,6 +29,11 @@ type EventFormState = {
 
 type Props = {
   canManageEvents?: boolean
+  initialEvents?: CalendarEvent[]
+  initialRange?: {
+    start: string
+    end: string
+  }
 }
 
 function pad(value: number) {
@@ -124,14 +129,18 @@ function createEmptyForm(date: string): EventFormState {
   }
 }
 
-export default function DashboardCalendar({ canManageEvents = false }: Props) {
+export default function DashboardCalendar({
+  canManageEvents = false,
+  initialEvents = [],
+  initialRange,
+}: Props) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
 
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [loading, setLoading] = useState(true)
+  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents)
+  const [loading, setLoading] = useState(() => !initialRange)
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [selectedDate, setSelectedDate] = useState(toIsoDate(new Date()))
@@ -142,6 +151,31 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
   const cells = useMemo(() => getCalendarCells(currentMonth), [currentMonth])
   const range = useMemo(() => getMonthRange(currentMonth), [currentMonth])
   const todayIso = toIsoDate(new Date())
+  const initialRangeKey = initialRange ? `${initialRange.start}:${initialRange.end}` : ""
+  const rangeKey = `${range.start}:${range.end}`
+
+  const eventsByDate = useMemo(() => {
+    const grouped = new Map<string, CalendarEvent[]>()
+
+    for (const event of events) {
+      for (
+        let date = new Date(`${event.start_date}T00:00:00`);
+        toIsoDate(date) <= event.end_date;
+        date.setDate(date.getDate() + 1)
+      ) {
+        const iso = toIsoDate(date)
+        const dayEvents = grouped.get(iso)
+
+        if (dayEvents) {
+          dayEvents.push(event)
+        } else {
+          grouped.set(iso, [event])
+        }
+      }
+    }
+
+    return grouped
+  }, [events])
 
   const selectedDateEvents = useMemo(() => {
     return events.filter((event) =>
@@ -153,6 +187,12 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
     let active = true
 
     const loadEvents = async () => {
+      if (initialRangeKey === rangeKey) {
+        setEvents(initialEvents)
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       setErrorMessage("")
 
@@ -188,7 +228,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
     return () => {
       active = false
     }
-  }, [range.start, range.end])
+  }, [initialEvents, initialRangeKey, rangeKey, range.start, range.end])
 
   const openCreateForm = (date: string) => {
     if (!canManageEvents) return
@@ -447,9 +487,7 @@ export default function DashboardCalendar({ canManageEvents = false }: Props) {
                     const isSelected = iso === selectedDate
                     const inCurrentMonth = date.getMonth() === currentMonth.getMonth()
 
-                    const dayEvents = events.filter((event) =>
-                      isWithinRange(iso, event.start_date, event.end_date)
-                    )
+                    const dayEvents = eventsByDate.get(iso) ?? []
 
                     return (
                       <button
