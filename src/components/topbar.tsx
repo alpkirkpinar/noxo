@@ -51,12 +51,17 @@ const PAGE_META: Record<string, { title: string }> = {
   "/dashboard": { title: "Dashboard" },
   "/dashboard/master": { title: "Master Panel" },
   "/dashboard/tickets": { title: "Ticket" },
+  "/dashboard/tickets/new": { title: "Yeni Ticket" },
   "/dashboard/service-forms": { title: "Formlar" },
   "/dashboard/service-forms/new": { title: "Yeni Form" },
   "/dashboard/customers": { title: "Müşteriler" },
+  "/dashboard/customers/new": { title: "Yeni Müşteri" },
   "/dashboard/offers": { title: "Teklifler" },
+  "/dashboard/offers/new": { title: "Yeni Teklif" },
   "/dashboard/machines": { title: "Makineler" },
+  "/dashboard/machines/new": { title: "Yeni Makine" },
   "/dashboard/inventory": { title: "Depo" },
+  "/dashboard/inventory-movements": { title: "Depo Hareketleri" },
   "/dashboard/employees": { title: "Çalışanlar" },
   "/dashboard/form-templates": { title: "Form Şablonları" },
   "/dashboard/form-templates/new": { title: "Yeni Form Şablonu" },
@@ -66,6 +71,38 @@ const PAGE_META: Record<string, { title: string }> = {
 
 function getPageTitle(pathname: string) {
   if (PAGE_META[pathname]) return PAGE_META[pathname].title
+
+  if (/^\/dashboard\/tickets\/[^/]+$/.test(pathname)) {
+    return "Ticket Detayı"
+  }
+
+  if (/^\/dashboard\/customers\/[^/]+\/edit$/.test(pathname)) {
+    return "Müşteri Düzenle"
+  }
+
+  if (/^\/dashboard\/customers\/[^/]+$/.test(pathname)) {
+    return "Müşteri Detayı"
+  }
+
+  if (/^\/dashboard\/offers\/[^/]+\/edit$/.test(pathname)) {
+    return "Teklif Düzenle"
+  }
+
+  if (/^\/dashboard\/offers\/[^/]+\/pdf/.test(pathname)) {
+    return "Teklif PDF"
+  }
+
+  if (/^\/dashboard\/offers\/[^/]+$/.test(pathname)) {
+    return "Teklif Detayı"
+  }
+
+  if (/^\/dashboard\/machines\/[^/]+\/edit$/.test(pathname)) {
+    return "Makine Düzenle"
+  }
+
+  if (/^\/dashboard\/machines\/[^/]+$/.test(pathname)) {
+    return "Makine Detayı"
+  }
 
   if (
     /^\/dashboard\/service-forms\/template\/[^/]+$/.test(pathname) ||
@@ -92,6 +129,10 @@ function getPageTitle(pathname: string) {
 
   const segments = pathname.split("/").filter(Boolean)
   const lastSegment = segments[segments.length - 1] ?? "dashboard"
+
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lastSegment)) {
+    return "Detay"
+  }
 
   return lastSegment
     .replace(/-/g, " ")
