@@ -23,11 +23,10 @@ type MachineListItem = {
 };
 
 type SortField =
-  | "machine_code"
+  | "serial_number"
   | "machine_name"
   | "customer_name"
   | "brand_model"
-  | "serial_number"
   | "next_maintenance_date"
   | "status";
 
@@ -105,16 +104,14 @@ function statusRank(status: string | null) {
 
 function compareValues(a: MachineListItem, b: MachineListItem, sort: SortField) {
   switch (sort) {
-    case "machine_code":
-      return normalizeText(a.machine_code).localeCompare(normalizeText(b.machine_code), "tr");
+    case "serial_number":
+      return normalizeText(a.serial_number).localeCompare(normalizeText(b.serial_number), "tr");
     case "machine_name":
       return normalizeText(a.machine_name).localeCompare(normalizeText(b.machine_name), "tr");
     case "customer_name":
       return normalizeText(a.customer_name).localeCompare(normalizeText(b.customer_name), "tr");
     case "brand_model":
       return normalizeText(a.brand_model).localeCompare(normalizeText(b.brand_model), "tr");
-    case "serial_number":
-      return normalizeText(a.serial_number).localeCompare(normalizeText(b.serial_number), "tr");
     case "next_maintenance_date":
       return (
         new Date(a.next_maintenance_date ?? "9999-12-31").getTime() -
@@ -238,7 +235,7 @@ export default function MachinesListClient({ initialMachines, permissions, compa
   const [rows, setRows] = useState(initialMachines);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortField>("machine_code");
+  const [sortKey, setSortKey] = useState<SortField>("serial_number");
   const [sortDirection, setSortDirection] = useState<SortOrder>("asc");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -442,7 +439,6 @@ export default function MachinesListClient({ initialMachines, permissions, compa
       const q = search.toLocaleLowerCase("tr-TR");
       data = data.filter((row) =>
         [
-          row.machine_code,
           row.machine_name,
           row.customer_name ?? "",
           row.brand_model,
@@ -500,7 +496,7 @@ export default function MachinesListClient({ initialMachines, permissions, compa
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Makine adı, kod veya seri no ara"
+            placeholder="Makine adı veya seri no ara"
             className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-slate-500 sm:h-11"
           />
         </div>
@@ -617,8 +613,8 @@ export default function MachinesListClient({ initialMachines, permissions, compa
                     />
                   </th>
                 ) : null}
-                <th className={sortableHeaderClass} onClick={() => toggleSort("machine_code")}>
-                  Makine Kodu{sortIndicator(sortKey === "machine_code", sortDirection)}
+                <th className={sortableHeaderClass} onClick={() => toggleSort("serial_number")}>
+                  Seri No{sortIndicator(sortKey === "serial_number", sortDirection)}
                 </th>
                 <th className={sortableHeaderClass} onClick={() => toggleSort("machine_name")}>
                   Makine Adı{sortIndicator(sortKey === "machine_name", sortDirection)}
@@ -628,9 +624,6 @@ export default function MachinesListClient({ initialMachines, permissions, compa
                 </th>
                 <th className={sortableHeaderClass} onClick={() => toggleSort("brand_model")}>
                   Marka / Model{sortIndicator(sortKey === "brand_model", sortDirection)}
-                </th>
-                <th className={sortableHeaderClass} onClick={() => toggleSort("serial_number")}>
-                  Seri No{sortIndicator(sortKey === "serial_number", sortDirection)}
                 </th>
                 <th className={sortableHeaderClass} onClick={() => toggleSort("next_maintenance_date")}>
                   Sonraki Bakım{sortIndicator(sortKey === "next_maintenance_date", sortDirection)}
@@ -644,7 +637,7 @@ export default function MachinesListClient({ initialMachines, permissions, compa
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={selectionMode ? 8 : 7} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={selectionMode ? 7 : 6} className="px-4 py-12 text-center text-sm text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -674,16 +667,15 @@ export default function MachinesListClient({ initialMachines, permissions, compa
                           checked={selectedIds.includes(machine.id)}
                           onChange={() => toggleMachineSelection(machine.id)}
                           onClick={(event) => event.stopPropagation()}
-                          aria-label={`${machine.machine_code} seç`}
+                          aria-label={`${machine.serial_number ?? machine.machine_name} seç`}
                           className="h-4 w-4 rounded border-slate-300"
                         />
                       </td>
                     ) : null}
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{machine.machine_code}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{machine.serial_number ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{machine.machine_name}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{machine.customer_name ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-slate-700">{machine.brand_model}</td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{machine.serial_number ?? "-"}</td>
                     <td className="min-w-40 px-4 py-3 text-sm text-slate-700">
                       <MaintenanceDueIndicator machine={machine} />
                     </td>

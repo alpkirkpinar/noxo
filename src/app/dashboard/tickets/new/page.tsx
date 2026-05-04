@@ -12,7 +12,7 @@ type MachineItem = {
   id: string
   customer_id: string
   machine_name: string
-  machine_code: string
+  serial_number: string | null
 }
 
 type EmployeeItem = {
@@ -69,7 +69,7 @@ async function getPageData() {
 
   const { data: machines, error: machinesError } = await supabase
     .from("machines")
-    .select("id, customer_id, machine_name, machine_code")
+    .select("id, customer_id, machine_name, serial_number")
     .eq("company_id", appUser.company_id)
     .order("machine_name", { ascending: true })
 

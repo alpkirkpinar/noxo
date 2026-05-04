@@ -73,7 +73,7 @@ type MachineOption = {
   id: string;
   customer_id: string | null;
   label: string;
-  machine_code: string | null;
+  serial_number: string | null;
 };
 
 type TicketOption = {
@@ -485,7 +485,7 @@ export default function ServiceFormEditor({
           .order("company_name", { ascending: true }),
         supabase
           .from("machines")
-          .select("id, customer_id, machine_name, machine_code")
+          .select("id, customer_id, machine_name, serial_number")
           .eq("company_id", companyId)
           .order("machine_name", { ascending: true }),
         supabase
@@ -510,12 +510,12 @@ export default function ServiceFormEditor({
         .filter((item) => item.id && item.label.trim());
       const machineRecords = ((
         machinesResult.data ?? []
-      ) as Array<{ id: string; customer_id: string | null; machine_name: string | null; machine_code: string | null }>)
+      ) as Array<{ id: string; customer_id: string | null; machine_name: string | null; serial_number: string | null }>)
         .map((item) => ({
           id: item.id,
           customer_id: item.customer_id,
-          label: item.machine_name ?? "",
-          machine_code: item.machine_code,
+          label: [item.machine_name, item.serial_number ? `(${item.serial_number})` : null].filter(Boolean).join(" "),
+          serial_number: item.serial_number,
         }))
         .filter((item) => item.id && item.label.trim());
       const ticketRecords = ((
@@ -811,7 +811,7 @@ export default function ServiceFormEditor({
         const machine = selectSourceRecords.machines.find(
           (item) =>
             normalizeLookupValue(item.label) === lookupValue ||
-            normalizeLookupValue(item.machine_code) === lookupValue
+            normalizeLookupValue(item.serial_number) === lookupValue
         );
         if (machine) {
           machineId = machine.id;

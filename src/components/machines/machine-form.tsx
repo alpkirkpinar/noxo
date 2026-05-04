@@ -61,7 +61,7 @@ export default function MachineForm({
     "min-w-0 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400";
   const labelClass = "mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300";
   const [customerId, setCustomerId] = useState(initialValues?.customer_id ?? "");
-  const [machineCode, setMachineCode] = useState(initialValues?.machine_code ?? "");
+  const machineCode = initialValues?.machine_code ?? "";
   const [machineName, setMachineName] = useState(initialValues?.machine_name ?? "");
   const [brand, setBrand] = useState(initialValues?.brand ?? "");
   const [model, setModel] = useState(initialValues?.model ?? "");
@@ -188,11 +188,6 @@ export default function MachineForm({
               </option>
             ))}
           </select>
-        </div>
-
-        <div className="min-w-0">
-          <label className={labelClass}>Makine Kodu</label>
-          <input className={inputClass} value={machineCode} onChange={(event) => setMachineCode(event.target.value)} />
         </div>
 
         <div className="min-w-0">

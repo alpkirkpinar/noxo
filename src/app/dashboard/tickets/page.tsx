@@ -93,7 +93,7 @@ export default async function TicketsPage() {
 
     supabase
       .from("machines")
-      .select("id, customer_id, machine_name, machine_code")
+      .select("id, customer_id, machine_name, serial_number")
       .eq("company_id", companyId)
       .order("machine_name", { ascending: true }),
 

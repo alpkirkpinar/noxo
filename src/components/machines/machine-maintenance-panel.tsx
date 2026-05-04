@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MAINTENANCE_SCOPE_OPTIONS } from "@/lib/maintenance-options";
 
@@ -21,7 +20,11 @@ export default function MachineMaintenancePanel({
   const router = useRouter();
   const [performedAt, setPerformedAt] = useState(defaultPerformedAt);
   const [selectedScopeItems, setSelectedScopeItems] = useState<string[]>([]);
+  const [operationPerformedAt, setOperationPerformedAt] = useState(defaultPerformedAt);
+  const [operationType, setOperationType] = useState("Tamir");
+  const [operationNote, setOperationNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [operationSaving, setOperationSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
 
@@ -61,6 +64,45 @@ export default function MachineMaintenancePanel({
 
     setSuccessText("Bakım kaydı oluşturuldu.");
     setSelectedScopeItems([]);
+    router.refresh();
+  }
+
+  async function handleOperationSubmit() {
+    if (!canEdit) {
+      setErrorText("Bu işlem için yetkiniz yok.");
+      return;
+    }
+
+    if (!operationNote.trim()) {
+      setErrorText("İşlem notu zorunludur.");
+      return;
+    }
+
+    setOperationSaving(true);
+    setErrorText("");
+    setSuccessText("");
+
+    const response = await fetch(`/api/machines/${machineId}/operations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        performed_at: operationPerformedAt,
+        operation_type: operationType,
+        note: operationNote,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    setOperationSaving(false);
+
+    if (!response.ok) {
+      setErrorText(result.error ?? "İşlem kaydı oluşturulamadı.");
+      return;
+    }
+
+    setSuccessText("İşlem kaydı oluşturuldu.");
+    setOperationType("Tamir");
+    setOperationNote("");
     router.refresh();
   }
 
@@ -124,6 +166,60 @@ export default function MachineMaintenancePanel({
         >
           {saving ? "Kaydediliyor..." : "Bakım Yapıldı"}
         </button>
+
+        <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">İşlem Gir</h3>
+
+          <div className="space-y-3">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">İşlem Tarihi</label>
+              <input
+                type="date"
+                value={operationPerformedAt}
+                onChange={(event) => setOperationPerformedAt(event.target.value)}
+                disabled={!maintenanceAvailable}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">İşlem Türü</label>
+              <select
+                value={operationType}
+                onChange={(event) => setOperationType(event.target.value)}
+                disabled={!maintenanceAvailable}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400"
+              >
+                <option value="Tamir">Tamir</option>
+                <option value="Parca Degisimi">Parça Değişimi</option>
+                <option value="Ayar">Ayar</option>
+                <option value="Kontrol">Kontrol</option>
+                <option value="Diger">Diğer</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Açıklama</label>
+              <textarea
+                value={operationNote}
+                onChange={(event) => setOperationNote(event.target.value)}
+                disabled={!maintenanceAvailable}
+                rows={4}
+                placeholder="Yapılan tamir, parça değişimi veya işlem detayı"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleOperationSubmit()}
+              disabled={operationSaving || !canEdit || !maintenanceAvailable}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            >
+              {operationSaving ? "Kaydediliyor..." : "İşlemi Kaydet"}
+            </button>
+          </div>
+        </div>
 
         <div className="grid gap-2">
           <button

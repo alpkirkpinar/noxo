@@ -495,7 +495,7 @@ export default function PdfTemplateEditor({
           .order("company_name", { ascending: true }),
         supabase
           .from("machines")
-          .select("machine_name")
+          .select("machine_name, serial_number")
           .eq("company_id", companyId)
           .order("machine_name", { ascending: true }),
         supabase
@@ -520,8 +520,8 @@ export default function PdfTemplateEditor({
           )
         ),
         machines: sortOptions(
-          ((machinesResult.data ?? []) as Array<{ machine_name: string | null }>).map(
-            (item) => item.machine_name ?? ""
+          ((machinesResult.data ?? []) as Array<{ machine_name: string | null; serial_number: string | null }>).map(
+            (item) => [item.machine_name, item.serial_number ? `(${item.serial_number})` : null].filter(Boolean).join(" ")
           )
         ),
         tickets: sortOptions(

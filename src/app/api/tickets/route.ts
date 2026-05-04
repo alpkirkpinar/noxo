@@ -90,7 +90,7 @@ export async function GET() {
 
       auth.supabase
         .from("machines")
-        .select("id, customer_id, machine_name, machine_code")
+        .select("id, customer_id, machine_name, serial_number")
         .eq("company_id", auth.identity.companyId)
         .order("machine_name", { ascending: true }),
 

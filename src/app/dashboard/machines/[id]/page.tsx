@@ -14,6 +14,7 @@ type MaintenanceRecord = {
   performed_at: string | null;
   next_maintenance_date: string | null;
   maintenance_notes: string | null;
+  maintenance_scope_items: string[];
   performed_by_name: string | null;
 };
 
@@ -100,6 +101,7 @@ export default async function MachineDetailPage({ params }: PageProps) {
         performed_at,
         next_maintenance_date,
         maintenance_notes,
+        maintenance_scope_items,
         performed_by:app_users(full_name)
       `)
       .eq("company_id", appUser.company_id)
@@ -141,6 +143,9 @@ export default async function MachineDetailPage({ params }: PageProps) {
       performed_at: typeof record.performed_at === "string" ? record.performed_at : null,
       next_maintenance_date: typeof record.next_maintenance_date === "string" ? record.next_maintenance_date : null,
       maintenance_notes: typeof record.maintenance_notes === "string" ? record.maintenance_notes : null,
+      maintenance_scope_items: Array.isArray(record.maintenance_scope_items)
+        ? record.maintenance_scope_items.map(String).filter(Boolean)
+        : [],
       performed_by_name:
         performedBy && typeof performedBy === "object" && "full_name" in performedBy
           ? String(performedBy.full_name ?? "")
@@ -153,7 +158,7 @@ export default async function MachineDetailPage({ params }: PageProps) {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">{machine.machine_name}</h1>
-          <p className="text-sm text-slate-500">{machine.machine_code}</p>
+          <p className="text-sm text-slate-500">Seri No: {machine.serial_number ?? "-"}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -203,36 +208,66 @@ export default async function MachineDetailPage({ params }: PageProps) {
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Bakım Geçmişi</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Geçmiş</h2>
               <span className="text-sm text-slate-500">{maintenanceRecords.length} kayıt</span>
             </div>
 
             {maintenanceTableMissing ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800">
-                Bakım geçmişi henüz kullanılamıyor. `machine_maintenance_records` migration&apos;ı uygulanmalı.
+                Geçmiş henüz kullanılamıyor. `machine_maintenance_records` migration&apos;ı uygulanmalı.
               </div>
             ) : maintenanceRecords.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                Henüz bakım kaydı bulunmuyor.
+                Henüz geçmiş kaydı bulunmuyor.
               </div>
             ) : (
               <div className="space-y-3">
-                {maintenanceRecords.map((record) => (
-                  <div key={record.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                      <div className="font-medium text-slate-900">{formatDate(record.performed_at)}</div>
-                      <div className="text-slate-500">
-                        Sonraki bakım: <span className="font-medium text-slate-700">{formatDate(record.next_maintenance_date)}</span>
+                {maintenanceRecords.map((record) => {
+                  const isMaintenance = record.maintenance_scope_items.length > 0 || Boolean(record.next_maintenance_date);
+
+                  return (
+                    <div key={record.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              isMaintenance ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"
+                            }`}
+                          >
+                            {isMaintenance ? "Bakım" : "İşlem"}
+                          </span>
+                          <span className="font-medium text-slate-900">{formatDate(record.performed_at)}</span>
+                        </div>
+                        {record.next_maintenance_date ? (
+                          <div className="text-slate-500">
+                            Sonraki bakım:{" "}
+                            <span className="font-medium text-slate-700">
+                              {formatDate(record.next_maintenance_date)}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">
+                        Yapan kişi: <span className="font-medium text-slate-700">{record.performed_by_name ?? "-"}</span>
+                      </div>
+                      {record.maintenance_scope_items.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {record.maintenance_scope_items.map((item) => (
+                            <span
+                              key={item}
+                              className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-xs font-medium text-emerald-700"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
+                        {record.maintenance_notes?.trim() || "Not girilmedi."}
                       </div>
                     </div>
-                    <div className="mt-2 text-xs text-slate-500">
-                      Yapan kişi: <span className="font-medium text-slate-700">{record.performed_by_name ?? "-"}</span>
-                    </div>
-                    <div className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
-                      {record.maintenance_notes?.trim() || "Not girilmedi."}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -14,7 +14,7 @@ type MachineItem = {
   id: string;
   customer_id: string;
   machine_name: string;
-  machine_code: string;
+  serial_number: string | null;
 };
 
 type Props = {
@@ -171,7 +171,7 @@ export default function TicketEditDialog({
                   <option value="">Makine seçin</option>
                   {filteredMachines.map((machine) => (
                     <option key={machine.id} value={machine.id}>
-                      {machine.machine_name} {machine.machine_code ? `(${machine.machine_code})` : ""}
+                      {machine.machine_name} {machine.serial_number ? `(${machine.serial_number})` : ""}
                     </option>
                   ))}
                 </select>

@@ -42,7 +42,7 @@ type MachineItem = {
   id: string;
   customer_id: string;
   machine_name: string;
-  machine_code: string;
+  serial_number: string | null;
 };
 
 type EmployeeItem = {

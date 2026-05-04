@@ -110,7 +110,7 @@ async function getPageData(ticketId: string) {
       customer_id,
       machine_id,
       customers(company_name, contact_name),
-      machines(machine_name, machine_code),
+      machines(machine_name, serial_number),
       opened_by_user:app_users!tickets_opened_by_fkey(full_name),
       assigned_to_user:app_users!tickets_assigned_to_fkey(full_name)
     `)
@@ -164,7 +164,7 @@ async function getPageData(ticketId: string) {
     canEdit
       ? supabase
           .from("machines")
-          .select("id, customer_id, machine_name, machine_code")
+          .select("id, customer_id, machine_name, serial_number")
           .eq("company_id", appUser.company_id)
           .order("machine_name", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -278,8 +278,8 @@ export default async function TicketDetailPage({ params }: PageProps) {
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-500">Makine Kodu</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{machine?.machine_code ?? "-"}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500">Seri No</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{machine?.serial_number ?? "-"}</div>
               </div>
 
               <div>
