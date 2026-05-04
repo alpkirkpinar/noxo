@@ -18,6 +18,47 @@ type MaintenanceRecord = {
   performed_by_name: string | null;
 };
 
+type TicketHistoryRecord = {
+  id: string;
+  ticket_no: string | null;
+  title: string | null;
+  status: string | null;
+  priority: string | null;
+  created_at: string | null;
+};
+
+type ServiceFormHistoryRecord = {
+  id: string;
+  form_no: string | null;
+  service_date: string | null;
+  created_at: string | null;
+  pdf_templates:
+    | {
+        template_name: string | null;
+      }
+    | {
+        template_name: string | null;
+      }[]
+    | null;
+};
+
+type HistoryItem =
+  | {
+      kind: "maintenance";
+      sortDate: string | null;
+      record: MaintenanceRecord;
+    }
+  | {
+      kind: "ticket";
+      sortDate: string | null;
+      record: TicketHistoryRecord;
+    }
+  | {
+      kind: "service_form";
+      sortDate: string | null;
+      record: ServiceFormHistoryRecord;
+    };
+
 function statusLabel(status: string | null) {
   switch (status) {
     case "active":
@@ -49,6 +90,17 @@ function maintenanceStatusLabel(nextMaintenanceDate: string | null) {
 function formatDate(value?: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleDateString("tr-TR");
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("tr-TR");
+}
+
+function getTemplateName(relation: ServiceFormHistoryRecord["pdf_templates"]) {
+  if (!relation) return null;
+  if (Array.isArray(relation)) return relation[0]?.template_name ?? null;
+  return relation.template_name ?? null;
 }
 
 export default async function MachineDetailPage({ params }: PageProps) {
@@ -153,6 +205,119 @@ export default async function MachineDetailPage({ params }: PageProps) {
     };
   });
 
+  const linkedTicketsResult = await supabase
+    .from("tickets")
+    .select("id, ticket_no, title, status, priority, created_at")
+    .eq("company_id", appUser.company_id)
+    .eq("machine_id", id)
+    .order("created_at", { ascending: false })
+    .limit(12);
+
+  if (linkedTicketsResult.error) {
+    throw new Error(linkedTicketsResult.error.message);
+  }
+
+  let serialTicketsResult: { data: unknown[] | null; error: { message: string } | null } = { data: [], error: null };
+  const serialNumber = typeof machine.serial_number === "string" ? machine.serial_number.trim() : "";
+
+  if (serialNumber) {
+    serialTicketsResult = await supabase
+      .from("tickets")
+      .select("id, ticket_no, title, status, priority, created_at")
+      .eq("company_id", appUser.company_id)
+      .or(`title.ilike.%${serialNumber}%,description.ilike.%${serialNumber}%`)
+      .order("created_at", { ascending: false })
+      .limit(12);
+
+    if (serialTicketsResult.error) {
+      throw new Error(serialTicketsResult.error.message);
+    }
+  }
+
+  const ticketsById = new Map<string, TicketHistoryRecord>();
+
+  for (const ticket of [
+    ...((linkedTicketsResult.data ?? []) as TicketHistoryRecord[]),
+    ...((serialTicketsResult.data ?? []) as TicketHistoryRecord[]),
+  ]) {
+    ticketsById.set(ticket.id, ticket);
+  }
+
+  const linkedFormsResult = await supabase
+    .from("service_forms")
+    .select("id, form_no, service_date, created_at, pdf_templates(template_name)")
+    .eq("company_id", appUser.company_id)
+    .eq("machine_id", id)
+    .order("created_at", { ascending: false })
+    .limit(12);
+
+  if (linkedFormsResult.error) {
+    throw new Error(linkedFormsResult.error.message);
+  }
+
+  let serialFormIds: string[] = [];
+
+  if (serialNumber) {
+    const serialFormValuesResult = await supabase
+      .from("service_form_field_values")
+      .select("service_form_id")
+      .ilike("value_text", `%${serialNumber}%`)
+      .limit(24);
+
+    if (serialFormValuesResult.error) {
+      throw new Error(serialFormValuesResult.error.message);
+    }
+
+    serialFormIds = Array.from(
+      new Set(
+        ((serialFormValuesResult.data ?? []) as Array<{ service_form_id: string | null }>)
+          .map((item) => item.service_form_id)
+          .filter((value): value is string => Boolean(value))
+      )
+    );
+  }
+
+  const serialFormsResult =
+    serialFormIds.length > 0
+      ? await supabase
+          .from("service_forms")
+          .select("id, form_no, service_date, created_at, pdf_templates(template_name)")
+          .eq("company_id", appUser.company_id)
+          .in("id", serialFormIds)
+          .order("created_at", { ascending: false })
+      : { data: [], error: null };
+
+  if (serialFormsResult.error) {
+    throw new Error(serialFormsResult.error.message);
+  }
+
+  const formsById = new Map<string, ServiceFormHistoryRecord>();
+
+  for (const form of [
+    ...((linkedFormsResult.data ?? []) as ServiceFormHistoryRecord[]),
+    ...((serialFormsResult.data ?? []) as ServiceFormHistoryRecord[]),
+  ]) {
+    formsById.set(form.id, form);
+  }
+
+  const historyItems: HistoryItem[] = [
+    ...maintenanceRecords.map((record) => ({
+      kind: "maintenance" as const,
+      sortDate: record.performed_at,
+      record,
+    })),
+    ...Array.from(ticketsById.values()).map((record) => ({
+      kind: "ticket" as const,
+      sortDate: record.created_at,
+      record,
+    })),
+    ...Array.from(formsById.values()).map((record) => ({
+      kind: "service_form" as const,
+      sortDate: record.service_date ?? record.created_at,
+      record,
+    })),
+  ].sort((left, right) => new Date(right.sortDate ?? 0).getTime() - new Date(left.sortDate ?? 0).getTime());
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -209,24 +374,84 @@ export default async function MachineDetailPage({ params }: PageProps) {
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-900">Geçmiş</h2>
-              <span className="text-sm text-slate-500">{maintenanceRecords.length} kayıt</span>
+              <span className="text-sm text-slate-500">{historyItems.length} kayıt</span>
             </div>
 
             {maintenanceTableMissing ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-800">
                 Geçmiş henüz kullanılamıyor. `machine_maintenance_records` migration&apos;ı uygulanmalı.
               </div>
-            ) : maintenanceRecords.length === 0 ? (
+            ) : historyItems.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
                 Henüz geçmiş kaydı bulunmuyor.
               </div>
             ) : (
               <div className="space-y-3">
-                {maintenanceRecords.map((record) => {
+                {historyItems.map((item) => {
+                  if (item.kind === "ticket") {
+                    const record = item.record;
+
+                    return (
+                      <div key={`ticket-${record.id}`} className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                              Ticket
+                            </span>
+                            <span className="font-medium text-slate-900">{record.ticket_no ?? "Ticket"}</span>
+                          </div>
+                          <span className="text-slate-500">{formatDateTime(record.created_at)}</span>
+                        </div>
+                        <div className="mt-3 text-sm font-medium text-slate-900">{record.title ?? "-"}</div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+                          <span>Durum: {record.status ?? "-"}</span>
+                          <span>Öncelik: {record.priority ?? "-"}</span>
+                        </div>
+                        <div className="mt-3">
+                          <Link
+                            href={`/dashboard/tickets/${record.id}`}
+                            className="inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                          >
+                            Ticketı Aç
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (item.kind === "service_form") {
+                    const record = item.record;
+                    const templateName = getTemplateName(record.pdf_templates);
+
+                    return (
+                      <div key={`service-form-${record.id}`} className="rounded-xl border border-violet-100 bg-violet-50/60 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                              Form
+                            </span>
+                            <span className="font-medium text-slate-900">{record.form_no ?? "Servis Formu"}</span>
+                          </div>
+                          <span className="text-slate-500">{formatDate(record.service_date ?? record.created_at)}</span>
+                        </div>
+                        <div className="mt-3 text-sm text-slate-700">{templateName ?? "Servis formu"}</div>
+                        <div className="mt-3">
+                          <Link
+                            href={`/dashboard/service-forms/${record.id}`}
+                            className="inline-flex rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+                          >
+                            Form Detayını Aç
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const record = item.record;
                   const isMaintenance = record.maintenance_scope_items.length > 0 || Boolean(record.next_maintenance_date);
 
                   return (
-                    <div key={record.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div key={`maintenance-${record.id}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                         <div className="flex items-center gap-2">
                           <span
