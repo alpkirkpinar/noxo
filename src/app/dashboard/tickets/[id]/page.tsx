@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import TicketStatusForm from "@/components/tickets/ticket-status-form";
 import TicketCommentForm from "@/components/tickets/ticket-comment-form";
+import TicketCommentDeleteButton from "@/components/tickets/ticket-comment-delete-button";
 import TicketEditDialog from "@/components/tickets/ticket-edit-dialog";
 import { getDashboardContext } from "@/lib/dashboard-context";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
@@ -203,6 +204,7 @@ export default async function TicketDetailPage({ params }: PageProps) {
   const canEdit = hasPermission(permissionIdentity, PERMISSIONS.ticketEdit);
   const canUpdateStatus = canEdit;
   const canComment = canEdit;
+  const latestStatusNote = history.find((item) => item.note?.trim())?.note?.trim() ?? null;
 
   const customer = Array.isArray(ticket.customers) ? ticket.customers[0] : ticket.customers;
   const machine = Array.isArray(ticket.machines) ? ticket.machines[0] : ticket.machines;
@@ -248,6 +250,7 @@ export default async function TicketDetailPage({ params }: PageProps) {
           ticketId={ticket.id}
           changedBy={appUser.id}
           currentStatus={ticket.status}
+          latestStatusNote={latestStatusNote}
           canUpdateStatus={canUpdateStatus}
         />
       ) : null}
@@ -374,8 +377,13 @@ export default async function TicketDetailPage({ params }: PageProps) {
                     <div key={comment.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm font-semibold text-slate-900">{creator?.full_name ?? "-"}</div>
-                        <div className="text-xs text-slate-500">
-                          {new Date(comment.created_at).toLocaleString("tr-TR")}
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs text-slate-500">
+                            {new Date(comment.created_at).toLocaleString("tr-TR")}
+                          </div>
+                          {comment.created_by === appUser.id ? (
+                            <TicketCommentDeleteButton ticketId={ticket.id} commentId={comment.id} />
+                          ) : null}
                         </div>
                       </div>
 

@@ -28,7 +28,15 @@ type FieldType =
   | "serial_number"
   | "select"
   | "checkbox"
-  | "signature";
+  | "signature"
+  | "operation";
+
+type OperationType = "sum" | "copy";
+
+type OperationConfig = {
+  type: OperationType;
+  sourceFieldIds: string[];
+};
 
 type TemplateField = {
   id: string;
@@ -51,6 +59,7 @@ type TemplateField = {
   is_readonly: boolean;
   default_value?: string | null;
   form_row_id?: string | null;
+  operation_config?: OperationConfig | null;
 };
 
 type TemplateInitialValues = {
@@ -72,7 +81,10 @@ type Props = {
 };
 
 type DraftRect = {
+  pointerId: number;
   pageNumber: number;
+  startClientX: number;
+  startClientY: number;
   startX: number;
   startY: number;
   currentX: number;
@@ -90,16 +102,17 @@ type PendingRect = {
 };
 
 type DragState = {
-  fieldId: string;
+  pointerId: number;
+  fieldIds: string[];
   startClientX: number;
   startClientY: number;
-  startX: number;
-  startY: number;
+  startPositions: Record<string, { x: number; y: number }>;
 };
 
 type ResizeDirection = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 type ResizeState = {
+  pointerId: number;
   fieldId: string;
   direction: ResizeDirection;
   startClientX: number;
@@ -130,24 +143,64 @@ const STORAGE_BUCKET = "template-pdfs";
 const BASE_PAGE_WIDTH = 900;
 const MIN_W = 0.5;
 const MIN_H = 0.5;
+const CLICK_TOLERANCE_PX = 6;
 const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
 
+function getSelectionBounds(fields: TemplateField[]) {
+  if (fields.length === 0) return null;
+
+  const left = Math.min(...fields.map((field) => field.pos_x));
+  const top = Math.min(...fields.map((field) => field.pos_y));
+  const right = Math.max(...fields.map((field) => field.pos_x + field.width));
+  const bottom = Math.max(...fields.map((field) => field.pos_y + field.height));
+
+  return {
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+  };
+}
+
 function parseFieldLayoutMeta(value: string | null | undefined) {
-  if (!value) return { form_row_id: null as string | null };
+  if (!value) return { form_row_id: null as string | null, operation_config: null as OperationConfig | null };
 
   try {
-    const parsed = JSON.parse(value) as { form_row_id?: unknown };
+    const parsed = JSON.parse(value) as { form_row_id?: unknown; operation_config?: unknown };
+    const operationConfig = parsed.operation_config as
+      | { type?: unknown; sourceFieldIds?: unknown }
+      | undefined;
+    const operationType =
+      operationConfig?.type === "sum" || operationConfig?.type === "copy" ? operationConfig.type : null;
+    const sourceFieldIds = Array.isArray(operationConfig?.sourceFieldIds)
+      ? operationConfig.sourceFieldIds.map(String).filter(Boolean)
+      : [];
+
+    const parsedOperationConfig: OperationConfig | null = operationType
+      ? { type: operationType, sourceFieldIds }
+      : null;
+
     return {
       form_row_id: typeof parsed.form_row_id === "string" && parsed.form_row_id.trim() ? parsed.form_row_id : null,
+      operation_config: parsedOperationConfig,
     };
   } catch {
-    return { form_row_id: null as string | null };
+    return { form_row_id: null as string | null, operation_config: null as OperationConfig | null };
   }
 }
 
-function serializeFieldLayoutMeta(field: Pick<TemplateField, "form_row_id">) {
-  if (!field.form_row_id) return null;
-  return JSON.stringify({ form_row_id: field.form_row_id });
+function serializeFieldLayoutMeta(field: Pick<TemplateField, "form_row_id" | "operation_config">) {
+  const payload: { form_row_id?: string; operation_config?: OperationConfig } = {};
+
+  if (field.form_row_id) {
+    payload.form_row_id = field.form_row_id;
+  }
+
+  if (field.operation_config) {
+    payload.operation_config = field.operation_config;
+  }
+
+  return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
 }
 
 function buildFieldRows(fields: TemplateField[]) {
@@ -188,6 +241,7 @@ const FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
   { value: "select", label: "Seçim Kutusu" },
   { value: "checkbox", label: "Onay Kutusu" },
   { value: "signature", label: "İmza" },
+  { value: "operation", label: "İşlem" },
 ];
 
 const SELECT_DATA_SOURCE_OPTIONS: { value: SelectDataSource; label: string }[] = [
@@ -304,9 +358,16 @@ function createFieldFromPending(
     data_source: null,
     options_json: fieldType === "select" ? ["Seçenek 1", "Seçenek 2"] : [],
     show_in_input_panel: true,
-    is_readonly: false,
+    is_readonly: fieldType === "operation",
     default_value: null,
     form_row_id: null,
+    operation_config:
+      fieldType === "operation"
+        ? {
+            type: "sum",
+            sourceFieldIds: [],
+          }
+        : null,
   };
 }
 
@@ -314,6 +375,7 @@ function getPreviewText(field: TemplateField) {
   if (field.field_type === "checkbox") return "☐";
   if (field.field_type === "signature") return "İMZA";
   if (field.field_type === "serial_number") return "SERİ NO";
+  if (field.field_type === "operation") return "İŞLEM";
   return field.field_label;
 }
 
@@ -397,6 +459,7 @@ export default function PdfTemplateEditor({
       initialFields.map((field) => ({
         ...field,
         form_row_id: parseFieldLayoutMeta(field.default_value).form_row_id,
+        operation_config: parseFieldLayoutMeta(field.default_value).operation_config,
       })),
     [initialFields]
   );
@@ -415,6 +478,9 @@ export default function PdfTemplateEditor({
 
   const [fields, setFields] = useState<TemplateField[]>(normalizedInitialFields);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(normalizedInitialFields[0]?.id ?? null);
+  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>(
+    normalizedInitialFields[0]?.id ? [normalizedInitialFields[0].id] : []
+  );
 
   const [draftRect, setDraftRect] = useState<DraftRect | null>(null);
   const [pendingRect, setPendingRect] = useState<PendingRect | null>(null);
@@ -423,9 +489,10 @@ export default function PdfTemplateEditor({
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
 
   const [fieldPage, setFieldPage] = useState(0);
-  const [copiedField, setCopiedField] = useState<TemplateField | null>(null);
+  const [copiedFields, setCopiedFields] = useState<TemplateField[]>([]);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [fieldTypeMenuOpen, setFieldTypeMenuOpen] = useState(false);
+  const [operationSourceTargetFieldId, setOperationSourceTargetFieldId] = useState<string | null>(null);
   const [selectSourceOptions, setSelectSourceOptions] = useState<Record<SelectDataSource, string[]>>({
     "": [],
     customers: [],
@@ -441,12 +508,28 @@ export default function PdfTemplateEditor({
   const overlayRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const fieldTypeMenuRef = useRef<HTMLDivElement | null>(null);
 
+  const selectedFields = useMemo(
+    () => fields.filter((field) => selectedFieldIds.includes(field.id)),
+    [fields, selectedFieldIds]
+  );
   const selectedField = useMemo(
-    () => fields.find((field) => field.id === selectedFieldId) ?? null,
-    [fields, selectedFieldId]
+    () => (selectedFieldIds.length === 1 ? fields.find((field) => field.id === selectedFieldId) ?? null : null),
+    [fields, selectedFieldId, selectedFieldIds]
   );
   const selectedFieldUsesText =
     selectedField ? !["checkbox", "signature"].includes(selectedField.field_type) : false;
+  const operationSourceFieldOptions = useMemo(() => {
+    if (!selectedField) return { sum: [] as TemplateField[], copy: [] as TemplateField[] };
+
+    return {
+      sum: fields.filter(
+        (field) => field.id !== selectedField.id && (field.field_type === "number" || field.field_type === "operation")
+      ),
+      copy: fields.filter(
+        (field) => field.id !== selectedField.id && !["signature", "checkbox"].includes(field.field_type)
+      ),
+    };
+  }, [fields, selectedField]);
   const fieldPageSize = 8;
   const fieldRows = useMemo(() => buildFieldRows(fields), [fields]);
   const fieldPageCount = Math.max(
@@ -566,20 +649,24 @@ export default function PdfTemplateEditor({
     if (!dragState) return;
     const activeDragState: DragState = dragState;
 
-    function onMove(e: MouseEvent) {
+    function onMove(e: PointerEvent) {
+      if (e.pointerId !== activeDragState.pointerId) return;
+
       setFields((prev) =>
         prev.map((field) => {
-          if (field.id !== activeDragState.fieldId) return field;
+          if (!activeDragState.fieldIds.includes(field.id)) return field;
 
           const overlay = overlayRefs.current[field.page_number];
           if (!overlay) return field;
+          const startPosition = activeDragState.startPositions[field.id];
+          if (!startPosition) return field;
 
           const rect = overlay.getBoundingClientRect();
           const dx = ((e.clientX - activeDragState.startClientX) / rect.width) * 100;
           const dy = ((e.clientY - activeDragState.startClientY) / rect.height) * 100;
 
-          const nextX = Math.max(0, Math.min(100 - field.width, activeDragState.startX + dx));
-          const nextY = Math.max(0, Math.min(100 - field.height, activeDragState.startY + dy));
+          const nextX = Math.max(0, Math.min(100 - field.width, startPosition.x + dx));
+          const nextY = Math.max(0, Math.min(100 - field.height, startPosition.y + dy));
 
           return {
             ...field,
@@ -590,16 +677,19 @@ export default function PdfTemplateEditor({
       );
     }
 
-    function onUp() {
+    function onUp(e: PointerEvent) {
+      if (e.pointerId !== activeDragState.pointerId) return;
       setDragState(null);
     }
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
 
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
   }, [dragState]);
 
@@ -607,7 +697,9 @@ export default function PdfTemplateEditor({
     if (!resizeState) return;
     const activeResizeState: ResizeState = resizeState;
 
-    function onMove(e: MouseEvent) {
+    function onMove(e: PointerEvent) {
+      if (e.pointerId !== activeResizeState.pointerId) return;
+
       setFields((prev) =>
         prev.map((field) => {
           if (field.id !== activeResizeState.fieldId) return field;
@@ -661,16 +753,19 @@ export default function PdfTemplateEditor({
       );
     }
 
-    function onUp() {
+    function onUp(e: PointerEvent) {
+      if (e.pointerId !== activeResizeState.pointerId) return;
       setResizeState(null);
     }
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
 
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
   }, [resizeState]);
 
@@ -695,33 +790,129 @@ export default function PdfTemplateEditor({
     return () => window.removeEventListener("click", closeFieldTypeMenu);
   }, []);
 
-  function copyField(field: TemplateField) {
-    setCopiedField({ ...field });
-    setSuccessText("Alan kopyalandı.");
+  function selectSingleField(fieldId: string | null) {
+    setSelectedFieldId(fieldId);
+    setSelectedFieldIds(fieldId ? [fieldId] : []);
   }
 
-  function pasteField(pageNumber?: number | null) {
-    if (!copiedField) return;
+  function selectMultipleFields(fieldIds: string[]) {
+    setSelectedFieldIds(fieldIds);
+    setSelectedFieldId(fieldIds[0] ?? null);
+  }
 
-    const newField: TemplateField = {
-      ...copiedField,
-      id: createClientId(),
-      field_key: createFieldKey(copiedField.field_label, fields.length),
-      page_number: pageNumber ?? copiedField.page_number,
-      pos_x: Math.min(95, copiedField.pos_x + 1),
-      pos_y: Math.min(95, copiedField.pos_y + 1),
-      form_row_id: null,
-    };
+  function selectFieldsInPendingRect() {
+    if (!pendingRect) return;
 
-    setFields((prev) => [...prev, newField]);
-    setSelectedFieldId(newField.id);
-    setSuccessText("Alan yapıştırıldı.");
+    const right = pendingRect.x + pendingRect.width;
+    const bottom = pendingRect.y + pendingRect.height;
+    const matchedFieldIds = fields
+      .filter((field) => {
+        if (field.page_number !== pendingRect.pageNumber) return false;
+
+        const fieldRight = field.pos_x + field.width;
+        const fieldBottom = field.pos_y + field.height;
+
+        return field.pos_x < right && fieldRight > pendingRect.x && field.pos_y < bottom && fieldBottom > pendingRect.y;
+      })
+      .map((field) => field.id);
+
+    if (operationSourceTargetFieldId) {
+      setFields((prev) =>
+        prev.map((field) => {
+          if (field.id !== operationSourceTargetFieldId || field.field_type !== "operation") return field;
+
+          const sourceFieldIds =
+            (field.operation_config?.type ?? "sum") === "copy" ? matchedFieldIds.slice(0, 1) : matchedFieldIds;
+
+          return {
+            ...field,
+            operation_config: {
+              type: field.operation_config?.type ?? "sum",
+              sourceFieldIds,
+            },
+          };
+        })
+      );
+      setOperationSourceTargetFieldId(null);
+      setPendingRect(null);
+      setSuccessText(
+        matchedFieldIds.length > 0 ? `${matchedFieldIds.length} alan işleme bağlandı.` : "Seçim alanında alan bulunamadı."
+      );
+      return;
+    }
+
+    selectMultipleFields(matchedFieldIds);
+    setPendingRect(null);
+    setSuccessText(
+      matchedFieldIds.length > 0 ? `${matchedFieldIds.length} alan seçildi.` : "Seçim alanında alan bulunamadı."
+    );
+  }
+
+  function copySelection(field?: TemplateField) {
+    const sourceFields =
+      field && selectedFieldIds.includes(field.id)
+        ? fields.filter((item) => selectedFieldIds.includes(item.id))
+        : field
+          ? [field]
+          : fields.filter((item) => selectedFieldIds.includes(item.id));
+
+    if (sourceFields.length === 0) return;
+
+    setCopiedFields(sourceFields.map((item) => ({ ...item })));
+    setSuccessText(sourceFields.length > 1 ? `${sourceFields.length} alan kopyalandı.` : "Alan kopyalandı.");
+  }
+
+  function pasteField(pageNumber?: number | null, clientX?: number | null, clientY?: number | null) {
+    if (copiedFields.length === 0) return;
+
+    const selectionBounds = getSelectionBounds(copiedFields);
+    if (!selectionBounds) return;
+
+    const resolvedPageNumber = pageNumber ?? copiedFields[0].page_number;
+    const pastePoint =
+      typeof clientX === "number" && typeof clientY === "number"
+        ? getPercentPoint(resolvedPageNumber, clientX, clientY)
+        : null;
+    const anchorX = pastePoint ? pastePoint.x : Math.min(95, selectionBounds.left + 1);
+    const anchorY = pastePoint ? pastePoint.y : Math.min(95, selectionBounds.top + 1);
+
+    const nextFields = copiedFields.map((field, index) => {
+      const relativeX = field.pos_x - selectionBounds.left;
+      const relativeY = field.pos_y - selectionBounds.top;
+      const nextX = Math.max(0, Math.min(100 - field.width, anchorX + relativeX));
+      const nextY = Math.max(0, Math.min(100 - field.height, anchorY + relativeY));
+
+      return {
+        ...field,
+        id: createClientId(),
+        field_key: createFieldKey(field.field_label, fields.length + index),
+        page_number: resolvedPageNumber,
+        pos_x: Number(nextX.toFixed(2)),
+        pos_y: Number(nextY.toFixed(2)),
+        form_row_id: null,
+      };
+    });
+
+    setFields((prev) => [...prev, ...nextFields]);
+    selectMultipleFields(nextFields.map((field) => field.id));
+    setSuccessText(nextFields.length > 1 ? `${nextFields.length} alan yapıştırıldı.` : "Alan yapıştırıldı.");
   }
 
   function deleteFieldById(fieldId: string) {
     setFields((prev) => prev.filter((field) => field.id !== fieldId));
-    if (selectedFieldId === fieldId) setSelectedFieldId(null);
+    if (selectedFieldIds.includes(fieldId)) {
+      const nextIds = selectedFieldIds.filter((id) => id !== fieldId);
+      selectMultipleFields(nextIds);
+    }
     setSuccessText("Alan silindi.");
+  }
+
+  function deleteSelectedFields() {
+    if (selectedFieldIds.length === 0) return;
+    const selectedIdSet = new Set(selectedFieldIds);
+    setFields((prev) => prev.filter((field) => !selectedIdSet.has(field.id)));
+    selectSingleField(null);
+    setSuccessText(selectedFieldIds.length > 1 ? `${selectedFieldIds.length} alan silindi.` : "Alan silindi.");
   }
 
   function updateSelectedField<K extends keyof TemplateField>(key: K, value: TemplateField[K]) {
@@ -750,7 +941,11 @@ export default function PdfTemplateEditor({
             fieldType === "select"
               ? withMultiSelectMarker(field.options_json, isMultiSelectField(field))
               : [],
-          is_readonly: fieldType === "select" ? false : field.is_readonly,
+          is_readonly: fieldType === "operation" ? true : fieldType === "select" ? false : field.is_readonly,
+          operation_config:
+            fieldType === "operation"
+              ? field.operation_config ?? { type: "sum", sourceFieldIds: [] }
+              : null,
         };
       })
     );
@@ -792,10 +987,119 @@ export default function PdfTemplateEditor({
     );
   }
 
-  function removeSelectedField() {
+  function updateSelectedOperationType(operationType: OperationType) {
     if (!selectedFieldId) return;
-    setFields((prev) => prev.filter((field) => field.id !== selectedFieldId));
-    setSelectedFieldId(null);
+
+    setFields((prev) =>
+      prev.map((field) =>
+        field.id === selectedFieldId
+          ? {
+              ...field,
+              operation_config: {
+                type: operationType,
+                sourceFieldIds:
+                  operationType === "sum"
+                    ? (field.operation_config?.sourceFieldIds ?? [])
+                    : (field.operation_config?.sourceFieldIds ?? []).slice(0, 1),
+              },
+            }
+          : field
+      )
+    );
+  }
+
+  function updateSelectedOperationSource(index: number, sourceFieldId: string) {
+    if (!selectedFieldId) return;
+
+    setFields((prev) =>
+      prev.map((field) => {
+        if (field.id !== selectedFieldId || field.field_type !== "operation") return field;
+
+        const sourceFieldIds = [...(field.operation_config?.sourceFieldIds ?? [])];
+        sourceFieldIds[index] = sourceFieldId;
+
+        return {
+          ...field,
+          operation_config: {
+            type: field.operation_config?.type ?? "sum",
+            sourceFieldIds,
+          },
+        };
+      })
+    );
+  }
+
+  function removeSelectedOperationSource(index: number) {
+    if (!selectedFieldId) return;
+
+    setFields((prev) =>
+      prev.map((field) => {
+        if (field.id !== selectedFieldId || field.field_type !== "operation") return field;
+
+        return {
+          ...field,
+          operation_config: {
+            type: field.operation_config?.type ?? "sum",
+            sourceFieldIds: (field.operation_config?.sourceFieldIds ?? []).filter((_, sourceIndex) => sourceIndex !== index),
+          },
+        };
+      })
+    );
+  }
+
+  function beginOperationSourceSelection() {
+    if (!selectedField || selectedField.field_type !== "operation") return;
+    if (operationSourceTargetFieldId === selectedField.id) {
+      setOperationSourceTargetFieldId(null);
+      setSuccessText("PDF'de tıklayarak seç modu kapatıldı.");
+      return;
+    }
+
+    setOperationSourceTargetFieldId(selectedField.id);
+    setPendingRect(null);
+    setSuccessText(
+      selectedField.operation_config?.type === "copy"
+        ? "PDF üzerinde bir alana tıklayın."
+        : "PDF üzerinde toplanacak alanlara tek tek tıklayın."
+    );
+  }
+
+  function handleOperationSourceFieldClick(fieldId: string) {
+    if (!operationSourceTargetFieldId) return;
+
+    setFields((prev) =>
+      prev.map((field) => {
+        if (field.id !== operationSourceTargetFieldId || field.field_type !== "operation") return field;
+
+        const currentSourceIds = field.operation_config?.sourceFieldIds ?? [];
+        const isCopy = (field.operation_config?.type ?? "sum") === "copy";
+        const nextSourceIds = isCopy
+          ? [fieldId]
+          : currentSourceIds.includes(fieldId)
+            ? currentSourceIds.filter((sourceFieldId) => sourceFieldId !== fieldId)
+            : [...currentSourceIds, fieldId];
+
+        return {
+          ...field,
+          operation_config: {
+            type: field.operation_config?.type ?? "sum",
+            sourceFieldIds: nextSourceIds,
+          },
+        };
+      })
+    );
+
+    if (selectedField?.operation_config?.type === "copy") {
+      setOperationSourceTargetFieldId(null);
+      setSuccessText("Kaynak alan seçildi.");
+      return;
+    }
+
+    setSuccessText("Kaynak alan güncellendi.");
+  }
+
+  function removeSelectedField() {
+    deleteSelectedFields();
   }
 
   function duplicateSelectedField() {
@@ -812,7 +1116,7 @@ export default function PdfTemplateEditor({
     };
 
     setFields((prev) => [...prev, duplicatedField]);
-    setSelectedFieldId(duplicatedField.id);
+    selectSingleField(duplicatedField.id);
     setSuccessText("Alan kopyalandı.");
   }
 
@@ -918,9 +1222,13 @@ export default function PdfTemplateEditor({
     };
   }
 
-  function handleOverlayMouseDown(pageNumber: number, e: React.MouseEvent<HTMLDivElement>) {
-    if (e.button !== 0) return;
+  function handleOverlayPointerDown(pageNumber: number, e: React.PointerEvent<HTMLDivElement>) {
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     if ((e.target as HTMLElement).dataset.stopCreate === "true") return;
+
+    e.preventDefault();
+    e.stopPropagation();
 
     const point = getPercentPoint(pageNumber, e.clientX, e.clientY);
     if (!point) return;
@@ -928,10 +1236,14 @@ export default function PdfTemplateEditor({
     setErrorText("");
     setSuccessText("");
     setPendingRect(null);
-    setSelectedFieldId(null);
+    selectSingleField(null);
 
+    e.currentTarget.setPointerCapture(e.pointerId);
     setDraftRect({
+      pointerId: e.pointerId,
       pageNumber,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
       startX: point.x,
       startY: point.y,
       currentX: point.x,
@@ -939,8 +1251,10 @@ export default function PdfTemplateEditor({
     });
   }
 
-  function handleOverlayMouseMove(pageNumber: number, e: React.MouseEvent<HTMLDivElement>) {
-    if (!draftRect || draftRect.pageNumber !== pageNumber) return;
+  function handleOverlayPointerMove(pageNumber: number, e: React.PointerEvent<HTMLDivElement>) {
+    if (!draftRect || draftRect.pageNumber !== pageNumber || draftRect.pointerId !== e.pointerId) return;
+
+    e.preventDefault();
 
     const point = getPercentPoint(pageNumber, e.clientX, e.clientY);
     if (!point) return;
@@ -948,8 +1262,11 @@ export default function PdfTemplateEditor({
     setDraftRect((prev) => (prev ? { ...prev, currentX: point.x, currentY: point.y } : null));
   }
 
-  function handleOverlayMouseUp(pageNumber: number, e: React.MouseEvent<HTMLDivElement>) {
-    if (!draftRect || draftRect.pageNumber !== pageNumber) return;
+  function handleOverlayPointerUp(pageNumber: number, e: React.PointerEvent<HTMLDivElement>) {
+    if (!draftRect || draftRect.pageNumber !== pageNumber || draftRect.pointerId !== e.pointerId) return;
+
+    e.preventDefault();
+    e.stopPropagation();
 
     const point = getPercentPoint(pageNumber, e.clientX, e.clientY);
     if (!point) {
@@ -960,6 +1277,11 @@ export default function PdfTemplateEditor({
     const completedDraft = { ...draftRect, currentX: point.x, currentY: point.y };
     const rect = getRectFromDraft(completedDraft);
     setDraftRect(null);
+
+    const movedPx = Math.hypot(e.clientX - draftRect.startClientX, e.clientY - draftRect.startClientY);
+    if (movedPx < CLICK_TOLERANCE_PX) {
+      return;
+    }
 
     if (rect.width < MIN_W || rect.height < MIN_H) {
       setErrorText("Alan çok küçük. Biraz daha geniş sürükleyin.");
@@ -982,35 +1304,47 @@ export default function PdfTemplateEditor({
 
     const newField = createFieldFromPending(pendingRect, fieldType, fields.length);
     setFields((prev) => [...prev, newField]);
-    setSelectedFieldId(newField.id);
+    selectSingleField(newField.id);
     setPendingRect(null);
     setSuccessText("Alan oluşturuldu.");
   }
 
-  function startDragField(e: React.MouseEvent<HTMLDivElement>, field: TemplateField) {
+  function startDragField(e: React.PointerEvent<HTMLDivElement>, field: TemplateField) {
     e.preventDefault();
     e.stopPropagation();
 
-    setSelectedFieldId(field.id);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const fieldIds = selectedFieldIds.includes(field.id) && selectedFieldIds.length > 1 ? selectedFieldIds : [field.id];
+    if (fieldIds.length === 1) {
+      selectSingleField(field.id);
+    } else {
+      selectMultipleFields(fieldIds);
+    }
     setDragState({
-      fieldId: field.id,
+      pointerId: e.pointerId,
+      fieldIds,
       startClientX: e.clientX,
       startClientY: e.clientY,
-      startX: field.pos_x,
-      startY: field.pos_y,
+      startPositions: Object.fromEntries(
+        fields
+          .filter((item) => fieldIds.includes(item.id))
+          .map((item) => [item.id, { x: item.pos_x, y: item.pos_y }])
+      ),
     });
   }
 
   function startResize(
-    e: React.MouseEvent<HTMLButtonElement>,
+    e: React.PointerEvent<HTMLButtonElement>,
     field: TemplateField,
     direction: ResizeDirection
   ) {
     e.preventDefault();
     e.stopPropagation();
 
-    setSelectedFieldId(field.id);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    selectSingleField(field.id);
     setResizeState({
+      pointerId: e.pointerId,
       fieldId: field.id,
       direction,
       startClientX: e.clientX,
@@ -1186,8 +1520,11 @@ export default function PdfTemplateEditor({
   const isLayoutMode = editorMode === "layout";
 
   return (
-    <div className={`grid gap-6 ${isLayoutMode ? "grid-cols-1" : "xl:grid-cols-[360px_minmax(0,1fr)]"}`}>
-      <div className="space-y-6">
+    <div
+      className={`grid gap-6 ${isLayoutMode ? "grid-cols-1" : "xl:grid-cols-[360px_minmax(0,1fr)]"}`}
+      style={{ overflowAnchor: "none" }}
+    >
+      <div className="space-y-6" style={{ overflowAnchor: "none" }}>
         {!isLayoutMode ? (
           <div className="rounded-xl border bg-white p-5">
             <h2 className="mb-4 text-lg font-semibold">Şablon Bilgileri</h2>
@@ -1228,209 +1565,327 @@ export default function PdfTemplateEditor({
           </div>
         ) : null}
 
-        {!isLayoutMode && selectedField ? (
+        {!isLayoutMode ? (
           <div className="rounded-xl border bg-white p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Seçili Alan</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={duplicateSelectedField}
-                  className="rounded-lg border px-3 py-2 text-sm"
-                >
-                  Kopyala
-                </button>
-                <button
-                type="button"
-                onClick={removeSelectedField}
-                className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600"
-              >
-                Sil
-              </button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">Alan Adı</label>
-                <input
-                  type="text"
-                  value={selectedField.field_label}
-                  onChange={(e) => updateSelectedField("field_label", e.target.value)}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium">Alan Türü</label>
-                <div ref={fieldTypeMenuRef} className="relative">
+              {selectedFieldIds.length > 0 ? (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setFieldTypeMenuOpen((open) => !open);
-                    }}
-                    className="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-left text-sm"
-                    aria-haspopup="listbox"
-                    aria-expanded={fieldTypeMenuOpen}
+                    onClick={() => copySelection()}
+                    className="rounded-lg border px-3 py-2 text-sm"
                   >
-                    <span>{fieldTypeLabel(selectedField.field_type)}</span>
-                    <span className="text-xs text-slate-500">v</span>
+                    Kopyala
                   </button>
-
-                  {fieldTypeMenuOpen ? (
-                    <div
-                      role="listbox"
-                      className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
-                      onWheel={(event) => event.stopPropagation()}
-                    >
-                      {FIELD_TYPE_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          role="option"
-                          aria-selected={selectedField.field_type === option.value}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            updateSelectedFieldType(option.value);
-                          }}
-                          className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-slate-100 ${
-                            selectedField.field_type === option.value ? "bg-slate-100 font-medium text-slate-950" : "text-slate-700"
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              {selectedField.field_type === "select" ? (
-                <div className="grid gap-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Veri Kaynağı</label>
-                    <select
-                      value={asSelectDataSource(selectedField.data_source)}
-                      onChange={(e) => updateSelectedDataSource(e.target.value as SelectDataSource)}
-                      className="w-full rounded-lg border px-3 py-2 text-sm"
-                    >
-                      {SELECT_DATA_SOURCE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={isMultiSelectField(selectedField)}
-                      onChange={(e) => updateSelectedMultiSelect(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300"
-                    />
-                    Çoklu seçim
-                  </label>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Seçim Listesi</label>
-                    <textarea
-                      value={getVisibleSelectOptions(selectedField.options_json).join(", ")}
-                      onChange={(e) => updateSelectedOptions(e.target.value)}
-                      readOnly={Boolean(asSelectDataSource(selectedField.data_source))}
-                      className="min-h-24 w-full rounded-lg border px-3 py-2 text-sm disabled:opacity-60 read-only:bg-slate-50"
-                      placeholder="Örnek: Evet, Hayır"
-                    />
-                    <div className="mt-1 text-xs text-slate-500">
-                      {getVisibleSelectOptions(selectedField.options_json).length} seçenek · A-Z sıralı
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={removeSelectedField}
+                    className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600"
+                  >
+                    Sil
+                  </button>
                 </div>
               ) : null}
+            </div>
 
-              {selectedFieldUsesText ? (
-                <>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Yatay Hizalama</label>
-                      <select
-                        value={selectedField.text_align}
-                        onChange={(e) => updateSelectedField("text_align", e.target.value as "left" | "center" | "right")}
-                        className="w-full rounded-lg border px-3 py-2 text-sm"
-                      >
-                        <option value="left">Sola Yasla</option>
-                        <option value="center">Ortala</option>
-                        <option value="right">Sağa Yasla</option>
-                      </select>
-                    </div>
+            {selectedFieldIds.length > 1 ? (
+              <div className="flex min-h-[220px] flex-col justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center">
+                <div className="text-base font-semibold text-slate-800">{selectedFieldIds.length} alan seçildi</div>
+                <div className="mt-2 text-sm text-slate-500">
+                  Sürükleyerek toplu taşıyabilir, kopyalayıp sağ tıklayarak toplu yapıştırabilirsiniz.
+                </div>
+              </div>
+            ) : selectedField ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Alan Adı</label>
+                  <input
+                    type="text"
+                    value={selectedField.field_label}
+                    onChange={(e) => updateSelectedField("field_label", e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                  />
+                </div>
 
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Dikey Hizalama</label>
-                      <select
-                        value={selectedField.vertical_align}
-                        onChange={(e) => updateSelectedField("vertical_align", e.target.value as "top" | "middle" | "bottom")}
-                        className="w-full rounded-lg border px-3 py-2 text-sm"
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Alan Türü</label>
+                  <div ref={fieldTypeMenuRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setFieldTypeMenuOpen((open) => !open);
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-left text-sm"
+                      aria-haspopup="listbox"
+                      aria-expanded={fieldTypeMenuOpen}
+                    >
+                      <span>{fieldTypeLabel(selectedField.field_type)}</span>
+                      <span className="text-xs text-slate-500">v</span>
+                    </button>
+
+                    {fieldTypeMenuOpen ? (
+                      <div
+                        role="listbox"
+                        className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
+                        onWheel={(event) => event.stopPropagation()}
                       >
-                        <option value="top">Üste Yasla</option>
-                        <option value="middle">Ortala</option>
-                        <option value="bottom">Alta Yasla</option>
-                      </select>
-                    </div>
+                        {FIELD_TYPE_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="option"
+                            aria-selected={selectedField.field_type === option.value}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              updateSelectedFieldType(option.value);
+                            }}
+                            className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-slate-100 ${
+                              selectedField.field_type === option.value ? "bg-slate-100 font-medium text-slate-950" : "text-slate-700"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
+                </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                {selectedField.field_type === "select" ? (
+                  <div className="grid gap-4">
                     <div>
-                      <label className="mb-1 block text-sm font-medium">Yazı Tipi</label>
+                      <label className="mb-1 block text-sm font-medium">Veri Kaynağı</label>
                       <select
-                        value={selectedField.font_family}
-                        onChange={(e) => updateSelectedField("font_family", e.target.value as FontFamily)}
+                        value={asSelectDataSource(selectedField.data_source)}
+                        onChange={(e) => updateSelectedDataSource(e.target.value as SelectDataSource)}
                         className="w-full rounded-lg border px-3 py-2 text-sm"
                       >
-                        {FONT_OPTIONS.map((font) => (
-                          <option key={font.value} value={font.value}>
-                            {font.label}
+                        {SELECT_DATA_SOURCE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
                           </option>
                         ))}
                       </select>
                     </div>
 
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Yazı Boyutu</label>
+                    <label className="flex items-center gap-2 text-sm text-slate-700">
                       <input
-                        type="number"
-                        min="6"
-                        max="72"
-                        value={selectedField.font_size}
-                        onChange={(e) => updateSelectedField("font_size", Number(e.target.value))}
-                        className="w-full rounded-lg border px-3 py-2 text-sm"
+                        type="checkbox"
+                        checked={isMultiSelectField(selectedField)}
+                        onChange={(e) => updateSelectedMultiSelect(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300"
                       />
+                      Çoklu seçim
+                    </label>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Seçim Listesi</label>
+                      <textarea
+                        value={getVisibleSelectOptions(selectedField.options_json).join(", ")}
+                        onChange={(e) => updateSelectedOptions(e.target.value)}
+                        readOnly={Boolean(asSelectDataSource(selectedField.data_source))}
+                        className="min-h-24 w-full rounded-lg border px-3 py-2 text-sm disabled:opacity-60 read-only:bg-slate-50"
+                        placeholder="Örnek: Evet, Hayır"
+                      />
+                      <div className="mt-1 text-xs text-slate-500">
+                        {getVisibleSelectOptions(selectedField.options_json).length} seçenek · A-Z sıralı
+                      </div>
                     </div>
                   </div>
-                </>
-              ) : null}
+                ) : null}
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedField.is_required}
-                    onChange={(e) => updateSelectedField("is_required", e.target.checked)}
-                  />
-                  Zorunlu
-                </label>
+                {selectedField.field_type === "operation" ? (
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">İşlem Türü</label>
+                      <select
+                        value={selectedField.operation_config?.type ?? "sum"}
+                        onChange={(e) => updateSelectedOperationType(e.target.value as OperationType)}
+                        className="w-full rounded-lg border px-3 py-2 text-sm"
+                      >
+                        <option value="sum">Alanları topla</option>
+                        <option value="copy">Bir alanı kopyala</option>
+                      </select>
+                    </div>
 
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedField.is_readonly}
-                    onChange={(e) => updateSelectedField("is_readonly", e.target.checked)}
-                  />
-                  Salt okunur
-                </label>
+                    {(selectedField.operation_config?.type ?? "sum") === "sum" ? (
+                      <div className="grid gap-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={beginOperationSourceSelection}
+                            className={`rounded-lg px-3 py-2 text-sm text-white ${
+                              operationSourceTargetFieldId === selectedField.id
+                                ? "border border-rose-600 bg-rose-600 hover:bg-rose-700"
+                                : "border border-slate-900 bg-slate-900 hover:bg-slate-800"
+                            }`}
+                          >
+                            {operationSourceTargetFieldId === selectedField.id ? "Seçim Modunu Kapat" : "PDF'de Tıklayarak Seç"}
+                          </button>
+                          <div className="text-xs text-slate-500">
+                            Kaynak alanları PDF üzerinde tek tek tıklayarak ekleyin veya çıkarın.
+                          </div>
+                        </div>
 
+                        {(selectedField.operation_config?.sourceFieldIds ?? []).length > 0 ? (
+                          <div className="space-y-2">
+                            {(selectedField.operation_config?.sourceFieldIds ?? []).map((sourceFieldId, index) => {
+                              const sourceField = fields.find((field) => field.id === sourceFieldId);
+
+                              return (
+                                <div key={`${sourceFieldId}-${index}`} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                                  <div>
+                                    <div className="font-medium text-slate-800">{sourceField?.field_label ?? "Alan bulunamadı"}</div>
+                                    <div className="text-xs text-slate-500">Kaynak {index + 1}</div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSelectedOperationSource(index)}
+                                    className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                  >
+                                    Kaldır
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                            Henüz kaynak alan seçilmedi.
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={beginOperationSourceSelection}
+                            className={`rounded-lg px-3 py-2 text-sm text-white ${
+                              operationSourceTargetFieldId === selectedField.id
+                                ? "border border-rose-600 bg-rose-600 hover:bg-rose-700"
+                                : "border border-slate-900 bg-slate-900 hover:bg-slate-800"
+                            }`}
+                          >
+                            {operationSourceTargetFieldId === selectedField.id ? "Seçim Modunu Kapat" : "PDF'de Tıklayarak Seç"}
+                          </button>
+                          <div className="text-xs text-slate-500">
+                            PDF üzerinde tıkladığınız alan kaynak olarak atanır.
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-sm font-medium">Kopyalanacak Alan</label>
+                          <select
+                            value={selectedField.operation_config?.sourceFieldIds?.[0] ?? ""}
+                            onChange={(e) => updateSelectedOperationSource(0, e.target.value)}
+                            className="w-full rounded-lg border px-3 py-2 text-sm"
+                          >
+                            <option value="">Alan seçin</option>
+                            {operationSourceFieldOptions.copy.map((field) => (
+                              <option key={field.id} value={field.id}>
+                                {field.field_label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      Bu alan salt okunur çalışır. Form doldurulurken seçilen alanlardan değeri otomatik üretir.
+                    </div>
+                  </div>
+                ) : null}
+
+                {selectedFieldUsesText ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Yatay Hizalama</label>
+                        <select
+                          value={selectedField.text_align}
+                          onChange={(e) => updateSelectedField("text_align", e.target.value as "left" | "center" | "right")}
+                          className="w-full rounded-lg border px-3 py-2 text-sm"
+                        >
+                          <option value="left">Sola Yasla</option>
+                          <option value="center">Ortala</option>
+                          <option value="right">Sağa Yasla</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Dikey Hizalama</label>
+                        <select
+                          value={selectedField.vertical_align}
+                          onChange={(e) => updateSelectedField("vertical_align", e.target.value as "top" | "middle" | "bottom")}
+                          className="w-full rounded-lg border px-3 py-2 text-sm"
+                        >
+                          <option value="top">Üste Yasla</option>
+                          <option value="middle">Ortala</option>
+                          <option value="bottom">Alta Yasla</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Yazı Tipi</label>
+                        <select
+                          value={selectedField.font_family}
+                          onChange={(e) => updateSelectedField("font_family", e.target.value as FontFamily)}
+                          className="w-full rounded-lg border px-3 py-2 text-sm"
+                        >
+                          {FONT_OPTIONS.map((font) => (
+                            <option key={font.value} value={font.value}>
+                              {font.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Yazı Boyutu</label>
+                        <input
+                          type="number"
+                          min="6"
+                          max="72"
+                          value={selectedField.font_size}
+                          onChange={(e) => updateSelectedField("font_size", Number(e.target.value))}
+                          className="w-full rounded-lg border px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedField.is_required}
+                      onChange={(e) => updateSelectedField("is_required", e.target.checked)}
+                    />
+                    Zorunlu
+                  </label>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedField.is_readonly}
+                      onChange={(e) => updateSelectedField("is_readonly", e.target.checked)}
+                    />
+                    Salt okunur
+                  </label>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+                Düzenlemek için PDF üzerinde bir alan seçin.
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -1477,7 +1932,7 @@ export default function PdfTemplateEditor({
                 <div
                   key={row.key}
                   className={`rounded-lg border px-3 py-2 text-left text-sm ${
-                    row.fields.some((field) => field.id === selectedFieldId) ? "border-black bg-gray-50" : "hover:bg-gray-50"
+                    row.fields.some((field) => selectedFieldIds.includes(field.id)) ? "border-black bg-gray-50" : "hover:bg-gray-50"
                   }`}
                 >
                   <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
@@ -1491,9 +1946,9 @@ export default function PdfTemplateEditor({
                         <button
                           key={field.id}
                           type="button"
-                          onClick={() => setSelectedFieldId(field.id)}
+                          onClick={() => selectSingleField(field.id)}
                           className={`min-w-0 overflow-hidden rounded-md border px-2 py-2 text-left transition ${
-                            selectedFieldId === field.id ? "border-slate-900 bg-white shadow-sm" : "border-transparent bg-transparent hover:bg-white"
+                            selectedFieldIds.includes(field.id) ? "border-slate-900 bg-white shadow-sm" : "border-transparent bg-transparent hover:bg-white"
                           }`}
                         >
                           <div className="break-words text-sm font-medium leading-snug">
@@ -1578,9 +2033,9 @@ export default function PdfTemplateEditor({
                 <button
                   key={field.id}
                   type="button"
-                  onClick={() => setSelectedFieldId(field.id)}
+                  onClick={() => selectSingleField(field.id)}
                   className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
-                    selectedFieldId === field.id ? "border-black bg-gray-50" : "hover:bg-gray-50"
+                    selectedFieldIds.includes(field.id) ? "border-black bg-gray-50" : "hover:bg-gray-50"
                   }`}
                 >
                   <div className="font-medium">
@@ -1690,9 +2145,10 @@ export default function PdfTemplateEditor({
                             overlayRefs.current[pageNumber] = el;
                           }}
                           className="absolute inset-0"
-                          onMouseDown={(e) => handleOverlayMouseDown(pageNumber, e)}
-                          onMouseMove={(e) => handleOverlayMouseMove(pageNumber, e)}
-                          onMouseUp={(e) => handleOverlayMouseUp(pageNumber, e)}
+                          onPointerDown={(e) => handleOverlayPointerDown(pageNumber, e)}
+                          onPointerMove={(e) => handleOverlayPointerMove(pageNumber, e)}
+                          onPointerUp={(e) => handleOverlayPointerUp(pageNumber, e)}
+                          onPointerCancel={() => setDraftRect(null)}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -1703,16 +2159,30 @@ export default function PdfTemplateEditor({
                               pageNumber,
                             });
                           }}
+                          style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
                         >
                           {pageFields.map((field) => (
                             <div
                               key={field.id}
                               data-stop-create="true"
-                              onMouseDown={(e) => startDragField(e, field)}
+                              onPointerDown={(e) => {
+                                if (operationSourceTargetFieldId) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (field.id !== operationSourceTargetFieldId) {
+                                    handleOperationSourceFieldClick(field.id);
+                                  }
+                                  return;
+                                }
+
+                                startDragField(e, field);
+                              }}
                               onContextMenu={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                setSelectedFieldId(field.id);
+                                if (!selectedFieldIds.includes(field.id)) {
+                                  selectSingleField(field.id);
+                                }
                                 setContextMenu({
                                   x: e.clientX,
                                   y: e.clientY,
@@ -1721,7 +2191,7 @@ export default function PdfTemplateEditor({
                                 });
                               }}
                               className={`absolute overflow-visible rounded border px-2 py-1 text-[11px] font-medium ${
-                                selectedFieldId === field.id
+                                selectedFieldIds.includes(field.id)
                                   ? "border-red-500 bg-red-100 text-red-700"
                                   : "border-blue-500 bg-blue-100 text-blue-700"
                               }`}
@@ -1752,6 +2222,9 @@ export default function PdfTemplateEditor({
                                 fontFamily: getPreviewFontFamily(field.font_family),
                                 lineHeight: 1.1,
                                 cursor: "move",
+                                touchAction: "none",
+                                userSelect: "none",
+                                WebkitUserSelect: "none",
                               }}
                               title={`${field.field_label} - ${fieldTypeLabel(field.field_type)}`}
                             >
@@ -1759,14 +2232,14 @@ export default function PdfTemplateEditor({
                                 {getPreviewText(field)}
                               </div>
 
-                              {selectedFieldId === field.id ? (
+                              {selectedFieldIds.length === 1 && selectedFieldId === field.id ? (
                                 <>
                                   {(["n", "s", "e", "w", "ne", "nw", "se", "sw"] as ResizeDirection[]).map((dir) => (
                                     <button
                                       key={dir}
                                       type="button"
                                       data-stop-create="true"
-                                      onMouseDown={(e) => startResize(e, field, dir)}
+                                      onPointerDown={(e) => startResize(e, field, dir)}
                                       className={getHandleClass(dir)}
                                     />
                                   ))}
@@ -1799,8 +2272,15 @@ export default function PdfTemplateEditor({
                   style={getPendingFieldTypeMenuStyle(pendingRect)}
                   onWheel={(event) => event.stopPropagation()}
                 >
-                  <div className="mb-2 text-sm font-medium">Alan Türü Seç</div>
+                  <div className="mb-2 text-sm font-medium">İşlem Seç</div>
                   <div className="grid max-h-72 gap-2 overflow-y-auto pr-1">
+                    <button
+                      type="button"
+                      onClick={selectFieldsInPendingRect}
+                      className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-left text-sm text-white hover:bg-slate-800"
+                    >
+                      Seç
+                    </button>
                     {FIELD_TYPE_OPTIONS.map((option) => (
                       <button
                         key={option.value}
@@ -1835,7 +2315,7 @@ export default function PdfTemplateEditor({
                           type="button"
                           onClick={() => {
                             const field = fields.find((x) => x.id === contextMenu.fieldId);
-                            if (field) copyField(field);
+                            if (field) copySelection(field);
                             setContextMenu(null);
                           }}
                           className="rounded-lg border px-3 py-2 text-left text-sm hover:bg-gray-50"
@@ -1846,10 +2326,10 @@ export default function PdfTemplateEditor({
                         <button
                           type="button"
                           onClick={() => {
-                            pasteField(contextMenu.pageNumber);
+                            pasteField(contextMenu.pageNumber, contextMenu.x, contextMenu.y);
                             setContextMenu(null);
                           }}
-                          disabled={!copiedField}
+                          disabled={copiedFields.length === 0}
                           className="rounded-lg border px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
                         >
                           Yapıştır
@@ -1870,10 +2350,10 @@ export default function PdfTemplateEditor({
                       <button
                         type="button"
                         onClick={() => {
-                          pasteField(contextMenu.pageNumber);
+                          pasteField(contextMenu.pageNumber, contextMenu.x, contextMenu.y);
                           setContextMenu(null);
                         }}
-                        disabled={!copiedField}
+                        disabled={copiedFields.length === 0}
                         className="rounded-lg border px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
                       >
                         Yapıştır

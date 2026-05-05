@@ -29,7 +29,7 @@ type TemplateField = {
   width: number;
   height: number;
   font_size: number;
-  field_type: "text" | "textarea" | "number" | "date" | "time" | "serial_number" | "select" | "checkbox" | "signature";
+  field_type: "text" | "textarea" | "number" | "date" | "time" | "serial_number" | "select" | "checkbox" | "signature" | "operation";
   is_required: boolean;
   data_source: string | null;
   options_json: string[];
@@ -38,6 +38,10 @@ type TemplateField = {
   text_align: "left" | "center" | "right";
   default_value?: string | null;
   form_row_id?: string | null;
+  operation_config?: {
+    type: "sum" | "copy";
+    sourceFieldIds: string[];
+  } | null;
 };
 
 type FormFieldValue = {
@@ -112,15 +116,38 @@ const PDF_FONT_PATH = "/fonts/arial.ttf";
 const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
 
 function parseFieldLayoutMeta(value: string | null | undefined) {
-  if (!value) return { form_row_id: null as string | null };
+  if (!value) {
+    return {
+      form_row_id: null as string | null,
+      operation_config: null as TemplateField["operation_config"],
+    };
+  }
 
   try {
-    const parsed = JSON.parse(value) as { form_row_id?: unknown };
+    const parsed = JSON.parse(value) as { form_row_id?: unknown; operation_config?: unknown };
+    const operationConfig = parsed.operation_config as
+      | { type?: unknown; sourceFieldIds?: unknown }
+      | undefined;
+    const operationType =
+      operationConfig?.type === "sum" || operationConfig?.type === "copy" ? operationConfig.type : null;
+    const parsedOperationConfig: TemplateField["operation_config"] = operationType
+      ? {
+          type: operationType,
+          sourceFieldIds: Array.isArray(operationConfig?.sourceFieldIds)
+            ? operationConfig.sourceFieldIds.map(String).filter(Boolean)
+            : [],
+        }
+      : null;
+
     return {
       form_row_id: typeof parsed.form_row_id === "string" && parsed.form_row_id.trim() ? parsed.form_row_id : null,
+      operation_config: parsedOperationConfig,
     };
   } catch {
-    return { form_row_id: null as string | null };
+    return {
+      form_row_id: null as string | null,
+      operation_config: null as TemplateField["operation_config"],
+    };
   }
 }
 
@@ -208,6 +235,17 @@ function formatOverlayText(field: TemplateField, rawValue: string) {
   }
 
   return formatPdfText(field, rawValue);
+}
+
+function parseNumericValue(value: string) {
+  const normalized = value.trim().replace(/\s+/g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatOperationNumber(value: number) {
+  if (Number.isInteger(value)) return String(value);
+  return value.toLocaleString("tr-TR", { maximumFractionDigits: 4, useGrouping: false });
 }
 
 function getFittedFontSize(font: PDFFont, text: string, requestedSize: number, maxWidth: number, maxHeight: number) {
@@ -337,6 +375,10 @@ export default function ServiceFormEditor({
     () => templates.find((x) => x.id === templateId) ?? null,
     [templates, templateId]
   );
+  const templateFieldsById = useMemo(
+    () => new Map(templateFields.map((field) => [field.id, field])),
+    [templateFields]
+  );
 
   const activeSignatureField = useMemo(
     () => templateFields.find((x) => x.id === activeSignatureFieldId) ?? null,
@@ -450,7 +492,9 @@ export default function ServiceFormEditor({
       setTemplateFields(
         ((fields ?? []) as TemplateField[]).map((field) => ({
           ...field,
+          is_readonly: field.field_type === "operation" ? true : field.is_readonly,
           form_row_id: parseFieldLayoutMeta(field.default_value).form_row_id,
+          operation_config: parseFieldLayoutMeta(field.default_value).operation_config,
         }))
       );
 
@@ -637,8 +681,45 @@ export default function ServiceFormEditor({
     return formNo ?? initialForm?.form_no ?? "";
   }
 
+  function getResolvedFieldRawValue(
+    field: TemplateField,
+    values: Record<string, string>,
+    visited = new Set<string>()
+  ): string {
+    if (visited.has(field.id)) return "";
+
+    if (field.field_type === "serial_number") {
+      return getSerialNumberValue();
+    }
+
+    if (field.field_type !== "operation") {
+      return values[field.id] ?? "";
+    }
+
+    visited.add(field.id);
+    const operationType = field.operation_config?.type ?? "sum";
+    const sourceFields = (field.operation_config?.sourceFieldIds ?? [])
+      .map((sourceFieldId) => templateFieldsById.get(sourceFieldId))
+      .filter((item): item is TemplateField => Boolean(item));
+
+    if (operationType === "copy") {
+      const sourceField = sourceFields[0];
+      if (!sourceField) return "";
+
+      const sourceRawValue = getResolvedFieldRawValue(sourceField, values, visited);
+      return formatOverlayText(sourceField, sourceRawValue);
+    }
+
+    const sum = sourceFields.reduce(
+      (total, sourceField) => total + parseNumericValue(getResolvedFieldRawValue(sourceField, values, visited)),
+      0
+    );
+
+    return formatOperationNumber(sum);
+  }
+
   function activateOverlayFieldControl(container: HTMLDivElement, field: TemplateField) {
-    if (field.field_type === "checkbox" || field.field_type === "signature") return;
+    if (field.field_type === "checkbox" || field.field_type === "signature" || field.field_type === "operation") return;
 
     const control = container.querySelector<PickerControl | HTMLTextAreaElement>("input, select, textarea");
     if (!control) return;
@@ -718,7 +799,7 @@ export default function ServiceFormEditor({
         const boxHeight = (field.height / 100) * pageSize.height;
         const y = yTop - boxHeight;
 
-        const rawValue = fieldValues[field.id] ?? "";
+        const rawValue = getResolvedFieldRawValue(field, fieldValues);
 
         if (field.field_type === "signature" && rawValue.startsWith("data:image")) {
           const pngImage = await pdfDoc.embedPng(rawValue);
@@ -893,7 +974,12 @@ export default function ServiceFormEditor({
       const payload: FormFieldValue[] = templateFields.map((field) => ({
         template_field_id: field.id,
         field_key: field.field_key,
-        value_text: field.field_type === "serial_number" ? getSerialNumberValue(formNo) : fieldValues[field.id] ?? "",
+        value_text:
+          field.field_type === "serial_number"
+            ? getSerialNumberValue(formNo)
+            : field.field_type === "operation"
+              ? getResolvedFieldRawValue(field, fieldValues)
+              : fieldValues[field.id] ?? "",
       }));
 
       if (payload.length > 0) {
@@ -937,11 +1023,7 @@ export default function ServiceFormEditor({
     height: (field.height / 100) * pageWidth * 1.414,
   });
   const getOverlayDisplayValue = (field: TemplateField) => {
-    if (field.field_type === "serial_number") {
-      return getSerialNumberValue();
-    }
-
-    const rawValue = fieldValues[field.id] ?? "";
+    const rawValue = getResolvedFieldRawValue(field, fieldValues);
     return formatOverlayText(field, rawValue);
   };
   const getOverlayScaledFontSize = (field: TemplateField) => {
@@ -1020,7 +1102,7 @@ export default function ServiceFormEditor({
     return `pointer-events-none hidden h-full w-full items-center overflow-hidden whitespace-nowrap text-slate-900 ${alignClass} service-form-overlay-date-value`;
   };
   const renderFormFieldControl = (field: TemplateField) => {
-    const rawValue = field.field_type === "serial_number" ? getSerialNumberValue() : fieldValues[field.id] ?? "";
+    const rawValue = getResolvedFieldRawValue(field, fieldValues);
     const baseClassName =
       "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-50";
 
@@ -1143,6 +1225,14 @@ export default function ServiceFormEditor({
     }
 
     if (field.field_type === "serial_number") {
+      return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700">
+          {rawValue || "-"}
+        </div>
+      );
+    }
+
+    if (field.field_type === "operation") {
       return (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700">
           {rawValue || "-"}
@@ -1473,7 +1563,7 @@ export default function ServiceFormEditor({
                                       {getOverlayDisplayValue(field)}
                                     </span>
                                   </div>
-                                ) : field.field_type === "serial_number" ? (
+                                ) : field.field_type === "serial_number" || field.field_type === "operation" ? (
                                   <div
                                     className={getOverlayControlClass("overflow-hidden whitespace-nowrap border-0 bg-transparent text-slate-900 outline-none")}
                                     style={getOverlayInputTextStyle(field)}

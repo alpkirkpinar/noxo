@@ -28,6 +28,11 @@ type TemplateField = {
   data_source: string | null;
   options_json: string[] | null;
   text_align: "left" | "center" | "right" | null;
+  default_value?: string | null;
+  operation_config?: {
+    type: "sum" | "copy";
+    sourceFieldIds: string[];
+  } | null;
 };
 
 type ServiceForm = {
@@ -63,6 +68,34 @@ type Ticket = {
 const STORAGE_BUCKET = "template-pdfs";
 const PDF_FONT_PATH = path.join(process.cwd(), "public", "fonts", "arial.ttf");
 const MULTI_SELECT_OPTION_MARKER = "__noxo_multi_select__";
+
+function parseFieldMeta(value: string | null | undefined) {
+  if (!value) return { operation_config: null as TemplateField["operation_config"] };
+
+  try {
+    const parsed = JSON.parse(value) as { operation_config?: unknown };
+    const operationConfig = parsed.operation_config as
+      | { type?: unknown; sourceFieldIds?: unknown }
+      | undefined;
+    const operationType =
+      operationConfig?.type === "sum" || operationConfig?.type === "copy" ? operationConfig.type : null;
+
+    const parsedOperationConfig: TemplateField["operation_config"] = operationType
+      ? {
+          type: operationType,
+          sourceFieldIds: Array.isArray(operationConfig?.sourceFieldIds)
+            ? operationConfig.sourceFieldIds.map(String).filter(Boolean)
+            : [],
+        }
+      : null;
+
+    return {
+      operation_config: parsedOperationConfig,
+    };
+  } catch {
+    return { operation_config: null as TemplateField["operation_config"] };
+  }
+}
 
 function sanitizePdfText(value: string) {
   return value
@@ -127,6 +160,17 @@ function formatPdfText(field: TemplateField, rawValue: string) {
   return rawValue;
 }
 
+function parseNumericValue(value: string) {
+  const normalized = value.trim().replace(/\s+/g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatOperationNumber(value: number) {
+  if (Number.isInteger(value)) return String(value);
+  return value.toLocaleString("tr-TR", { maximumFractionDigits: 4, useGrouping: false });
+}
+
 function getAutoValue(
   field: TemplateField,
   form: ServiceForm,
@@ -156,6 +200,47 @@ function getAutoValue(
     default:
       return "";
   }
+}
+
+function getResolvedFieldValue(
+  field: TemplateField,
+  valueMap: Map<string, string>,
+  fieldMap: Map<string, TemplateField>,
+  form: ServiceForm,
+  customer: Customer | null,
+  machine: Machine | null,
+  ticket: Ticket | null,
+  visited = new Set<string>()
+): string {
+  if (visited.has(field.id)) return "";
+
+  const savedValue = valueMap.get(field.id);
+  if (field.field_type !== "operation") {
+    return savedValue || getAutoValue(field, form, customer, machine, ticket);
+  }
+
+  visited.add(field.id);
+  const operationType = field.operation_config?.type ?? "sum";
+  const sourceFields = (field.operation_config?.sourceFieldIds ?? [])
+    .map((sourceFieldId) => fieldMap.get(sourceFieldId))
+    .filter((item): item is TemplateField => Boolean(item));
+
+  if (operationType === "copy") {
+    const sourceField = sourceFields[0];
+    if (!sourceField) return "";
+    return formatPdfText(
+      sourceField,
+      getResolvedFieldValue(sourceField, valueMap, fieldMap, form, customer, machine, ticket, visited)
+    );
+  }
+
+  const sum = sourceFields.reduce(
+    (total, sourceField) =>
+      total + parseNumericValue(getResolvedFieldValue(sourceField, valueMap, fieldMap, form, customer, machine, ticket, visited)),
+    0
+  );
+
+  return formatOperationNumber(sum);
 }
 
 function safeFileName(value: string) {
@@ -233,7 +318,7 @@ export async function GET(request: Request, context: RouteContext) {
           .single(),
         db
           .from("pdf_template_fields")
-          .select("id, field_key, field_label, page_number, pos_x, pos_y, width, height, font_size, field_type, data_source, options_json, text_align")
+          .select("id, field_key, field_label, page_number, pos_x, pos_y, width, height, font_size, field_type, data_source, options_json, text_align, default_value")
           .eq("template_id", serviceForm.template_id)
           .order("sort_order", { ascending: true }),
         db
@@ -310,7 +395,13 @@ export async function GET(request: Request, context: RouteContext) {
       ])
     );
 
-    for (const field of (fields ?? []) as TemplateField[]) {
+    const templateFields = ((fields ?? []) as TemplateField[]).map((field) => ({
+      ...field,
+      operation_config: parseFieldMeta(field.default_value).operation_config,
+    }));
+    const fieldMap = new Map(templateFields.map((field) => [field.id, field]));
+
+    for (const field of templateFields) {
       if (field.page_number < 1 || field.page_number > pdfDoc.getPageCount()) continue;
 
       const page = pdfDoc.getPage(field.page_number - 1);
@@ -321,7 +412,7 @@ export async function GET(request: Request, context: RouteContext) {
       const boxWidth = (field.width / 100) * pageSize.width;
       const boxHeight = (field.height / 100) * pageSize.height;
       const y = yTop - boxHeight;
-      const rawValue = valueMap.get(field.id) || getAutoValue(field, serviceForm, customer, machine, ticket);
+      const rawValue = getResolvedFieldValue(field, valueMap, fieldMap, serviceForm, customer, machine, ticket);
 
       if (field.field_type === "signature" && rawValue.startsWith("data:image")) {
         const base64 = rawValue.includes(",") ? rawValue.split(",")[1] : rawValue;

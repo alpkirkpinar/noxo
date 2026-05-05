@@ -17,6 +17,7 @@ type Props = {
   ticketId: string;
   changedBy: string;
   currentStatus: TicketStatus;
+  latestStatusNote?: string | null;
   canUpdateStatus?: boolean;
 };
 
@@ -53,7 +54,13 @@ function statusLabel(status: TicketStatus) {
   }
 }
 
-export default function TicketStatusForm({ ticketId, changedBy, currentStatus, canUpdateStatus = true }: Props) {
+export default function TicketStatusForm({
+  ticketId,
+  changedBy,
+  currentStatus,
+  latestStatusNote = null,
+  canUpdateStatus = true,
+}: Props) {
   const router = useRouter();
 
   const [status, setStatus] = useState<TicketStatus>(currentStatus);
@@ -160,6 +167,12 @@ export default function TicketStatusForm({ ticketId, changedBy, currentStatus, c
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-sm font-medium text-slate-700">Seçili Durum</div>
           <div className="mt-2 text-base font-semibold text-slate-900">{statusLabel(status)}</div>
+          {latestStatusNote ? (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Son Durum Notu</div>
+              <div className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{latestStatusNote}</div>
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-2">
