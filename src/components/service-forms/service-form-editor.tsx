@@ -38,6 +38,7 @@ type TemplateField = {
   text_align: "left" | "center" | "right";
   default_value?: string | null;
   form_row_id?: string | null;
+  has_dropdown?: boolean;
   operation_config?: {
     type: "sum" | "copy";
     sourceFieldIds: string[];
@@ -94,6 +95,13 @@ type SelectSourceRecords = {
   tickets: TicketOption[];
 };
 
+type FormFieldRow = {
+  key: string;
+  fields: TemplateField[];
+  hasDropdown: boolean;
+  title: string;
+};
+
 type Props = {
   companyId: string;
   userId: string;
@@ -119,12 +127,13 @@ function parseFieldLayoutMeta(value: string | null | undefined) {
   if (!value) {
     return {
       form_row_id: null as string | null,
+      has_dropdown: false,
       operation_config: null as TemplateField["operation_config"],
     };
   }
 
   try {
-    const parsed = JSON.parse(value) as { form_row_id?: unknown; operation_config?: unknown };
+    const parsed = JSON.parse(value) as { form_row_id?: unknown; has_dropdown?: unknown; operation_config?: unknown };
     const operationConfig = parsed.operation_config as
       | { type?: unknown; sourceFieldIds?: unknown }
       | undefined;
@@ -141,11 +150,13 @@ function parseFieldLayoutMeta(value: string | null | undefined) {
 
     return {
       form_row_id: typeof parsed.form_row_id === "string" && parsed.form_row_id.trim() ? parsed.form_row_id : null,
+      has_dropdown: parsed.has_dropdown === true,
       operation_config: parsedOperationConfig,
     };
   } catch {
     return {
       form_row_id: null as string | null,
+      has_dropdown: false,
       operation_config: null as TemplateField["operation_config"],
     };
   }
@@ -197,6 +208,14 @@ function formatMultiSelectValue(value: string) {
   return parseMultiSelectValue(value).join(", ");
 }
 
+function getSelectFieldValue(field: Pick<TemplateField, "field_type" | "options_json">, value: string) {
+  if (field.field_type === "select" && isMultiSelectField(field)) {
+    return parseMultiSelectValue(value)[0] ?? "";
+  }
+
+  return value;
+}
+
 function formatPdfText(field: TemplateField, rawValue: string) {
   if (field.field_type === "checkbox") {
     return rawValue === "true" ? "X" : "";
@@ -246,6 +265,11 @@ function parseNumericValue(value: string) {
 function formatOperationNumber(value: number) {
   if (Number.isInteger(value)) return String(value);
   return value.toLocaleString("tr-TR", { maximumFractionDigits: 4, useGrouping: false });
+}
+
+function getFormRowTitle(fields: TemplateField[]) {
+  if (fields.length === 1) return fields[0]?.field_label ?? "Alan";
+  return fields.map((field) => field.field_label).filter(Boolean).join(" / ");
 }
 
 function getFittedFontSize(font: PDFFont, text: string, requestedSize: number, maxWidth: number, maxHeight: number) {
@@ -389,13 +413,18 @@ export default function ServiceFormEditor({
     [templateFields]
   );
   const formFieldRows = useMemo(() => {
-    const rows: TemplateField[][] = [];
+    const rows: FormFieldRow[] = [];
 
     for (let index = 0; index < visibleFormFields.length; index += 1) {
       const field = visibleFormFields[index];
 
       if (!field.form_row_id) {
-        rows.push([field]);
+        rows.push({
+          key: field.id,
+          fields: [field],
+          hasDropdown: field.has_dropdown === true,
+          title: getFormRowTitle([field]),
+        });
         continue;
       }
 
@@ -407,12 +436,31 @@ export default function ServiceFormEditor({
         cursor += 1;
       }
 
-      rows.push(row);
+      rows.push({
+        key: field.form_row_id,
+        fields: row,
+        hasDropdown: row.some((rowField) => rowField.has_dropdown === true),
+        title: getFormRowTitle(row),
+      });
       index = cursor - 1;
     }
 
     return rows;
   }, [visibleFormFields]);
+  const [expandedDropdownRows, setExpandedDropdownRows] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    setExpandedDropdownRows((prev) => {
+      const next: Record<string, boolean> = {};
+
+      for (const row of formFieldRows) {
+        if (row.hasDropdown) {
+          next[row.key] = prev[row.key] ?? false;
+        }
+      }
+
+      return next;
+    });
+  }, [formFieldRows]);
   const visibleFormFieldIndexById = useMemo(
     () =>
       new Map(visibleFormFields.map((field, index) => [field.id, index + 1])),
@@ -494,6 +542,7 @@ export default function ServiceFormEditor({
           ...field,
           is_readonly: field.field_type === "operation" ? true : field.is_readonly,
           form_row_id: parseFieldLayoutMeta(field.default_value).form_row_id,
+          has_dropdown: parseFieldLayoutMeta(field.default_value).has_dropdown,
           operation_config: parseFieldLayoutMeta(field.default_value).operation_config,
         }))
       );
@@ -869,10 +918,7 @@ export default function ServiceFormEditor({
     let ticketId = initialForm?.ticket_id ?? null;
 
     for (const field of templateFields) {
-      const value =
-        field.field_type === "select" && isMultiSelectField(field)
-          ? parseMultiSelectValue(fieldValues[field.id] ?? "")[0] ?? ""
-          : fieldValues[field.id] ?? "";
+      const value = getSelectFieldValue(field, fieldValues[field.id] ?? "");
       const lookupValue = normalizeLookupValue(value);
       if (!lookupValue) continue;
 
@@ -1104,37 +1150,12 @@ export default function ServiceFormEditor({
   const renderFormFieldControl = (field: TemplateField) => {
     const rawValue = getResolvedFieldRawValue(field, fieldValues);
     const baseClassName =
-      "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-50";
+      "min-w-0 w-full max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500 disabled:cursor-not-allowed disabled:bg-slate-50";
 
     if (field.field_type === "select") {
-      if (isMultiSelectField(field)) {
-        return (
-          <select
-            multiple
-            value={parseMultiSelectValue(rawValue)}
-            onChange={(event) =>
-              setFieldValue(
-                field.id,
-                serializeMultiSelectValue(Array.from(event.target.selectedOptions, (option) => option.value))
-              )
-            }
-            disabled={field.is_readonly}
-            className={`${baseClassName} min-h-36`}
-          >
-            {getVisibleSelectOptions(field.options_json)
-              .sort((a, b) => a.localeCompare(b, "tr", { sensitivity: "base" }))
-              .map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-          </select>
-        );
-      }
-
       return (
         <select
-          value={rawValue}
+          value={getSelectFieldValue(field, rawValue)}
           onChange={(event) => setFieldValue(field.id, event.target.value)}
           disabled={field.is_readonly}
           className={baseClassName}
@@ -1207,7 +1228,7 @@ export default function ServiceFormEditor({
           value={rawValue}
           onChange={(event) => setFieldValue(field.id, event.target.value)}
           readOnly={field.is_readonly}
-          className={baseClassName}
+          className={`${baseClassName} service-form-native-picker`}
         />
       );
     }
@@ -1219,7 +1240,7 @@ export default function ServiceFormEditor({
           value={rawValue}
           onChange={(event) => setFieldValue(field.id, event.target.value)}
           readOnly={field.is_readonly}
-          className={baseClassName}
+          className={`${baseClassName} service-form-native-picker`}
         />
       );
     }
@@ -1374,16 +1395,44 @@ export default function ServiceFormEditor({
               </div>
             ) : (
               formFieldRows.map((row) => (
-                <div
-                  key={row.map((field) => field.id).join(":")}
-                  className="grid gap-4"
-                  style={row.length > 1 ? { gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` } : undefined}
-                >
-                  {row.map((field) => (
-                    <div key={field.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <label className="text-sm font-semibold text-slate-900">
+                <div key={row.key} className="space-y-3">
+                  {row.hasDropdown ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedDropdownRows((prev) => ({
+                          ...prev,
+                          [row.key]: !prev[row.key],
+                        }))
+                      }
+                      className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left shadow-sm transition hover:bg-slate-100"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">{row.title}</div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {row.fields.length > 1 ? `${row.fields.length} alan` : "1 alan"} · dokununca {expandedDropdownRows[row.key] ? "kapanır" : "açılır"}
+                        </div>
+                      </div>
+                      <span className={`ml-3 shrink-0 text-slate-500 transition ${expandedDropdownRows[row.key] ? "rotate-180" : ""}`}>˅</span>
+                    </button>
+                  ) : null}
+
+                  {!row.hasDropdown || expandedDropdownRows[row.key] ? (
+                    <div
+                      className="service-form-row-grid grid gap-4"
+                      style={
+                        row.fields.length > 1
+                          ? ({
+                              "--service-form-row-columns": row.fields.length,
+                            } as CSSProperties)
+                          : undefined
+                      }
+                    >
+                      {row.fields.map((field) => (
+                        <div key={field.id} className="flex min-w-0 h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                        <div className="min-w-0">
+                          <label className="block text-sm font-semibold leading-6 text-slate-900">
                             {visibleFormFieldIndexById.get(field.id) ?? "-"}. {field.field_label}
                             {field.is_required ? <span className="ml-1 text-rose-600">*</span> : null}
                           </label>
@@ -1399,9 +1448,11 @@ export default function ServiceFormEditor({
                         ) : null}
                       </div>
 
-                      {renderFormFieldControl(field)}
+                          <div className="mt-auto pt-4">{renderFormFieldControl(field)}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : null}
                 </div>
               ))
             )}
@@ -1463,7 +1514,7 @@ export default function ServiceFormEditor({
                                 title={field.field_label}
                               >
                                 {field.field_type === "select" ? (
-                                  isMultiSelectField(field) ? (
+                                  false ? (
                                     <select
                                       multiple
                                       value={parseMultiSelectValue(fieldValues[field.id] ?? "")}
@@ -1488,7 +1539,7 @@ export default function ServiceFormEditor({
                                     </select>
                                   ) : (
                                     <select
-                                      value={fieldValues[field.id] ?? ""}
+                                      value={getSelectFieldValue(field, fieldValues[field.id] ?? "")}
                                       onChange={(event) => setFieldValue(field.id, event.target.value)}
                                       className={getOverlayEditableControlClass("overflow-hidden whitespace-nowrap border-0 bg-transparent text-slate-900 outline-none")}
                                       style={getOverlayFieldTextStyle(field)}
@@ -1666,6 +1717,40 @@ export default function ServiceFormEditor({
       ) : null}
 
       <style jsx global>{`
+        .service-form-row-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .service-form-native-picker {
+          appearance: none;
+          -webkit-appearance: none;
+          min-width: 0;
+          max-width: 100%;
+          overflow: hidden;
+        }
+
+        .service-form-native-picker::-webkit-date-and-time-value {
+          min-width: 0;
+          text-align: left;
+        }
+
+        .service-form-native-picker::-webkit-calendar-picker-indicator {
+          margin-left: 0;
+        }
+
+        @media (min-width: 640px) {
+          .service-form-row-grid[style*="--service-form-row-columns"] {
+            grid-template-columns: repeat(var(--service-form-row-columns), minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 639px) {
+          .service-form-native-picker {
+            font-size: 16px;
+            padding-right: 2.5rem;
+          }
+        }
+
         @media (min-width: 1024px) and (pointer: fine) {
           .service-form-pdf-grid {
             grid-template-columns: minmax(0, 1fr) 72px;

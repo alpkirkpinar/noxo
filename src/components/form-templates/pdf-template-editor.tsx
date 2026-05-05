@@ -59,6 +59,7 @@ type TemplateField = {
   is_readonly: boolean;
   default_value?: string | null;
   form_row_id?: string | null;
+  has_dropdown?: boolean;
   operation_config?: OperationConfig | null;
 };
 
@@ -163,10 +164,16 @@ function getSelectionBounds(fields: TemplateField[]) {
 }
 
 function parseFieldLayoutMeta(value: string | null | undefined) {
-  if (!value) return { form_row_id: null as string | null, operation_config: null as OperationConfig | null };
+  if (!value) {
+    return {
+      form_row_id: null as string | null,
+      has_dropdown: false,
+      operation_config: null as OperationConfig | null,
+    };
+  }
 
   try {
-    const parsed = JSON.parse(value) as { form_row_id?: unknown; operation_config?: unknown };
+    const parsed = JSON.parse(value) as { form_row_id?: unknown; has_dropdown?: unknown; operation_config?: unknown };
     const operationConfig = parsed.operation_config as
       | { type?: unknown; sourceFieldIds?: unknown }
       | undefined;
@@ -182,18 +189,27 @@ function parseFieldLayoutMeta(value: string | null | undefined) {
 
     return {
       form_row_id: typeof parsed.form_row_id === "string" && parsed.form_row_id.trim() ? parsed.form_row_id : null,
+      has_dropdown: parsed.has_dropdown === true,
       operation_config: parsedOperationConfig,
     };
   } catch {
-    return { form_row_id: null as string | null, operation_config: null as OperationConfig | null };
+    return {
+      form_row_id: null as string | null,
+      has_dropdown: false,
+      operation_config: null as OperationConfig | null,
+    };
   }
 }
 
-function serializeFieldLayoutMeta(field: Pick<TemplateField, "form_row_id" | "operation_config">) {
-  const payload: { form_row_id?: string; operation_config?: OperationConfig } = {};
+function serializeFieldLayoutMeta(field: Pick<TemplateField, "form_row_id" | "has_dropdown" | "operation_config">) {
+  const payload: { form_row_id?: string; has_dropdown?: boolean; operation_config?: OperationConfig } = {};
 
   if (field.form_row_id) {
     payload.form_row_id = field.form_row_id;
+  }
+
+  if (field.has_dropdown) {
+    payload.has_dropdown = true;
   }
 
   if (field.operation_config) {
@@ -361,6 +377,7 @@ function createFieldFromPending(
     is_readonly: fieldType === "operation",
     default_value: null,
     form_row_id: null,
+    has_dropdown: false,
     operation_config:
       fieldType === "operation"
         ? {
@@ -459,6 +476,7 @@ export default function PdfTemplateEditor({
       initialFields.map((field) => ({
         ...field,
         form_row_id: parseFieldLayoutMeta(field.default_value).form_row_id,
+        has_dropdown: parseFieldLayoutMeta(field.default_value).has_dropdown,
         operation_config: parseFieldLayoutMeta(field.default_value).operation_config,
       })),
     [initialFields]
@@ -532,6 +550,10 @@ export default function PdfTemplateEditor({
   }, [fields, selectedField]);
   const fieldPageSize = 8;
   const fieldRows = useMemo(() => buildFieldRows(fields), [fields]);
+  const selectedFieldRow = useMemo(
+    () => fieldRows.find((row) => row.fields.some((field) => field.id === selectedFieldId)) ?? null,
+    [fieldRows, selectedFieldId]
+  );
   const fieldPageCount = Math.max(
     1,
     Math.ceil((editorMode === "layout" ? fieldRows.length : fields.length) / fieldPageSize)
@@ -1208,6 +1230,22 @@ export default function PdfTemplateEditor({
     setSuccessText("Alan birleşimi kaldırıldı.");
   }
 
+  function updateRowDropdown(fieldId: string | undefined, enabled: boolean) {
+    if (!fieldId) return;
+
+    setFields((prev) => {
+      const rows = buildFieldRows(prev);
+      const targetRow = rows.find((row) => row.fields.some((field) => field.id === fieldId));
+      if (!targetRow) return prev;
+
+      return prev.map((field) =>
+        targetRow.fields.some((rowField) => rowField.id === field.id) ? { ...field, has_dropdown: enabled } : field
+      );
+    });
+
+    setSuccessText(enabled ? "Dropdown başlığı bu satır için açıldı." : "Dropdown başlığı bu satır için kapatıldı.");
+  }
+
   function getPercentPoint(pageNumber: number, clientX: number, clientY: number) {
     const overlay = overlayRefs.current[pageNumber];
     if (!overlay) return null;
@@ -1880,6 +1918,15 @@ export default function PdfTemplateEditor({
                     Salt okunur
                   </label>
                 </div>
+
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedFieldRow?.fields.every((field) => field.has_dropdown) ?? false}
+                    onChange={(e) => updateRowDropdown(selectedField.id, e.target.checked)}
+                  />
+                  Bu satırı form doldurmada dropdown başlık olarak göster
+                </label>
               </div>
             ) : (
               <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
@@ -1961,7 +2008,53 @@ export default function PdfTemplateEditor({
                       ))}
                     </div>
 
-                    <div className="flex shrink-0 items-center justify-end gap-1 self-start md:justify-start">
+                    <div className="grid shrink-0 gap-1 self-start">
+                      <div className="flex items-center justify-end gap-1 md:justify-start">
+                        <button
+                          type="button"
+                          onClick={() => moveField(row.fields[0]?.id, "up")}
+                          disabled={fieldPage * fieldPageSize + index === 0}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label="Alanı yukarı taşı"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveField(row.fields[0]?.id, "down")}
+                          disabled={fieldPage * fieldPageSize + index === fieldRows.length - 1}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label="Alanı aşağı taşı"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateRowDropdown(row.fields[0]?.id, !row.fields.every((field) => field.has_dropdown))}
+                          className={`flex h-8 w-8 items-center justify-center rounded-md border transition ${
+                            row.fields.every((field) => field.has_dropdown)
+                              ? "border-amber-500 bg-amber-50 text-amber-700 shadow-sm"
+                              : "border-slate-300 bg-white text-slate-500 hover:bg-slate-50"
+                          }`}
+                          aria-label={
+                            row.fields.every((field) => field.has_dropdown)
+                              ? "Dropdown görünümünü kapat"
+                              : "Dropdown görünümünü aç"
+                          }
+                          title={
+                            row.fields.every((field) => field.has_dropdown)
+                              ? "Dropdown görünümünü kapat"
+                              : "Dropdown görünümünü aç"
+                          }
+                        >
+                          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2.5" y="3" width="11" height="10" rx="2" />
+                            <path d="M5 6.5h6" />
+                            <path d="M6.25 8.75 8 10.5l1.75-1.75" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-end gap-1 md:justify-start">
                       <button
                         type="button"
                         onClick={() => mergeFieldWithNeighbor("up", row.fields[0]?.id)}
@@ -2006,24 +2099,7 @@ export default function PdfTemplateEditor({
                           <path d="M7 8h2" />
                         </svg>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => moveField(row.fields[0]?.id, "up")}
-                        disabled={fieldPage * fieldPageSize + index === 0}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                        aria-label="Alanı yukarı taşı"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveField(row.fields[0]?.id, "down")}
-                        disabled={fieldPage * fieldPageSize + index === fieldRows.length - 1}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                        aria-label="Alanı aşağı taşı"
-                      >
-                        ↓
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </div>
