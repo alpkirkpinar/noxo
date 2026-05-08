@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse } from "next/server";
 import { getMobileRouteIdentity } from "@/lib/mobile-route-auth";
+import { isMissingColumnError } from "@/lib/supabase-errors";
 import { createClient } from "@/lib/supabase/server";
 import OfferPdfDocument from "@/lib/pdf/offer-pdf-document";
 
@@ -39,6 +40,14 @@ type SalesRepRow = {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+};
+
+type SettingsRow = {
+  company_name?: string | null;
+  logo_url?: string | null;
+  website_url?: string | null;
+  phone?: string | null;
+  address?: string | null;
 };
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -106,7 +115,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     );
   }
 
-  const [{ data: customer }, { data: settings }, { data: items, error: itemsError }] = await Promise.all([
+  const [{ data: customer }, settingsResult, { data: items, error: itemsError }] = await Promise.all([
     offer.customer_id
       ? supabase
           .from("customers")
@@ -117,7 +126,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       : Promise.resolve({ data: null }),
     supabase
       .from("system_settings")
-      .select("company_name, logo_url")
+      .select("company_name, logo_url, website_url, phone, address")
       .eq("company_id", appUser.company_id)
       .maybeSingle(),
     supabase
@@ -136,6 +145,38 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .eq("offer_id", id)
       .order("created_at", { ascending: true }),
   ]);
+
+  let settings: SettingsRow | null = settingsResult.data
+    ? {
+        company_name: settingsResult.data.company_name,
+        logo_url: settingsResult.data.logo_url,
+        website_url: settingsResult.data.website_url,
+        phone: settingsResult.data.phone,
+        address: settingsResult.data.address,
+      }
+    : null;
+  if (
+    settingsResult.error &&
+    (isMissingColumnError(settingsResult.error.message, "website_url", "system_settings") ||
+      isMissingColumnError(settingsResult.error.message, "phone", "system_settings") ||
+      isMissingColumnError(settingsResult.error.message, "address", "system_settings"))
+  ) {
+    const fallback = await supabase
+      .from("system_settings")
+      .select("company_name, logo_url")
+      .eq("company_id", appUser.company_id)
+      .maybeSingle();
+
+    settings = fallback.data
+      ? {
+          company_name: fallback.data.company_name,
+          logo_url: fallback.data.logo_url,
+          website_url: null,
+          phone: null,
+          address: null,
+        }
+      : null;
+  }
 
   if (itemsError) {
     return NextResponse.json({ error: itemsError.message }, { status: 400 });

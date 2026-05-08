@@ -7,6 +7,9 @@ type Props = {
   companyId: string;
   initialCompanyName: string;
   initialLogoUrl: string;
+  initialWebsiteUrl: string;
+  initialPhone: string;
+  initialAddress: string;
   initialMaintenanceApproverName: string;
   initialMaintenanceApproverTitle: string;
   canManageApprover: boolean;
@@ -16,6 +19,9 @@ export default function SystemSettings({
   companyId,
   initialCompanyName,
   initialLogoUrl,
+  initialWebsiteUrl,
+  initialPhone,
+  initialAddress,
   initialMaintenanceApproverName,
   initialMaintenanceApproverTitle,
   canManageApprover,
@@ -24,8 +30,15 @@ export default function SystemSettings({
 
   const [companyName, setCompanyName] = useState(initialCompanyName);
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
-  const [maintenanceApproverName, setMaintenanceApproverName] = useState(initialMaintenanceApproverName);
-  const [maintenanceApproverTitle, setMaintenanceApproverTitle] = useState(initialMaintenanceApproverTitle);
+  const [websiteUrl, setWebsiteUrl] = useState(initialWebsiteUrl);
+  const [phone, setPhone] = useState(initialPhone);
+  const [address, setAddress] = useState(initialAddress);
+  const [maintenanceApproverName, setMaintenanceApproverName] = useState(
+    initialMaintenanceApproverName
+  );
+  const [maintenanceApproverTitle, setMaintenanceApproverTitle] = useState(
+    initialMaintenanceApproverTitle
+  );
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
@@ -34,6 +47,14 @@ export default function SystemSettings({
   function resetMessages() {
     setErrorText("");
     setSuccessText("");
+  }
+
+  function isMissingSettingsContactColumn(message: string) {
+    return (
+      message.includes("website_url") ||
+      message.includes("phone") ||
+      message.includes("address")
+    );
   }
 
   async function handleLogoUpload(file: File) {
@@ -45,10 +66,12 @@ export default function SystemSettings({
       const safeExt = ext === "jpg" ? "jpeg" : ext;
       const fileName = `company-logos/${companyId}/${Date.now()}.${safeExt}`;
 
-      const { error: uploadError } = await supabase.storage.from("public-assets").upload(fileName, file, {
-        cacheControl: "3600",
-        upsert: true,
-      });
+      const { error: uploadError } = await supabase.storage
+        .from("public-assets")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
 
       if (uploadError) {
         setErrorText(uploadError.message);
@@ -59,9 +82,9 @@ export default function SystemSettings({
       const { data } = supabase.storage.from("public-assets").getPublicUrl(fileName);
 
       setLogoUrl(data.publicUrl);
-      setSuccessText("Logo yüklendi. Kaydet butonuna bas.");
+      setSuccessText("Logo yuklendi. Kaydet butonuna bas.");
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : "Logo yüklenemedi.");
+      setErrorText(error instanceof Error ? error.message : "Logo yuklenemedi.");
     }
 
     setUploading(false);
@@ -76,6 +99,9 @@ export default function SystemSettings({
         company_id: companyId,
         company_name: companyName.trim() || null,
         logo_url: logoUrl.trim() || null,
+        website_url: websiteUrl.trim() || null,
+        phone: phone.trim() || null,
+        address: address.trim() || null,
         maintenance_approver_name: maintenanceApproverName.trim() || null,
         maintenance_approver_title: maintenanceApproverTitle.trim() || null,
         updated_at: new Date().toISOString(),
@@ -88,11 +114,15 @@ export default function SystemSettings({
     setSaving(false);
 
     if (error) {
-      setErrorText(error.message);
+      setErrorText(
+        isMissingSettingsContactColumn(error.message)
+          ? "Yeni sirket iletisim alanlari veritabaninda henuz olusmamis. Once son migration'i uygulayin."
+          : error.message
+      );
       return;
     }
 
-    setSuccessText("Sistem ayarları kaydedildi.");
+    setSuccessText("Sistem ayarlari kaydedildi.");
   }
 
   return (
@@ -100,18 +130,18 @@ export default function SystemSettings({
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Şirket Adı</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Sirket Adi</label>
             <input
               type="text"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Şirket adı"
+              placeholder="Sirket adi"
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Şirket Logosu</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Sirket Logosu</label>
 
             <div className="rounded-2xl border border-dashed border-slate-300 p-4">
               <input
@@ -132,36 +162,90 @@ export default function SystemSettings({
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3">
-              <h2 className="text-sm font-semibold text-slate-900">Bakım Onaylayanı</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Teklif PDF Alt Bilgisi</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Bakım sertifikalarındaki onaylayan imza alanında bu bilgiler kullanılır.
+                Bu bilgiler fiyat teklifi PDF dosyalarinin alt bilgisinde gosterilir.
               </p>
               {!canManageApprover ? (
-                <p className="mt-2 text-xs text-amber-700">Bu alanları yalnızca admin kullanıcılar değiştirebilir.</p>
+                <p className="mt-2 text-xs text-amber-700">
+                  Bu alanlari yalnizca admin kullanicilar degistirebilir.
+                </p>
               ) : null}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">İsim Soyisim</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Internet Sitesi</label>
                 <input
                   type="text"
-                  value={maintenanceApproverName}
-                  onChange={(e) => setMaintenanceApproverName(e.target.value)}
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
                   disabled={!canManageApprover}
-                  placeholder="Örnek: Ahmet Yılmaz"
+                  placeholder="Ornek: https://www.ornek.com"
                   className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Ünvan</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Telefon Numarasi</label>
+                <input
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={!canManageApprover}
+                  placeholder="Ornek: +90 555 000 00 00"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-2 block text-sm font-medium text-slate-700">Adres</label>
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                disabled={!canManageApprover}
+                placeholder="Sirket adresi"
+                rows={3}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3">
+              <h2 className="text-sm font-semibold text-slate-900">Bakim Onaylayani</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Bakim sertifikalarindaki onaylayan imza alaninda bu bilgiler kullanilir.
+              </p>
+              {!canManageApprover ? (
+                <p className="mt-2 text-xs text-amber-700">
+                  Bu alanlari yalnizca admin kullanicilar degistirebilir.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Isim Soyisim</label>
+                <input
+                  type="text"
+                  value={maintenanceApproverName}
+                  onChange={(e) => setMaintenanceApproverName(e.target.value)}
+                  disabled={!canManageApprover}
+                  placeholder="Ornek: Ahmet Yilmaz"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Unvan</label>
                 <input
                   type="text"
                   value={maintenanceApproverTitle}
                   onChange={(e) => setMaintenanceApproverTitle(e.target.value)}
                   disabled={!canManageApprover}
-                  placeholder="Örnek: Teknik Müdür"
+                  placeholder="Ornek: Teknik Mudur"
                   className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
                 />
               </div>
@@ -193,14 +277,14 @@ export default function SystemSettings({
         </div>
 
         <div>
-          <div className="mb-2 text-sm font-medium text-slate-700">Logo Önizleme</div>
+          <div className="mb-2 text-sm font-medium text-slate-700">Logo Onizleme</div>
 
           <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-4">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="Şirket logosu" className="max-h-[180px] max-w-full object-contain" />
+              <img src={logoUrl} alt="Sirket logosu" className="max-h-[180px] max-w-full object-contain" />
             ) : (
-              <div className="text-sm text-slate-400">Henüz logo yüklenmedi</div>
+              <div className="text-sm text-slate-400">Henuz logo yuklenmedi</div>
             )}
           </div>
         </div>

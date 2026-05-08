@@ -25,6 +25,9 @@ export type OfferPdfCustomer = {
 export type OfferPdfSettings = {
   company_name?: string | null;
   logo_url?: string | null;
+  website_url?: string | null;
+  phone?: string | null;
+  address?: string | null;
 };
 
 export type OfferPdfSalesRep = {
@@ -233,6 +236,21 @@ function getLogoSource(logoUrl?: string | null) {
   return null;
 }
 
+function normalizeFooterValue(value?: string | null) {
+  const normalized = String(value ?? "").trim();
+  return normalized || null;
+}
+
+function normalizeWebsiteLabel(value?: string | null) {
+  const normalized = normalizeFooterValue(value);
+  if (!normalized) return null;
+
+  return normalized
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/+$/, "");
+}
+
 const colors = {
   ink: "#0f172a",
   text: "#334155",
@@ -251,7 +269,7 @@ const colors = {
 const styles = StyleSheet.create({
   page: {
     paddingTop: 39.75,
-    paddingBottom: 32,
+    paddingBottom: 72,
     paddingHorizontal: 39.75,
     fontFamily: "OfferPdfSans",
     fontSize: 10.5,
@@ -443,10 +461,10 @@ const styles = StyleSheet.create({
   pageSubtotal: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    gap: 0,
     paddingTop: 6,
     marginBottom: 12,
     paddingRight: 18.75,
+    gap: 0,
   },
   pageSubtotalLabel: {
     fontSize: 9.75,
@@ -538,12 +556,51 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 39.75,
     right: 39.75,
-    bottom: 24,
+    bottom: 18,
   },
-  footerText: {
-    marginTop: 10.5,
-    fontSize: 10.5,
-    color: colors.bodySoft,
+  footerTopBar: {
+    minHeight: 22,
+    borderRadius: 2,
+    backgroundColor: "#27476d",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  footerBottomBar: {
+    minHeight: 18,
+    marginTop: 6,
+    borderRadius: 2,
+    backgroundColor: "#07111d",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    justifyContent: "center",
+  },
+  footerTopLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    maxWidth: 420,
+  },
+  footerContactText: {
+    fontSize: 8.75,
+    color: "#ffffff",
+  },
+  footerCompanyText: {
+    fontSize: 8.75,
+    fontWeight: 700,
+    color: "#ffffff",
+  },
+  footerPageText: {
+    fontSize: 8.75,
+    fontWeight: 700,
+    color: "#ffffff",
+    textAlign: "right",
+  },
+  footerAddressText: {
+    fontSize: 8.25,
+    color: "#dbe7f5",
   },
   emptyRow: {
     paddingVertical: 12,
@@ -646,8 +703,11 @@ export default function OfferPdfDocument({
     .split("\n")
     .filter(Boolean);
   const pages = paginateItems(items);
-  const companyName = (settings?.company_name?.trim() || "NORAPP").toUpperCase();
+  const companyName = settings?.company_name?.trim() || "NORAPP";
   const logoSrc = getLogoSource(settings?.logo_url);
+  const websiteLabel = normalizeWebsiteLabel(settings?.website_url);
+  const companyPhone = normalizeFooterValue(settings?.phone);
+  const companyAddress = normalizeFooterValue(settings?.address);
 
   return (
     <Document title={offer.offer_no} author="noxo" subject="Fiyat Teklifi" creator="noxo" producer="noxo">
@@ -777,18 +837,26 @@ export default function OfferPdfDocument({
                     </View>
                   </View>
                 </View>
-
-                <View style={styles.footerWrap}>
-                  <View style={[styles.divider, { marginBottom: 0 }]} />
-                  <Text style={styles.footerText}>{companyName}</Text>
-                </View>
               </>
-            ) : (
-              <View style={styles.footerWrap} fixed>
-                <View style={[styles.divider, { marginBottom: 0 }]} />
-                <Text style={styles.footerText}>{companyName}</Text>
+            ) : null}
+
+            <View style={styles.footerWrap} fixed>
+              <View style={styles.footerTopBar}>
+                <View style={styles.footerTopLeft}>
+                  <Text style={styles.footerCompanyText}>{companyName}</Text>
+                  {websiteLabel ? <Text style={styles.footerContactText}>| {websiteLabel}</Text> : null}
+                  {companyPhone ? <Text style={styles.footerContactText}>| {companyPhone}</Text> : null}
+                </View>
+                <Text
+                  style={styles.footerPageText}
+                  render={({ pageNumber, totalPages }) => `Sayfa ${pageNumber} / ${totalPages}`}
+                />
               </View>
-            )}
+
+              <View style={styles.footerBottomBar}>
+                <Text style={styles.footerAddressText}>{companyAddress ?? " "}</Text>
+              </View>
+            </View>
           </Page>
         );
       })}
