@@ -10,6 +10,44 @@ type GoogleDriveUploadResult = {
   webViewLink?: string | null;
 };
 
+type GoogleErrorPayload = {
+  access_token?: string;
+  error_description?: string;
+  error?: string | { message?: string };
+};
+
+async function readJsonResponse<T>(response: Response): Promise<{ data: T | null; text: string }> {
+  const text = await response.text();
+  if (!text) return { data: null, text: "" };
+
+  try {
+    return { data: JSON.parse(text) as T, text };
+  } catch {
+    return { data: null, text };
+  }
+}
+
+function getGoogleErrorMessage(
+  response: Response,
+  payload: GoogleErrorPayload | null,
+  fallback: string,
+  rawText: string
+) {
+  const structuredError =
+    payload?.error_description ||
+    (typeof payload?.error === "string" ? payload.error : payload?.error?.message);
+
+  if (structuredError) {
+    return structuredError;
+  }
+
+  if (rawText.trim()) {
+    return `Google Drive isteği başarısız oldu (${response.status}): ${rawText}`;
+  }
+
+  return fallback;
+}
+
 function getConfig(): GoogleDriveConfig {
   const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() || "";
   const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim() || "";
@@ -37,15 +75,16 @@ async function getAccessToken(config: GoogleDriveConfig) {
     }),
   });
 
-  const tokenPayload = (await tokenResponse.json().catch(() => ({}))) as {
-    access_token?: string;
-    error_description?: string;
-    error?: string;
-  };
+  const { data: tokenPayload, text: tokenText } = await readJsonResponse<GoogleErrorPayload>(tokenResponse);
 
-  if (!tokenResponse.ok || !tokenPayload.access_token) {
+  if (!tokenResponse.ok || !tokenPayload?.access_token) {
     throw new Error(
-      tokenPayload.error_description || tokenPayload.error || "Google Drive erişim anahtarı yenilenemedi."
+      getGoogleErrorMessage(
+        tokenResponse,
+        tokenPayload,
+        "Google Drive erişim anahtarı yenilenemedi.",
+        tokenText
+      )
     );
   }
 
@@ -82,12 +121,14 @@ export async function uploadJsonBackupToGoogleDrive(fileName: string, payload: u
     }
   );
 
-  const uploadPayload = (await uploadResponse.json().catch(() => ({}))) as GoogleDriveUploadResult & {
-    error?: { message?: string };
-  };
+  const { data: uploadPayload, text: uploadText } = await readJsonResponse<
+    GoogleDriveUploadResult & { error?: { message?: string } }
+  >(uploadResponse);
 
-  if (!uploadResponse.ok || !uploadPayload.id) {
-    throw new Error(uploadPayload.error?.message || "Google Drive yedeği yüklenemedi.");
+  if (!uploadResponse.ok || !uploadPayload?.id) {
+    throw new Error(
+      getGoogleErrorMessage(uploadResponse, uploadPayload, "Google Drive yedeği yüklenemedi.", uploadText)
+    );
   }
 
   return uploadPayload;
