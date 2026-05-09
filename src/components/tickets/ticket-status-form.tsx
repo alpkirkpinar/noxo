@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { pushBrowserNotification } from "@/lib/browser-notifications";
 
 type TicketStatus =
   | "new"
@@ -102,6 +103,7 @@ export default function TicketStatusForm({
     }
 
     setNote("");
+    pushBrowserNotification({ message: "Ticket durumu güncellendi." });
     router.refresh();
   }
 

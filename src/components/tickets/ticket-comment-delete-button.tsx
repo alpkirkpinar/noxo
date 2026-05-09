@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { pushBrowserNotification } from "@/lib/browser-notifications";
 
 type Props = {
   ticketId: string;
@@ -39,6 +40,7 @@ export default function TicketCommentDeleteButton({ ticketId, commentId }: Props
       return;
     }
 
+    pushBrowserNotification({ message: "Ticket yorumu silindi." });
     router.refresh();
   }
 

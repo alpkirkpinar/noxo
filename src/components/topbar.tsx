@@ -11,6 +11,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import { usePathname, useRouter } from "next/navigation"
+import type { NoxoNotificationType } from "@/lib/browser-notifications"
 
 type TopbarProps = {
   fullName?: string | null
@@ -45,6 +46,13 @@ type PasswordForm = {
   currentPassword: string
   newPassword: string
   confirmPassword: string
+}
+
+type NotificationItem = {
+  id: string
+  message: string
+  type: NoxoNotificationType
+  createdAt: number
 }
 
 const PAGE_META: Record<string, { title: string }> = {
@@ -242,7 +250,7 @@ export default function Topbar({
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notificationPosition, setNotificationPosition] = useState({ top: 0, left: 0, arrowLeft: 0 })
-  const [transientMessage, setTransientMessage] = useState<string | null>(null)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [forcePasswordChange, setForcePasswordChange] = useState(mustChangePassword)
   const [saving, setSaving] = useState(false)
   const [passwordSaving, setPasswordSaving] = useState(false)
@@ -286,6 +294,7 @@ export default function Topbar({
   const notificationPanelRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const avatarEditorRef = useRef<HTMLDivElement | null>(null)
+  const notificationTimeoutsRef = useRef<Map<string, number>>(new Map())
   const dragStateRef = useRef<{
     pointerId: number | null
     startX: number
@@ -522,24 +531,48 @@ export default function Topbar({
   }, [notificationsOpen])
 
   useEffect(() => {
+    const timeouts = notificationTimeoutsRef.current
+
     const handleNotification = (event: Event) => {
       const customEvent = event as CustomEvent
       const message = customEvent.detail?.message
+      const type = customEvent.detail?.type
 
       if (message) {
-        setTransientMessage(message)
-        openNotifications()
+        const notification: NotificationItem = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          message: String(message),
+          type: type === "error" || type === "info" ? type : "success",
+          createdAt: Date.now(),
+        }
 
-        setTimeout(() => {
-          setTransientMessage(null)
-          setNotificationsOpen(false)
-        }, 3000)
+        setNotifications((current) => [notification, ...current].slice(0, 8))
+        updateNotificationPosition()
+        setNotificationsOpen(true)
+
+        const timeoutId = window.setTimeout(() => {
+          timeouts.delete(notification.id)
+          setNotifications((current) => current.filter((item) => item.id !== notification.id))
+        }, 4000)
+
+        timeouts.set(notification.id, timeoutId)
       }
     }
 
     window.addEventListener("noxo:notification", handleNotification)
-    return () => window.removeEventListener("noxo:notification", handleNotification)
+    return () => {
+      window.removeEventListener("noxo:notification", handleNotification)
+      for (const timeoutId of timeouts.values()) {
+        window.clearTimeout(timeoutId)
+      }
+      timeouts.clear()
+    }
   }, [])
+
+  useEffect(() => {
+    if (notifications.length > 0) return
+    setNotificationsOpen(false)
+  }, [notifications.length])
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -575,6 +608,35 @@ export default function Topbar({
 
   const activeRate = rates[activeRateIndex] ?? null
   const initials = getInitials(profileForm.fullName, profileForm.email)
+  const activeNotificationCount = notifications.length
+
+  function formatNotificationTime(timestamp: number) {
+    return new Intl.DateTimeFormat("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(timestamp))
+  }
+
+  function getNotificationAccent(type: NoxoNotificationType) {
+    if (type === "error") {
+      return {
+        iconWrap: "bg-rose-100 text-rose-600",
+        dot: "bg-rose-500",
+      }
+    }
+
+    if (type === "info") {
+      return {
+        iconWrap: "bg-sky-100 text-sky-600",
+        dot: "bg-sky-500",
+      }
+    }
+
+    return {
+      iconWrap: "bg-emerald-100 text-emerald-600",
+      dot: "bg-emerald-500",
+    }
+  }
 
   const resetProfileEditor = () => {
     if (previewAvatarUrl) {
@@ -963,6 +1025,11 @@ export default function Topbar({
                 }`}
               >
                 <BellIcon />
+                {activeNotificationCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7DDBA8] px-1 text-[10px] font-bold text-slate-950">
+                    {activeNotificationCount > 9 ? "9+" : activeNotificationCount}
+                  </span>
+                ) : null}
               </button>
             </div>
 
@@ -1031,35 +1098,59 @@ export default function Topbar({
                 <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
                   <h3 className="text-sm font-semibold text-slate-800">Bildirimler</h3>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
-                    0 Yeni
+                    {activeNotificationCount} Aktif
                   </span>
                 </div>
-                <div className="py-8 text-center">
-                  {transientMessage ? (
-                    <div className="space-y-2 px-2">
-                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#7DDBA8]/10 text-[#7DDBA8]">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
+                  {notifications.length > 0 ? (
+                    notifications.map((item) => {
+                      const accent = getNotificationAccent(item.type)
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3"
                         >
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" x2="12" y1="3" y2="15" />
-                        </svg>
-                      </div>
-                      <p className="text-sm font-semibold text-slate-700">
-                        {transientMessage}
-                      </p>
-                    </div>
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${accent.iconWrap}`}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" x2="12" y1="3" y2="15" />
+                              </svg>
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`h-2 w-2 rounded-full ${accent.dot}`} />
+                                <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                                  {formatNotificationTime(item.createdAt)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm font-medium leading-5 text-slate-700">
+                                {item.message}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
                   ) : (
-                    <p className="text-sm text-slate-400 font-medium">Bildirim yok</p>
+                    <div className="py-8 text-center">
+                      <p className="text-sm font-medium text-slate-400">Bildirim yok</p>
+                    </div>
                   )}
                 </div>
               </div>

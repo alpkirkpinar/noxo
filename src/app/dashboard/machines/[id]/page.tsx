@@ -97,6 +97,14 @@ function formatDateTime(value?: string | null) {
   return new Date(value).toLocaleString("tr-TR");
 }
 
+function getServiceFormSortDate(record: ServiceFormHistoryRecord) {
+  return record.created_at ?? record.service_date;
+}
+
+function getServiceFormDisplayDateTime(record: ServiceFormHistoryRecord) {
+  return formatDateTime(getServiceFormSortDate(record));
+}
+
 function getTemplateName(relation: ServiceFormHistoryRecord["pdf_templates"]) {
   if (!relation) return null;
   if (Array.isArray(relation)) return relation[0]?.template_name ?? null;
@@ -313,7 +321,7 @@ export default async function MachineDetailPage({ params }: PageProps) {
     })),
     ...Array.from(formsById.values()).map((record) => ({
       kind: "service_form" as const,
-      sortDate: record.service_date ?? record.created_at,
+      sortDate: getServiceFormSortDate(record),
       record,
     })),
   ].sort((left, right) => new Date(right.sortDate ?? 0).getTime() - new Date(left.sortDate ?? 0).getTime());
@@ -432,9 +440,12 @@ export default async function MachineDetailPage({ params }: PageProps) {
                             </span>
                             <span className="font-medium text-slate-900">{record.form_no ?? "Servis Formu"}</span>
                           </div>
-                          <span className="text-slate-500">{formatDate(record.service_date ?? record.created_at)}</span>
+                          <span className="text-slate-500">{getServiceFormDisplayDateTime(record)}</span>
                         </div>
                         <div className="mt-3 text-sm text-slate-700">{templateName ?? "Servis formu"}</div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          Servis tarihi: <span className="font-medium text-slate-700">{formatDate(record.service_date ?? record.created_at)}</span>
+                        </div>
                         <div className="mt-3">
                           <Link
                             href={`/dashboard/service-forms/${record.id}`}

@@ -7,6 +7,7 @@ import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
+import { pushBrowserNotification } from "@/lib/browser-notifications";
 
 type TicketStatus =
   | "new"
@@ -211,7 +212,6 @@ export default function TicketsListClient({
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [errorText, setErrorText] = useState("");
-  const [successText, setSuccessText] = useState("");
   const [showNewTicketModal, setShowNewTicketModal] = useState(false);
   const { activeId, bindRow, shouldSuppressClick } = useTouchContextMenu((ticketId, x, y) => {
     setContextMenu({ x, y, ticketId });
@@ -290,9 +290,8 @@ export default function TicketsListClient({
     );
   }
 
-  async function markCompleted(ticketId: string) {
+  async function markCompleted(ticketId: string, notify = true) {
     setErrorText("");
-    setSuccessText("");
 
     if (!permissions.canUpdateStatus) {
       setErrorText("Ticket durum güncelleme yetkiniz yok.");
@@ -329,12 +328,13 @@ export default function TicketsListClient({
       )
     );
     setContextMenu(null);
-    setSuccessText("Ticket tamamlandı olarak güncellendi.");
+    if (notify) {
+      pushBrowserNotification({ message: "Ticket tamamlandı olarak işaretlendi." });
+    }
   }
 
   async function deleteTicket(ticketId: string) {
     setErrorText("");
-    setSuccessText("");
 
     if (!permissions.canDelete) {
       setErrorText("Ticket silme yetkiniz yok.");
@@ -361,7 +361,7 @@ export default function TicketsListClient({
 
     setRows((prev) => prev.filter((row) => row.id !== ticketId));
     setContextMenu(null);
-    setSuccessText("Ticket silindi.");
+    pushBrowserNotification({ message: "Ticket silindi." });
   }
 
   async function bulkMarkCompleted() {
@@ -371,11 +371,12 @@ export default function TicketsListClient({
     }
 
     for (const ticketId of selectedIds) {
-      await markCompleted(ticketId);
+      await markCompleted(ticketId, false);
     }
 
     setSelectedIds([]);
     setSelectionMode(false);
+    pushBrowserNotification({ message: "Seçili ticketlar tamamlandı olarak işaretlendi." });
   }
 
   async function bulkDeleteTickets() {
@@ -404,7 +405,7 @@ export default function TicketsListClient({
     setRows((prev) => prev.filter((row) => !selectedIds.includes(row.id)));
     setSelectedIds([]);
     setSelectionMode(false);
-    setSuccessText("Seçili ticketlar silindi.");
+    pushBrowserNotification({ message: "Seçili ticketlar silindi." });
   }
 
   const filteredRows = useMemo(() => {
@@ -487,12 +488,6 @@ export default function TicketsListClient({
       {errorText ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorText}
-        </div>
-      ) : null}
-
-      {successText ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {successText}
         </div>
       ) : null}
 
@@ -815,7 +810,6 @@ export default function TicketsListClient({
                 onCancel={closeNewTicketModal}
                 onSuccess={() => {
                   closeNewTicketModal();
-                  setSuccessText("Ticket oluşturuldu.");
                   setErrorText("");
                   router.push("/dashboard/tickets");
                   router.refresh();

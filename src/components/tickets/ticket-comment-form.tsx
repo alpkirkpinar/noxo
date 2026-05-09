@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { pushBrowserNotification } from "@/lib/browser-notifications";
 
 type Props = {
   companyId: string;
@@ -60,6 +61,7 @@ export default function TicketCommentForm({
     }
 
     setCommentText("");
+    pushBrowserNotification({ message: "Ticket yorumu eklendi." });
     router.refresh();
   }
 

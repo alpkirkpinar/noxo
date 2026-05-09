@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { pushBrowserNotification } from "@/lib/browser-notifications";
 
 type TicketPriority = "low" | "medium" | "high" | "critical" | null;
 
@@ -103,6 +104,7 @@ export default function TicketEditDialog({
     }
 
     setOpen(false);
+    pushBrowserNotification({ message: "Ticket güncellendi." });
     router.refresh();
   }
 

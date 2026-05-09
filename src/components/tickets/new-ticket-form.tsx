@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { pushBrowserNotification } from "@/lib/browser-notifications";
 
 type CustomerItem = {
   id: string;
@@ -109,6 +110,8 @@ export default function NewTicketForm({
       setErrorText(data?.error || "Ticket oluşturulamadı.");
       return;
     }
+
+    pushBrowserNotification({ message: "Ticket oluşturuldu." });
 
     if (onSuccess) {
       onSuccess();

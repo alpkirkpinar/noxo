@@ -303,7 +303,11 @@ function createClientId() {
     return crypto.randomUUID();
   }
 
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
 }
 
 function fieldTypeLabel(value: FieldType) {
@@ -1086,6 +1090,13 @@ export default function PdfTemplateEditor({
     );
   }
 
+  function stopOperationSourceSelection(successMessage?: string) {
+    setOperationSourceTargetFieldId(null);
+    if (successMessage) {
+      setSuccessText(successMessage);
+    }
+  }
+
   function handleOperationSourceFieldClick(fieldId: string) {
     if (!operationSourceTargetFieldId) return;
 
@@ -1111,13 +1122,7 @@ export default function PdfTemplateEditor({
       })
     );
 
-    if (selectedField?.operation_config?.type === "copy") {
-      setOperationSourceTargetFieldId(null);
-      setSuccessText("Kaynak alan seçildi.");
-      return;
-    }
-
-    setSuccessText("Kaynak alan güncellendi.");
+    stopOperationSourceSelection(selectedField?.operation_config?.type === "copy" ? "Kaynak alan seçildi." : "Kaynak alan güncellendi.");
   }
 
   function removeSelectedField() {
@@ -1263,7 +1268,7 @@ export default function PdfTemplateEditor({
   function handleOverlayPointerDown(pageNumber: number, e: React.PointerEvent<HTMLDivElement>) {
     if (!e.isPrimary) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    if ((e.target as HTMLElement).dataset.stopCreate === "true") return;
+    if ((e.target as HTMLElement).closest('[data-stop-create="true"]')) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -1274,6 +1279,9 @@ export default function PdfTemplateEditor({
     setErrorText("");
     setSuccessText("");
     setPendingRect(null);
+    if (operationSourceTargetFieldId) {
+      stopOperationSourceSelection("PDF'de tıklayarak seç modu kapatıldı.");
+    }
     selectSingleField(null);
 
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -1516,6 +1524,7 @@ export default function PdfTemplateEditor({
 
       if (normalizedFields.length > 0) {
         const payload = normalizedFields.map((field, index) => ({
+          id: field.id,
           template_id: templateId,
           field_key: field.field_key,
           field_label: field.field_label,
