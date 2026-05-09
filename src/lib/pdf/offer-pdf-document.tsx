@@ -264,6 +264,10 @@ const colors = {
   rowDivider: "#e2e8f0",
   headerFill: "#f8fafc",
   altFill: "#fcfcfc",
+  footerPrimary: "#27476d",
+  footerSecondary: "#07111d",
+  columnDivider: "#c9d7ea",
+  columnDividerSoft: "#dbe5f1",
 };
 
 const styles = StyleSheet.create({
@@ -398,7 +402,7 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: colors.headerFill,
+    backgroundColor: colors.footerPrimary,
     borderBottomWidth: 1.2,
     borderBottomColor: colors.divider,
     paddingTop: 6,
@@ -420,6 +424,16 @@ const styles = StyleSheet.create({
   },
   rowLast: {
     borderBottomWidth: 0,
+  },
+  columnDividerHeader: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.columnDivider,
+    paddingLeft: 12,
+  },
+  columnDividerCell: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.columnDividerSoft,
+    paddingLeft: 12,
   },
   codeCell: {
     width: 90,
@@ -446,7 +460,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 9.75,
     fontWeight: 700,
-    color: colors.text,
+    color: "#ffffff",
   },
   cellText: {
     fontSize: 10.5,
@@ -561,7 +575,7 @@ const styles = StyleSheet.create({
   footerTopBar: {
     minHeight: 22,
     borderRadius: 2,
-    backgroundColor: "#27476d",
+    backgroundColor: colors.footerPrimary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -572,7 +586,7 @@ const styles = StyleSheet.create({
     minHeight: 18,
     marginTop: 6,
     borderRadius: 2,
-    backgroundColor: "#07111d",
+    backgroundColor: colors.footerSecondary,
     paddingHorizontal: 12,
     paddingVertical: 4,
     justifyContent: "center",
@@ -618,11 +632,11 @@ function renderTable(
         <View style={styles.tableInner}>
           <View style={styles.tableHeader}>
             <Text style={[styles.headerText, styles.codeCell]}>{TR.itemCode}</Text>
-            <Text style={[styles.headerText, styles.nameCell]}>{TR.itemName}</Text>
-            <Text style={[styles.headerText, styles.qtyCell]}>{TR.quantity}</Text>
-            <Text style={[styles.headerText, styles.unitCell]}>{TR.unit}</Text>
-            <Text style={[styles.headerText, styles.priceCell]}>{TR.unitPrice}</Text>
-            <Text style={[styles.headerText, styles.totalCell]}>{TR.total}</Text>
+            <Text style={[styles.headerText, styles.nameCell, styles.columnDividerHeader]}>{TR.itemName}</Text>
+            <Text style={[styles.headerText, styles.qtyCell, styles.columnDividerHeader]}>{TR.quantity}</Text>
+            <Text style={[styles.headerText, styles.unitCell, styles.columnDividerHeader]}>{TR.unit}</Text>
+            <Text style={[styles.headerText, styles.priceCell, styles.columnDividerHeader]}>{TR.unitPrice}</Text>
+            <Text style={[styles.headerText, styles.totalCell, styles.columnDividerHeader]}>{TR.total}</Text>
           </View>
 
           {items.length === 0 ? (
@@ -637,13 +651,13 @@ function renderTable(
                 <React.Fragment key={item.id}>
                   <View style={isFinalRow ? [styles.row, styles.rowLast] : styles.row} wrap={false}>
                     <Text style={[styles.cellText, styles.codeCell]}>{item.item_code ?? "-"}</Text>
-                    <Text style={[styles.cellText, styles.nameCell]}>{item.item_name}</Text>
-                    <Text style={[styles.cellText, styles.qtyCell]}>{String(item.quantity ?? 0)}</Text>
-                    <Text style={[styles.cellText, styles.unitCell]}>{item.unit}</Text>
-                    <Text style={[styles.cellText, styles.priceCell]}>
+                    <Text style={[styles.cellText, styles.nameCell, styles.columnDividerCell]}>{item.item_name}</Text>
+                    <Text style={[styles.cellText, styles.qtyCell, styles.columnDividerCell]}>{String(item.quantity ?? 0)}</Text>
+                    <Text style={[styles.cellText, styles.unitCell, styles.columnDividerCell]}>{item.unit}</Text>
+                    <Text style={[styles.cellText, styles.priceCell, styles.columnDividerCell]}>
                       {formatCurrency(Number(item.unit_price ?? 0), currency)}
                     </Text>
-                    <Text style={[styles.cellText, styles.totalCell]}>
+                    <Text style={[styles.cellText, styles.totalCell, styles.columnDividerCell]}>
                       {formatCurrency(Number(item.line_total ?? 0), currency)}
                     </Text>
                   </View>

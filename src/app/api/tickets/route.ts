@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
+import { sendNewTicketNotificationEmail } from "@/lib/email"
 import { localizeErrorMessage } from "@/lib/error-messages"
 import { PERMISSIONS } from "@/lib/permissions"
 
@@ -43,6 +44,14 @@ type StatusHistoryRow = {
   ticket_id: string
   note: string | null
   changed_at: string
+}
+
+type TicketNotificationRow = {
+  id: string
+  ticket_no: string
+  title: string
+  description: string | null
+  priority: TicketPriority
 }
 
 function getCustomerName(relation: RelatedCustomer | RelatedCustomer[]) {
@@ -102,7 +111,15 @@ export async function GET() {
     ])
 
   if (ticketsResult.error) {
-    return NextResponse.json({ error: localizeErrorMessage(ticketsResult.error.message, "Ticket listesi alınamadı.") }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: localizeErrorMessage(
+          ticketsResult.error.message,
+          "Ticket listesi alinamadi."
+        ),
+      },
+      { status: 500 }
+    )
   }
 
   const rawTickets = (ticketsResult.data ?? []) as RawTicketRow[]
@@ -117,19 +134,51 @@ export async function GET() {
     : { data: [], error: null }
 
   if (historyResult.error) {
-    return NextResponse.json({ error: localizeErrorMessage(historyResult.error.message, "Ticket geçmişi alınamadı.") }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: localizeErrorMessage(
+          historyResult.error.message,
+          "Ticket gecmisi alinamadi."
+        ),
+      },
+      { status: 500 }
+    )
   }
 
   if (customersResult.error) {
-    return NextResponse.json({ error: localizeErrorMessage(customersResult.error.message, "Müşteri listesi alınamadı.") }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: localizeErrorMessage(
+          customersResult.error.message,
+          "Musteri listesi alinamadi."
+        ),
+      },
+      { status: 500 }
+    )
   }
 
   if (machinesResult.error) {
-    return NextResponse.json({ error: localizeErrorMessage(machinesResult.error.message, "Makine listesi alınamadı.") }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: localizeErrorMessage(
+          machinesResult.error.message,
+          "Makine listesi alinamadi."
+        ),
+      },
+      { status: 500 }
+    )
   }
 
   if (employeesResult.error) {
-    return NextResponse.json({ error: localizeErrorMessage(employeesResult.error.message, "Çalışan listesi alınamadı.") }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: localizeErrorMessage(
+          employeesResult.error.message,
+          "Calisan listesi alinamadi."
+        ),
+      },
+      { status: 500 }
+    )
   }
 
   const latestHistoryNoteByTicket = new Map<string, string>()
@@ -185,11 +234,11 @@ export async function POST(request: Request) {
   const priority = String(body?.priority ?? "medium").trim()
 
   if (!customerId) {
-    return NextResponse.json({ error: "Müşteri seçmek zorunludur." }, { status: 400 })
+    return NextResponse.json({ error: "Musteri secmek zorunludur." }, { status: 400 })
   }
 
   if (!title) {
-    return NextResponse.json({ error: "Başlık zorunludur." }, { status: 400 })
+    return NextResponse.json({ error: "Baslik zorunludur." }, { status: 400 })
   }
 
   if (assignedTo) {
@@ -201,7 +250,7 @@ export async function POST(request: Request) {
       .single()
 
     if (employeeError || !employee) {
-      return NextResponse.json({ error: "Atanan kullanıcı bulunamadı." }, { status: 400 })
+      return NextResponse.json({ error: "Atanan kullanici bulunamadi." }, { status: 400 })
     }
   }
 
@@ -217,8 +266,102 @@ export async function POST(request: Request) {
   })
 
   if (error) {
-    return NextResponse.json({ error: localizeErrorMessage(error.message, "Ticket oluşturulamadı.") }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: localizeErrorMessage(error.message, "Ticket olusturulamadi."),
+      },
+      { status: 500 }
+    )
+  }
+
+  const [ticketResult, recipientsResult, companyResult, customerResult, machineResult, openerResult] =
+    await Promise.all([
+      auth.supabase
+        .from("tickets")
+        .select("id, ticket_no, title, description, priority")
+        .eq("company_id", auth.identity.companyId)
+        .eq("customer_id", customerId)
+        .eq("opened_by", auth.identity.appUserId)
+        .eq("title", title)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      auth.supabase
+        .from("app_users")
+        .select("email")
+        .eq("company_id", auth.identity.companyId),
+      auth.supabase
+        .from("system_settings")
+        .select("company_name")
+        .eq("company_id", auth.identity.companyId)
+        .maybeSingle(),
+      auth.supabase
+        .from("customers")
+        .select("company_name")
+        .eq("id", customerId)
+        .eq("company_id", auth.identity.companyId)
+        .maybeSingle(),
+      machineId
+        ? auth.supabase
+            .from("machines")
+            .select("machine_name")
+            .eq("id", machineId)
+            .eq("company_id", auth.identity.companyId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      auth.supabase
+        .from("app_users")
+        .select("full_name, email")
+        .eq("id", auth.identity.appUserId)
+        .eq("company_id", auth.identity.companyId)
+        .maybeSingle(),
+    ])
+
+  if (ticketResult.data && !ticketResult.error) {
+    const ticket = ticketResult.data as TicketNotificationRow
+    const recipientEmails = (recipientsResult.data ?? [])
+      .map((row) => String(row.email ?? "").trim().toLowerCase())
+      .filter(Boolean)
+    const companyName = String(companyResult.data?.company_name ?? "").trim() || "Noxo"
+    const customerName = String(customerResult.data?.company_name ?? "").trim() || "-"
+    const openedByName =
+      String(openerResult.data?.full_name ?? "").trim() ||
+      String(openerResult.data?.email ?? "").trim() ||
+      "Noxo kullanicisi"
+
+    const emailDelivery = await sendNewTicketNotificationEmail({
+      to: recipientEmails,
+      companyName,
+      ticketNo: ticket.ticket_no,
+      title: ticket.title,
+      description: ticket.description,
+      customerName,
+      machineName: machineResult.data?.machine_name ?? null,
+      openedByName,
+      priority: ticket.priority,
+      detailUrl: getTicketDetailUrl(request, ticket.id),
+    })
+
+    if (!emailDelivery.sent) {
+      console.error("Ticket notification email could not be sent:", emailDelivery.error)
+    }
+  } else {
+    console.error(
+      "Ticket notification skipped because created ticket could not be reloaded.",
+      ticketResult.error
+    )
   }
 
   return NextResponse.json({ success: true }, { status: 201 })
+}
+
+function getTicketDetailUrl(request: Request, ticketId: string) {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim()
+
+  if (configuredUrl) {
+    return `${configuredUrl.replace(/\/+$/, "")}/dashboard/tickets/${ticketId}`
+  }
+
+  return new URL(`/dashboard/tickets/${ticketId}`, request.url).toString()
 }

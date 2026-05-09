@@ -1,5 +1,5 @@
 type SendEmailInput = {
-  to: string
+  to: string | string[]
   subject: string
   text: string
   html: string
@@ -16,6 +16,19 @@ type NewEmployeeCredentialsInput = {
   password: string
   companyName: string
   loginUrl: string
+}
+
+type TicketNotificationInput = {
+  to: string[]
+  companyName: string
+  ticketNo: string
+  title: string
+  description?: string | null
+  customerName: string
+  machineName?: string | null
+  openedByName: string
+  priority?: string | null
+  detailUrl: string
 }
 
 export async function sendNewEmployeeCredentialsEmail(
@@ -66,6 +79,91 @@ export async function sendNewEmployeeCredentialsEmail(
   })
 }
 
+export async function sendNewTicketNotificationEmail(
+  input: TicketNotificationInput
+): Promise<SendEmailResult> {
+  const recipients = Array.from(
+    new Set(
+      input.to
+        .map((value) => String(value).trim().toLowerCase())
+        .filter((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+    )
+  )
+
+  if (recipients.length === 0) {
+    return {
+      sent: false,
+      skipped: true,
+      error: "Gecerli alici e-posta adresi bulunamadi.",
+    }
+  }
+
+  const safeCompanyName = escapeHtml(input.companyName)
+  const safeTicketNo = escapeHtml(input.ticketNo)
+  const safeTitle = escapeHtml(input.title)
+  const safeDescription = escapeHtml(String(input.description ?? "").trim() || "-")
+  const safeCustomerName = escapeHtml(input.customerName)
+  const safeMachineName = escapeHtml(String(input.machineName ?? "").trim() || "-")
+  const safeOpenedByName = escapeHtml(input.openedByName)
+  const safePriority = escapeHtml(String(input.priority ?? "").trim() || "-")
+  const safeDetailUrl = escapeHtml(input.detailUrl)
+
+  return sendEmail({
+    to: recipients,
+    subject: `Yeni ticket: ${input.ticketNo} - ${input.title}`,
+    text: [
+      `${input.companyName} icin yeni bir ticket olusturuldu.`,
+      "",
+      `Ticket No: ${input.ticketNo}`,
+      `Baslik: ${input.title}`,
+      `Musteri: ${input.customerName}`,
+      `Makine: ${String(input.machineName ?? "").trim() || "-"}`,
+      `Oncelik: ${String(input.priority ?? "").trim() || "-"}`,
+      `Acan kisi: ${input.openedByName}`,
+      `Aciklama: ${String(input.description ?? "").trim() || "-"}`,
+      "",
+      `Detay: ${input.detailUrl}`,
+    ].join("\n"),
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.55;">
+        <h2 style="margin: 0 0 16px;">Yeni ticket olusturuldu</h2>
+        <p><strong>${safeCompanyName}</strong> icin yeni bir ticket kaydi acildi.</p>
+        <table style="border-collapse: collapse; margin: 18px 0;">
+          <tr>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; background: #f8fafc;">Ticket No</td>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${safeTicketNo}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; background: #f8fafc;">Baslik</td>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${safeTitle}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; background: #f8fafc;">Musteri</td>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${safeCustomerName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; background: #f8fafc;">Makine</td>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${safeMachineName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; background: #f8fafc;">Oncelik</td>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${safePriority}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; background: #f8fafc;">Acan kisi</td>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${safeOpenedByName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; background: #f8fafc;">Aciklama</td>
+            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${safeDescription}</td>
+          </tr>
+        </table>
+        <p><a href="${safeDetailUrl}">Ticket detayini ac</a></p>
+      </div>
+    `,
+  })
+}
+
 async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim()
   const from = process.env.MAIL_FROM?.trim() || process.env.EMAIL_FROM?.trim()
@@ -87,7 +185,7 @@ async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
       },
       body: JSON.stringify({
         from,
-        to: [input.to],
+        to: Array.isArray(input.to) ? input.to : [input.to],
         subject: input.subject,
         text: input.text,
         html: input.html,
