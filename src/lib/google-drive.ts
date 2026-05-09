@@ -37,7 +37,7 @@ function getGoogleErrorMessage(
     payload?.error_description ||
     (typeof payload?.error === "string" ? payload.error : payload?.error?.message);
 
-  if (structuredError) {
+  if (structuredError && structuredError.toLocaleLowerCase("en-US") !== "bad request") {
     return structuredError;
   }
 
