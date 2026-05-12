@@ -34,13 +34,14 @@ export async function PATCH(
     return NextResponse.json({ error: mobileAuth.error }, { status: mobileAuth.status })
   }
 
-  const auth = mobileAuth
-    ? { admin: mobileAuth.admin, identity: mobileAuth.identity }
-    : await getServerIdentity(PERMISSIONS.ticketEdit)
+  const serverAuth = mobileAuth ? null : await getServerIdentity(PERMISSIONS.ticketEdit)
 
-  if (!mobileAuth && "error" in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  if (serverAuth && "error" in serverAuth) {
+    return NextResponse.json({ error: serverAuth.error }, { status: serverAuth.status })
   }
+
+  const admin = mobileAuth ? mobileAuth.admin : serverAuth!.admin
+  const identity = mobileAuth ? mobileAuth.identity : serverAuth!.identity
 
   const { id } = await context.params
   const body = await request.json()
@@ -55,11 +56,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Geçersiz durum seçildi." }, { status: 400 })
   }
 
-  const { data: ticket, error: ticketError } = await auth.admin
+  const { data: ticket, error: ticketError } = await admin
     .from("tickets")
     .select("id")
     .eq("id", id)
-    .eq("company_id", auth.identity.companyId)
+    .eq("company_id", identity.companyId)
     .single()
 
   if (ticketError || !ticket) {
@@ -69,7 +70,7 @@ export async function PATCH(
   const now = new Date().toISOString()
   const shouldCloseTicket = status === "completed" || status === "cancelled"
 
-  const { error: updateError } = await auth.admin
+  const { error: updateError } = await admin
     .from("tickets")
     .update({
       status,
@@ -77,7 +78,7 @@ export async function PATCH(
       closed_at: shouldCloseTicket ? now : null,
     })
     .eq("id", id)
-    .eq("company_id", auth.identity.companyId)
+    .eq("company_id", identity.companyId)
 
   if (updateError) {
     return NextResponse.json(
@@ -86,11 +87,11 @@ export async function PATCH(
     )
   }
 
-  const { data: latestHistory, error: latestHistoryError } = await auth.admin
+  const { data: latestHistory, error: latestHistoryError } = await admin
     .from("ticket_status_history")
     .select("id, note")
     .eq("ticket_id", id)
-    .eq("company_id", auth.identity.companyId)
+    .eq("company_id", identity.companyId)
     .eq("new_status", status)
     .order("changed_at", { ascending: false })
     .limit(1)
@@ -104,14 +105,14 @@ export async function PATCH(
   }
 
   if (latestHistory) {
-    const { error: historyUpdateError } = await auth.admin
+    const { error: historyUpdateError } = await admin
       .from("ticket_status_history")
       .update({
         note: note || null,
-        changed_by: auth.identity.appUserId,
+        changed_by: identity.appUserId,
       })
       .eq("id", latestHistory.id)
-      .eq("company_id", auth.identity.companyId)
+      .eq("company_id", identity.companyId)
 
     if (historyUpdateError) {
       return NextResponse.json(
@@ -123,14 +124,14 @@ export async function PATCH(
     return NextResponse.json({ success: true, latestStatusNote: note || null })
   }
 
-  const { error: historyInsertError } = await auth.admin
+  const { error: historyInsertError } = await admin
     .from("ticket_status_history")
     .insert({
-      company_id: auth.identity.companyId,
+      company_id: identity.companyId,
       ticket_id: id,
       new_status: status,
       changed_at: now,
-      changed_by: auth.identity.appUserId,
+      changed_by: identity.appUserId,
       note: note || null,
     })
 
