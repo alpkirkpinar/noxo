@@ -55,6 +55,32 @@ function statusLabel(status: TicketStatus) {
   }
 }
 
+function getStorageKey(ticketId: string) {
+  return `ticket-latest-status-note:${ticketId}`;
+}
+
+function readStoredLatestStatusNote(ticketId: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(getStorageKey(ticketId));
+}
+
+function writeStoredLatestStatusNote(ticketId: string, value: string | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const storageKey = getStorageKey(ticketId);
+
+  if (value) {
+    window.sessionStorage.setItem(storageKey, value);
+  } else {
+    window.sessionStorage.removeItem(storageKey);
+  }
+}
+
 export default function TicketStatusForm({
   ticketId,
   changedBy,
@@ -66,10 +92,14 @@ export default function TicketStatusForm({
 
   const [status, setStatus] = useState<TicketStatus>(currentStatus);
   const [note, setNote] = useState("");
+  const [latestStatusNoteOverride, setLatestStatusNoteOverride] = useState<string | null>(() =>
+    readStoredLatestStatusNote(ticketId)
+  );
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
 
   const currentIndex = useMemo(() => ORDER.indexOf(status), [status]);
+  const displayedLatestStatusNote = latestStatusNoteOverride ?? latestStatusNote;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -81,6 +111,8 @@ export default function TicketStatusForm({
       setErrorText("Ticket durum güncelleme yetkiniz yok.");
       return;
     }
+
+    const submittedNote = note.trim();
 
     const response = await fetch(`/api/tickets/${ticketId}/status`, {
       method: "PATCH",
@@ -102,6 +134,9 @@ export default function TicketStatusForm({
       return;
     }
 
+    const nextLatestStatusNote = String(data?.latestStatusNote ?? submittedNote).trim() || null;
+    setLatestStatusNoteOverride(nextLatestStatusNote);
+    writeStoredLatestStatusNote(ticketId, nextLatestStatusNote);
     setNote("");
     pushBrowserNotification({ message: "Ticket durumu güncellendi." });
     router.refresh();
@@ -169,10 +204,10 @@ export default function TicketStatusForm({
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-sm font-medium text-slate-700">Seçili Durum</div>
           <div className="mt-2 text-base font-semibold text-slate-900">{statusLabel(status)}</div>
-          {latestStatusNote ? (
+          {displayedLatestStatusNote ? (
             <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Son Durum Notu</div>
-              <div className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{latestStatusNote}</div>
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Durum Açıklaması</div>
+              <div className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{displayedLatestStatusNote}</div>
             </div>
           ) : null}
         </div>
@@ -182,7 +217,7 @@ export default function TicketStatusForm({
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Bu değişiklik için kısa bir açıklama yazın"
+            placeholder="Durum değişikliği için kısa not yazın"
             className="min-h-[120px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500"
           />
         </div>

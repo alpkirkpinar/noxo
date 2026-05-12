@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { getServerIdentity } from "@/lib/authz"
 import { localizeErrorMessage } from "@/lib/error-messages"
+import { getMobileRouteIdentity } from "@/lib/mobile-route-auth"
 import { PERMISSIONS } from "@/lib/permissions"
 
 type TicketStatus =
@@ -28,9 +29,16 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const auth = await getServerIdentity(PERMISSIONS.ticketEdit)
+  const mobileAuth = await getMobileRouteIdentity(request, PERMISSIONS.ticketEdit)
+  if (mobileAuth && "error" in mobileAuth) {
+    return NextResponse.json({ error: mobileAuth.error }, { status: mobileAuth.status })
+  }
 
-  if ("error" in auth) {
+  const auth = mobileAuth
+    ? { admin: mobileAuth.admin, identity: mobileAuth.identity }
+    : await getServerIdentity(PERMISSIONS.ticketEdit)
+
+  if (!mobileAuth && "error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
 
@@ -49,7 +57,7 @@ export async function PATCH(
 
   const { data: ticket, error: ticketError } = await auth.admin
     .from("tickets")
-    .select("id, status")
+    .select("id")
     .eq("id", id)
     .eq("company_id", auth.identity.companyId)
     .single()
@@ -78,24 +86,60 @@ export async function PATCH(
     )
   }
 
-  const { error: historyError } = await auth.admin
+  const { data: latestHistory, error: latestHistoryError } = await auth.admin
+    .from("ticket_status_history")
+    .select("id, note")
+    .eq("ticket_id", id)
+    .eq("company_id", auth.identity.companyId)
+    .eq("new_status", status)
+    .order("changed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (latestHistoryError) {
+    return NextResponse.json(
+      { error: localizeErrorMessage(latestHistoryError.message, "Ticket durum geçmişi okunamadı.") },
+      { status: 500 }
+    )
+  }
+
+  if (latestHistory) {
+    const { error: historyUpdateError } = await auth.admin
+      .from("ticket_status_history")
+      .update({
+        note: note || null,
+        changed_by: auth.identity.appUserId,
+      })
+      .eq("id", latestHistory.id)
+      .eq("company_id", auth.identity.companyId)
+
+    if (historyUpdateError) {
+      return NextResponse.json(
+        { error: localizeErrorMessage(historyUpdateError.message, "Ticket durum geçmişi kaydedilemedi.") },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ success: true, latestStatusNote: note || null })
+  }
+
+  const { error: historyInsertError } = await auth.admin
     .from("ticket_status_history")
     .insert({
       company_id: auth.identity.companyId,
       ticket_id: id,
-      old_status: ticket.status,
       new_status: status,
       changed_at: now,
       changed_by: auth.identity.appUserId,
       note: note || null,
     })
 
-  if (historyError) {
+  if (historyInsertError) {
     return NextResponse.json(
-      { error: localizeErrorMessage(historyError.message, "Ticket durum geçmişi kaydedilemedi.") },
+      { error: localizeErrorMessage(historyInsertError.message, "Ticket durum geçmişi kaydedilemedi.") },
       { status: 500 }
     )
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, latestStatusNote: note || null })
 }

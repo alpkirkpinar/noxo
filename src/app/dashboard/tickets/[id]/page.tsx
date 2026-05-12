@@ -4,6 +4,7 @@ import TicketStatusForm from "@/components/tickets/ticket-status-form";
 import TicketCommentForm from "@/components/tickets/ticket-comment-form";
 import TicketCommentDeleteButton from "@/components/tickets/ticket-comment-delete-button";
 import TicketEditDialog from "@/components/tickets/ticket-edit-dialog";
+import TicketHistoryPanel from "@/components/tickets/ticket-history-panel";
 import { getDashboardContext } from "@/lib/dashboard-context";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
@@ -80,6 +81,12 @@ function statusBadgeClass(status: TicketStatus) {
     default:
       return "bg-slate-100 text-slate-700";
   }
+}
+
+function isSystemStatusNote(note: string | null | undefined) {
+  const normalizedNote = String(note ?? "").trim().toLowerCase();
+
+  return normalizedNote === "status changed automatically" || normalizedNote === "ticket created";
 }
 
 async function getPageData(ticketId: string) {
@@ -204,7 +211,12 @@ export default async function TicketDetailPage({ params }: PageProps) {
   const canEdit = hasPermission(permissionIdentity, PERMISSIONS.ticketEdit);
   const canUpdateStatus = canEdit;
   const canComment = canEdit;
-  const latestStatusNote = history.find((item) => item.note?.trim())?.note?.trim() ?? null;
+  const latestStatusNote =
+    history.find(
+      (item) => item.new_status === ticket.status && item.note?.trim() && !isSystemStatusNote(item.note)
+    )?.note?.trim() ??
+    history.find((item) => item.note?.trim() && !isSystemStatusNote(item.note))?.note?.trim() ??
+    null;
 
   const customer = Array.isArray(ticket.customers) ? ticket.customers[0] : ticket.customers;
   const machine = Array.isArray(ticket.machines) ? ticket.machines[0] : ticket.machines;
@@ -334,34 +346,7 @@ export default async function TicketDetailPage({ params }: PageProps) {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Durum Geçmişi</h2>
-
-            <div className="mt-4 space-y-3">
-              {history.length === 0 ? (
-                <div className="text-sm text-slate-500">Geçmiş kayıt yok.</div>
-              ) : (
-                history.map((item) => {
-                  const changer = Array.isArray(item.changer) ? item.changer[0] : item.changer;
-
-                  return (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-slate-900">{statusLabel(item.new_status)}</div>
-                        <div className="text-xs text-slate-500">
-                          {new Date(item.changed_at).toLocaleString("tr-TR")}
-                        </div>
-                      </div>
-
-                      <div className="mt-2 text-sm text-slate-600">Değiştiren: {changer?.full_name ?? "-"}</div>
-
-                      {item.note ? <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{item.note}</div> : null}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+          <TicketHistoryPanel history={history} />
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Yorumlar</h2>
