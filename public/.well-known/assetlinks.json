@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.nortech.noxo",
+      "sha256_cert_fingerprints": [
+        "85:C9:AB:A3:2A:B5:B5:7E:E8:9D:8D:80:F0:A5:74:AC:EA:4D:8F:EC:EB:11:83:CA:6D:E1:98:DB:85:2A:C8:9F"
+      ]
+    }
+  }
+]
