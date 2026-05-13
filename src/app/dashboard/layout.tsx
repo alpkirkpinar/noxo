@@ -27,7 +27,7 @@ export default async function DashboardLayout({
       />
 
       <div className="2xl:pl-[304px]">
-        <main className="min-h-screen overflow-x-hidden px-3 py-3 pb-28 sm:px-4 md:px-6 2xl:px-8 2xl:py-4 2xl:pb-4">
+        <main className="min-h-screen overflow-x-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+7rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-4 md:px-6 2xl:px-8 2xl:pb-4 2xl:pt-4">
           <Topbar
             fullName={appUser?.full_name ?? null}
             email={appUser?.email ?? user.email ?? null}
