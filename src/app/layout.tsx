@@ -19,6 +19,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/noxo-icon-192.png",
   },
+  other: {
+    google: "notranslate",
+  },
 };
 
 export const viewport: Viewport = {
