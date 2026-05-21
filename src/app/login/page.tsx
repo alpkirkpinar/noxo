@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NoxoMark } from "@/components/noxo-mark";
 import { localizeErrorMessage } from "@/lib/error-messages";
@@ -105,6 +106,15 @@ export default function LoginPage() {
             {loading || isPending ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-sm">
+          <Link
+            href="/privacy-policy"
+            className="font-medium text-slate-600 transition hover:text-slate-950"
+          >
+            Gizlilik Politikası
+          </Link>
+        </div>
       </div>
     </main>
   );
