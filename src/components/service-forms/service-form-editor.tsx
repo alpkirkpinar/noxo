@@ -11,6 +11,12 @@ import { createClient } from "@/lib/supabase/client";
 import {
   enqueueOfflineServiceForm,
   isLikelyOfflineError,
+  readCachedServiceFormFields,
+  readCachedServiceFormSelectData,
+  readCachedServiceFormTemplates,
+  writeCachedServiceFormFields,
+  writeCachedServiceFormSelectData,
+  writeCachedServiceFormTemplates,
   type OfflineServiceFormFieldValue,
 } from "@/lib/offline-service-forms";
 
@@ -26,6 +32,7 @@ type TemplateItem = {
 
 type TemplateField = {
   id: string;
+  template_id?: string;
   field_key: string;
   field_label: string;
   page_number: number;
@@ -369,6 +376,7 @@ export default function ServiceFormEditor({
   const onlineCreateCompletedRef = useRef(false);
 
   const [templateId, setTemplateId] = useState(initialForm?.template_id ?? "");
+  const [localTemplates, setLocalTemplates] = useState<TemplateItem[]>(templates);
   const serviceDate =
     initialForm?.service_date ? String(initialForm.service_date).slice(0, 10) : new Date().toISOString().slice(0, 10)
   ;
@@ -402,8 +410,8 @@ export default function ServiceFormEditor({
   const [successText, setSuccessText] = useState("");
 
   const selectedTemplate = useMemo(
-    () => templates.find((x) => x.id === templateId) ?? null,
-    [templates, templateId]
+    () => localTemplates.find((x) => x.id === templateId) ?? null,
+    [localTemplates, templateId]
   );
   const templateFieldsById = useMemo(
     () => new Map(templateFields.map((field) => [field.id, field])),
@@ -473,6 +481,19 @@ export default function ServiceFormEditor({
     [visibleFormFields]
   );
   useEffect(() => {
+    if (templates.length > 0) {
+      setLocalTemplates(templates);
+      writeCachedServiceFormTemplates(templates);
+      return;
+    }
+
+    const cachedTemplates = readCachedServiceFormTemplates();
+    if (cachedTemplates.length > 0) {
+      setLocalTemplates(cachedTemplates);
+    }
+  }, [templates]);
+
+  useEffect(() => {
     function isEditingFormField() {
       const activeElement = document.activeElement;
       return (
@@ -517,6 +538,7 @@ export default function ServiceFormEditor({
         .from("pdf_template_fields")
         .select(`
           id,
+          template_id,
           field_key,
           field_label,
           page_number,
@@ -537,14 +559,33 @@ export default function ServiceFormEditor({
         .eq("template_id", templateId)
         .order("sort_order", { ascending: true });
 
+      let nextFields = (fields ?? []).map((field) => ({
+        ...field,
+        template_id: field.template_id ?? templateId,
+      })) as TemplateField[];
+
       if (error) {
-        setLoadingTemplate(false);
-        setErrorText(error.message);
-        return;
+        const cachedFields = readCachedServiceFormFields(templateId) as TemplateField[];
+        if (cachedFields.length === 0) {
+          setLoadingTemplate(false);
+          setErrorText(error.message);
+          return;
+        }
+
+        nextFields = cachedFields;
+        setViewMode("form");
+        setErrorText("Çevrimdışı mod: form şablonu cihazdaki kayıtlı veriden açıldı.");
+      } else {
+        writeCachedServiceFormFields(
+          nextFields.map((field) => ({
+            ...field,
+            template_id: field.template_id ?? templateId,
+          })) as Parameters<typeof writeCachedServiceFormFields>[0]
+        );
       }
 
       setTemplateFields(
-        ((fields ?? []) as TemplateField[]).map((field) => ({
+        nextFields.map((field) => ({
           ...field,
           is_readonly: field.field_type === "operation" ? true : field.is_readonly,
           form_row_id: parseFieldLayoutMeta(field.default_value).form_row_id,
@@ -553,8 +594,8 @@ export default function ServiceFormEditor({
         }))
       );
 
-      const template = templates.find((x) => x.id === templateId);
-      if (template?.file_path) {
+      const template = localTemplates.find((x) => x.id === templateId);
+      if (!error && template?.file_path) {
         const { data, error: signedError } = await supabase.storage
           .from(STORAGE_BUCKET)
           .createSignedUrl(template.file_path, 3600);
@@ -570,7 +611,7 @@ export default function ServiceFormEditor({
     }
 
     loadTemplate();
-  }, [templateId, supabase, templates]);
+  }, [templateId, supabase, localTemplates]);
 
   useEffect(() => {
     let active = true;
@@ -601,15 +642,50 @@ export default function ServiceFormEditor({
 
       if (!active) return;
 
-      const customerRecords = ((customersResult.data ?? []) as Array<{ id: string; company_name: string | null }>)
+      if (customersResult.error || machinesResult.error || ticketsResult.error || employeesResult.error) {
+        const cachedSelectData = readCachedServiceFormSelectData();
+        if (!cachedSelectData) return;
+
+        applySelectData(cachedSelectData);
+        return;
+      }
+
+      writeCachedServiceFormSelectData({
+        customers: customersResult.data ?? [],
+        machines: machinesResult.data ?? [],
+        tickets: ticketsResult.data ?? [],
+        employees: employeesResult.data ?? [],
+      });
+
+      applySelectData({
+        customers: customersResult.data ?? [],
+        machines: machinesResult.data ?? [],
+        tickets: ticketsResult.data ?? [],
+        employees: employeesResult.data ?? [],
+      });
+    }
+
+    function applySelectData(data: {
+      customers: Array<{ id: string; company_name: string | null }>;
+      machines: Array<{ id: string; customer_id: string | null; machine_name: string | null; serial_number: string | null }>;
+      tickets: Array<{
+        id: string;
+        customer_id: string | null;
+        machine_id: string | null;
+        ticket_no: string | null;
+        title: string | null;
+      }>;
+      employees: Array<{ full_name: string | null }>;
+    }) {
+      if (!active) return;
+
+      const customerRecords = data.customers
         .map((item) => ({
           id: item.id,
           label: item.company_name ?? "",
         }))
         .filter((item) => item.id && item.label.trim());
-      const machineRecords = ((
-        machinesResult.data ?? []
-      ) as Array<{ id: string; customer_id: string | null; machine_name: string | null; serial_number: string | null }>)
+      const machineRecords = data.machines
         .map((item) => ({
           id: item.id,
           customer_id: item.customer_id,
@@ -617,15 +693,7 @@ export default function ServiceFormEditor({
           serial_number: item.serial_number,
         }))
         .filter((item) => item.id && item.label.trim());
-      const ticketRecords = ((
-        ticketsResult.data ?? []
-      ) as Array<{
-        id: string;
-        customer_id: string | null;
-        machine_id: string | null;
-        ticket_no: string | null;
-        title: string | null;
-      }>)
+      const ticketRecords = data.tickets
         .map((item) => ({
           id: item.id,
           customer_id: item.customer_id,
@@ -646,9 +714,7 @@ export default function ServiceFormEditor({
         machines: sortOptions(machineRecords.map((item) => item.label)),
         tickets: sortOptions(ticketRecords.map((item) => item.label)),
         employees: sortOptions(
-          ((employeesResult.data ?? []) as Array<{ full_name: string | null }>).map(
-            (item) => item.full_name ?? ""
-          )
+          data.employees.map((item) => item.full_name ?? "")
         ),
       });
     }
@@ -1391,7 +1457,7 @@ export default function ServiceFormEditor({
               className="rounded-lg border px-3 py-2 text-sm font-normal"
             >
               <option value="">Form seçin</option>
-              {templates.map((template) => (
+              {localTemplates.map((template) => (
                 <option key={template.id} value={template.id}>
                   {template.template_name}
                 </option>

@@ -1,7 +1,10 @@
-const SW_VERSION = "noxo-pwa-v1";
+const SW_VERSION = "noxo-pwa-v2";
 const STATIC_CACHE = `${SW_VERSION}-static`;
 const PAGE_CACHE = `${SW_VERSION}-pages`;
 const API_CACHE = `${SW_VERSION}-api`;
+const OFFLINE_PAGE_URLS = new Set([
+  "/dashboard/service-forms/new",
+]);
 
 const PRECACHE_URLS = [
   "/offline",
@@ -51,7 +54,12 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, PAGE_CACHE, "/offline"));
+    event.respondWith(networkFirst(request, PAGE_CACHE, OFFLINE_PAGE_URLS.has(url.pathname) ? url.pathname : "/offline"));
+    return;
+  }
+
+  if (OFFLINE_PAGE_URLS.has(url.pathname)) {
+    event.respondWith(networkFirst(request, PAGE_CACHE, url.pathname));
     return;
   }
 

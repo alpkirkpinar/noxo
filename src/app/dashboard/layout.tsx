@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
+import OfflineServiceFormWarmup from "@/components/service-forms/offline-service-form-warmup";
 import FloatingActions from "@/components/ui/floating-actions";
 import { getDashboardContext } from "@/lib/dashboard-context";
 
@@ -46,6 +47,7 @@ export default async function DashboardLayout({
       </div>
 
       <FloatingActions />
+      <OfflineServiceFormWarmup companyId={appUser?.company_id ? String(appUser.company_id) : null} />
     </div>
   );
 }
