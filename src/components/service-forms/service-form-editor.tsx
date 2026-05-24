@@ -8,6 +8,11 @@ import SignatureCanvas from "react-signature-canvas";
 import { PDFDocument, PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { createClient } from "@/lib/supabase/client";
+import {
+  enqueueOfflineServiceForm,
+  isLikelyOfflineError,
+  type OfflineServiceFormFieldValue,
+} from "@/lib/offline-service-forms";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -361,6 +366,7 @@ export default function ServiceFormEditor({
   const overlayRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const signaturePadRef = useRef<SignatureCanvas | null>(null);
   const signaturePadClearedRef = useRef(false);
+  const onlineCreateCompletedRef = useRef(false);
 
   const [templateId, setTemplateId] = useState(initialForm?.template_id ?? "");
   const serviceDate =
@@ -767,6 +773,20 @@ export default function ServiceFormEditor({
     return formatOperationNumber(sum);
   }
 
+  function buildFieldPayload(formNo?: string | null): OfflineServiceFormFieldValue[] {
+    return templateFields.map((field) => ({
+      template_field_id: field.id,
+      field_key: field.field_key,
+      field_type: field.field_type,
+      value_text:
+        field.field_type === "serial_number"
+          ? getSerialNumberValue(formNo)
+          : field.field_type === "operation"
+            ? getResolvedFieldRawValue(field, fieldValues)
+            : fieldValues[field.id] ?? "",
+    }));
+  }
+
   function activateOverlayFieldControl(container: HTMLDivElement, field: TemplateField) {
     if (field.field_type === "checkbox" || field.field_type === "signature" || field.field_type === "operation") return;
 
@@ -968,11 +988,30 @@ export default function ServiceFormEditor({
       setSaving(true);
       setErrorText("");
       setSuccessText("");
+      onlineCreateCompletedRef.current = false;
 
       if (!templateId) throw new Error("Form seçmek zorunludur.");
       const { customerId, machineId, ticketId } = resolveLinkedRecordIds();
       if (!customerId) {
         throw new Error("Müşteri seçmek zorunludur. Formdaki müşteri alanından kayıtlı bir müşteri seçin.");
+      }
+
+      if (mode === "create" && typeof navigator !== "undefined" && navigator.onLine === false) {
+        enqueueOfflineServiceForm({
+          company_id: companyId,
+          user_id: userId,
+          template_id: templateId,
+          template_name: selectedTemplate?.template_name ?? null,
+          customer_id: customerId,
+          machine_id: machineId,
+          ticket_id: ticketId,
+          service_date: serviceDate,
+          values: buildFieldPayload(null),
+        });
+
+        setSuccessText("İnternet yok. Form cihazda beklemeye alındı; bağlantı gelince form listesine kaydedilecek.");
+        router.push("/dashboard/service-forms");
+        return;
       }
 
       let formId = initialForm?.id ?? null;
@@ -998,6 +1037,7 @@ export default function ServiceFormEditor({
         if (error) throw new Error(error.message);
         formId = data.id;
         formNo = data.form_no ?? null;
+        onlineCreateCompletedRef.current = true;
       } else {
         const { error } = await supabase
           .from("service_forms")
@@ -1056,6 +1096,28 @@ export default function ServiceFormEditor({
       router.push("/dashboard/service-forms");
       router.refresh();
     } catch (err) {
+      if (mode === "create" && templateId && !onlineCreateCompletedRef.current && isLikelyOfflineError(err)) {
+        const { customerId, machineId, ticketId } = resolveLinkedRecordIds();
+
+        if (customerId) {
+          enqueueOfflineServiceForm({
+            company_id: companyId,
+            user_id: userId,
+            template_id: templateId,
+            template_name: selectedTemplate?.template_name ?? null,
+            customer_id: customerId,
+            machine_id: machineId,
+            ticket_id: ticketId,
+            service_date: serviceDate,
+            values: buildFieldPayload(null),
+          });
+
+          setSuccessText("Bağlantı kesildi. Form cihazda beklemeye alındı; internet gelince form listesine kaydedilecek.");
+          router.push("/dashboard/service-forms");
+          return;
+        }
+      }
+
       setErrorText(err instanceof Error ? err.message : "Bilinmeyen hata oluştu.");
     } finally {
       setSaving(false);

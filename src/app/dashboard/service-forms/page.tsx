@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import OfflineServiceFormsPanel from "@/components/service-forms/offline-service-forms-panel";
 import { getCurrentAppUser } from "@/lib/supabase/app-user";
 
 type GroupedForms = {
@@ -119,6 +120,8 @@ export default async function ServiceFormsPage() {
 
   return (
     <div className="space-y-6">
+      <OfflineServiceFormsPanel />
+
       <div className="flex justify-end">
         <Link
           href="/dashboard/service-forms/new"
