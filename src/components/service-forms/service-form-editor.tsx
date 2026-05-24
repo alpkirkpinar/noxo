@@ -554,7 +554,7 @@ export default function ServiceFormEditor({
         );
         setPdfUrl("");
         setViewMode("form");
-        setErrorText("Çevrimdışı mod: form alanları cihazdaki kayıtlı veriden açıldı.");
+        notify("Çevrimdışı mod: form alanları cihazdaki kayıtlı veriden açıldı.", "info");
         setLoadingTemplate(false);
         return;
       }
@@ -598,7 +598,7 @@ export default function ServiceFormEditor({
 
         nextFields = cachedFields;
         setViewMode("form");
-        setErrorText("Çevrimdışı mod: form şablonu cihazdaki kayıtlı veriden açıldı.");
+        notify("Çevrimdışı mod: form şablonu cihazdaki kayıtlı veriden açıldı.", "info");
       } else {
         writeCachedServiceFormFields(
           nextFields.map((field) => ({
@@ -885,6 +885,14 @@ export default function ServiceFormEditor({
     }));
   }
 
+  function notify(message: string, type: "success" | "info" | "error" = "success") {
+    window.dispatchEvent(
+      new CustomEvent("noxo:notification", {
+        detail: { message, type },
+      })
+    );
+  }
+
   function queueCurrentOfflineForm(
     customerId: string,
     machineId: string | null,
@@ -904,11 +912,7 @@ export default function ServiceFormEditor({
     });
 
     setSuccessText(message);
-    window.dispatchEvent(
-      new CustomEvent("noxo:notification", {
-        detail: { message },
-      })
-    );
+    notify(message);
   }
 
   function activateOverlayFieldControl(container: HTMLDivElement, field: TemplateField) {
