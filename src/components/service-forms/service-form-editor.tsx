@@ -853,6 +853,32 @@ export default function ServiceFormEditor({
     }));
   }
 
+  function queueCurrentOfflineForm(
+    customerId: string,
+    machineId: string | null,
+    ticketId: string | null,
+    message: string
+  ) {
+    enqueueOfflineServiceForm({
+      company_id: companyId,
+      user_id: userId,
+      template_id: templateId,
+      template_name: selectedTemplate?.template_name ?? null,
+      customer_id: customerId,
+      machine_id: machineId,
+      ticket_id: ticketId,
+      service_date: serviceDate,
+      values: buildFieldPayload(null),
+    });
+
+    setSuccessText(message);
+    window.dispatchEvent(
+      new CustomEvent("noxo:notification", {
+        detail: { message },
+      })
+    );
+  }
+
   function activateOverlayFieldControl(container: HTMLDivElement, field: TemplateField) {
     if (field.field_type === "checkbox" || field.field_type === "signature" || field.field_type === "operation") return;
 
@@ -1063,20 +1089,12 @@ export default function ServiceFormEditor({
       }
 
       if (mode === "create" && typeof navigator !== "undefined" && navigator.onLine === false) {
-        enqueueOfflineServiceForm({
-          company_id: companyId,
-          user_id: userId,
-          template_id: templateId,
-          template_name: selectedTemplate?.template_name ?? null,
-          customer_id: customerId,
-          machine_id: machineId,
-          ticket_id: ticketId,
-          service_date: serviceDate,
-          values: buildFieldPayload(null),
-        });
-
-        setSuccessText("İnternet yok. Form cihazda beklemeye alındı; bağlantı gelince form listesine kaydedilecek.");
-        router.push("/dashboard/service-forms");
+        queueCurrentOfflineForm(
+          customerId,
+          machineId,
+          ticketId,
+          "İnternet yok. Form cihazda kaydedildi; bağlantı gelince veritabanına eşitlenecek."
+        );
         return;
       }
 
@@ -1166,20 +1184,12 @@ export default function ServiceFormEditor({
         const { customerId, machineId, ticketId } = resolveLinkedRecordIds();
 
         if (customerId) {
-          enqueueOfflineServiceForm({
-            company_id: companyId,
-            user_id: userId,
-            template_id: templateId,
-            template_name: selectedTemplate?.template_name ?? null,
-            customer_id: customerId,
-            machine_id: machineId,
-            ticket_id: ticketId,
-            service_date: serviceDate,
-            values: buildFieldPayload(null),
-          });
-
-          setSuccessText("Bağlantı kesildi. Form cihazda beklemeye alındı; internet gelince form listesine kaydedilecek.");
-          router.push("/dashboard/service-forms");
+          queueCurrentOfflineForm(
+            customerId,
+            machineId,
+            ticketId,
+            "Bağlantı kesildi. Form cihazda kaydedildi; internet gelince veritabanına eşitlenecek."
+          );
           return;
         }
       }

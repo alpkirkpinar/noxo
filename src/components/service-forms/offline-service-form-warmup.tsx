@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  syncQueuedOfflineServiceForms,
   writeCachedServiceFormFields,
   writeCachedServiceFormSelectData,
   writeCachedServiceFormTemplates,
@@ -17,12 +18,23 @@ type Props = {
 
 export default function OfflineServiceFormWarmup({ companyId }: Props) {
   useEffect(() => {
-    if (!companyId || typeof navigator === "undefined" || navigator.onLine === false) return;
+    if (!companyId || typeof navigator === "undefined") return;
 
     let active = true;
     const supabase = createClient();
 
     async function warmup() {
+      if (navigator.onLine === false) return;
+
+      const syncResult = await syncQueuedOfflineServiceForms(supabase);
+      if (syncResult.synced > 0) {
+        window.dispatchEvent(
+          new CustomEvent("noxo:notification", {
+            detail: { message: `${syncResult.synced} çevrimdışı form veritabanına eşitlendi.` },
+          })
+        );
+      }
+
       try {
         await fetch("/dashboard/service-forms/new", {
           cache: "reload",
@@ -112,9 +124,11 @@ export default function OfflineServiceFormWarmup({ companyId }: Props) {
     }
 
     void warmup();
+    window.addEventListener("online", warmup);
 
     return () => {
       active = false;
+      window.removeEventListener("online", warmup);
     };
   }, [companyId]);
 
