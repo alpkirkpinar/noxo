@@ -534,6 +534,31 @@ export default function ServiceFormEditor({
       setLoadingTemplate(true);
       setErrorText("");
 
+      const cachedFields = readCachedServiceFormFields(templateId) as TemplateField[];
+
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        if (cachedFields.length === 0) {
+          setLoadingTemplate(false);
+          setErrorText("Çevrimdışı modda bu form şablonu cihazda bulunamadı. İnternet varken formu bir kez açın.");
+          return;
+        }
+
+        setTemplateFields(
+          cachedFields.map((field) => ({
+            ...field,
+            is_readonly: field.field_type === "operation" ? true : field.is_readonly,
+            form_row_id: parseFieldLayoutMeta(field.default_value).form_row_id,
+            has_dropdown: parseFieldLayoutMeta(field.default_value).has_dropdown,
+            operation_config: parseFieldLayoutMeta(field.default_value).operation_config,
+          }))
+        );
+        setPdfUrl("");
+        setViewMode("form");
+        setErrorText("Çevrimdışı mod: form alanları cihazdaki kayıtlı veriden açıldı.");
+        setLoadingTemplate(false);
+        return;
+      }
+
       const { data: fields, error } = await supabase
         .from("pdf_template_fields")
         .select(`
@@ -565,7 +590,6 @@ export default function ServiceFormEditor({
       })) as TemplateField[];
 
       if (error) {
-        const cachedFields = readCachedServiceFormFields(templateId) as TemplateField[];
         if (cachedFields.length === 0) {
           setLoadingTemplate(false);
           setErrorText(error.message);
@@ -617,6 +641,14 @@ export default function ServiceFormEditor({
     let active = true;
 
     async function loadSelectOptions() {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        const cachedSelectData = readCachedServiceFormSelectData();
+        if (cachedSelectData) {
+          applySelectData(cachedSelectData);
+        }
+        return;
+      }
+
       const [customersResult, machinesResult, ticketsResult, employeesResult] = await Promise.all([
         supabase
           .from("customers")
