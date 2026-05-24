@@ -7,7 +7,9 @@
       "namespace": "android_app",
       "package_name": "com.nortech.noxo",
       "sha256_cert_fingerprints": [
-        "85:C9:AB:A3:2A:B5:B5:7E:E8:9D:8D:80:F0:A5:74:AC:EA:4D:8F:EC:EB:11:83:CA:6D:E1:98:DB:85:2A:C8:9F"
+        "85:C9:AB:A3:2A:B5:B5:7E:E8:9D:8D:80:F0:A5:74:AC:EA:4D:8F:EC:EB:11:83:CA:6D:E1:98:DB:85:2A:C8:9F",
+        "D6:51:52:85:6C:32:16:EF:73:13:D7:22:9D:0D:C8:66:79:11:CB:C0:EA:3E:6C:A4:AF:B1:A0:FC:BF:18:28:0F",
+        "A8:A2:00:65:A0:6C:4A:41:14:44:87:38:2F:70:FB:08:91:54:02:50:B1:97:58:BD:D8:C7:7E:E4:D8:90:81:B9"
       ]
     }
   }
