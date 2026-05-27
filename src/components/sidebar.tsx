@@ -172,14 +172,14 @@ function isActive(pathname: string, href: string) {
 function MenuIcon({ icon, active }: { icon: IconName; active?: boolean }) {
   return (
     <span
-      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition ${
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition sm:h-8 sm:w-8 sm:rounded-xl ${
         active ? "bg-white/25 text-white" : "bg-white/15 text-white/90"
       }`}
     >
       <svg
         viewBox="0 0 24 24"
         aria-hidden="true"
-        className="h-[18px] w-[18px]"
+        className="h-4 w-4 sm:h-[18px] sm:w-[18px]"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.9"
@@ -357,10 +357,10 @@ export default function Sidebar({
         </div>
       </aside>
 
-      <nav className="fixed inset-x-3 bottom-3 z-[30] rounded-3xl border border-white/20 bg-[linear-gradient(180deg,#22345d_0%,#1b2746_100%)] px-2 py-2 text-white shadow-2xl ring-1 ring-white/20 landscape:pr-14 sm:pr-16 2xl:hidden">
+      <nav className="fixed inset-x-2 bottom-2 z-[30] rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#22345d_0%,#1b2746_100%)] px-1.5 py-1.5 text-white shadow-2xl ring-1 ring-white/20 landscape:pr-14 sm:inset-x-3 sm:bottom-3 sm:rounded-3xl sm:px-2 sm:py-2 sm:pr-16 2xl:hidden">
         <div
           ref={mobileNavRef}
-          className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1 pr-10 [-ms-overflow-style:none] [scrollbar-width:none] sm:justify-evenly sm:overflow-x-visible sm:pb-0 sm:pr-0 [&::-webkit-scrollbar]:hidden"
+          className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 pr-9 [-ms-overflow-style:none] [scrollbar-width:none] sm:justify-evenly sm:gap-2 sm:overflow-x-visible sm:pb-0 sm:pr-0 [&::-webkit-scrollbar]:hidden"
         >
           {mobileNavItems.map((item) => {
             if (!item.href || !item.icon) return null
@@ -374,13 +374,13 @@ export default function Sidebar({
                 ref={(element) => {
                   mobileItemRefs.current[href] = element
                 }}
-                className={`flex min-h-[72px] min-w-[88px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition sm:min-w-0 sm:flex-1 sm:shrink ${
+                className={`flex min-h-[58px] min-w-[78px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1 transition sm:min-h-[72px] sm:min-w-0 sm:flex-1 sm:shrink sm:gap-1 sm:rounded-2xl sm:px-2 sm:py-2 ${
                   active ? "bg-white/20 text-white" : "text-white/90 hover:bg-white/12 hover:text-white"
                 }`}
                 style={{ willChange: "transform, opacity, filter" }}
               >
                 <MenuIcon icon={item.icon} active={active} />
-                <span className="max-w-[86px] whitespace-normal text-center text-[10px] font-semibold leading-tight">
+                <span className="max-w-[76px] whitespace-normal text-center text-[9px] font-semibold leading-tight sm:max-w-[86px] sm:text-[10px]">
                   {item.title}
                 </span>
               </Link>

@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom"
 import { usePathname, useRouter } from "next/navigation"
 import type { NoxoNotificationType } from "@/lib/browser-notifications"
+import { clearBrowserAuthState, createClient } from "@/lib/supabase/client"
 
 type TopbarProps = {
   fullName?: string | null
@@ -672,9 +673,11 @@ export default function Topbar({
 
   const handleLogout = async () => {
     try {
+      await createClient().auth.signOut()
       await fetch("/auth/sign-out", { method: "POST" })
     } catch {}
 
+    clearBrowserAuthState()
     router.push("/login")
     router.refresh()
   }

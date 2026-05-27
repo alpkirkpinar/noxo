@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getRoutePermission, hasPermission } from "@/lib/permissions"
+import { toSessionCookieOptions } from "@/lib/supabase/session-cookies"
 
 function getAuthStorageKey() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -69,7 +70,7 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, toSessionCookieOptions(value, options))
           }
         },
       },

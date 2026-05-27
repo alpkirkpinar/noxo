@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NoxoMark } from "@/components/noxo-mark";
 import { localizeErrorMessage } from "@/lib/error-messages";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, markBrowserSessionActive } from "@/lib/supabase/client";
 
 const LOGIN_BACKGROUND_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/public-assets/login/noxo-login-bg.jpg`;
 
@@ -43,6 +43,8 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+
+    markBrowserSessionActive();
 
     startTransition(() => {
       router.replace("/dashboard");
