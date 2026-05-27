@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 type CustomerInitialValues = {
   id?: string;
@@ -56,6 +57,35 @@ export default function CustomerForm({
   const [isActive, setIsActive] = useState(initialValues?.is_active ?? true);
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const hasUnsavedChanges = useMemo(
+    () =>
+      companyName !== (initialValues?.company_name ?? "") ||
+      contactName !== (initialValues?.contact_name ?? "") ||
+      phone !== (initialValues?.phone ?? "") ||
+      email !== (initialValues?.email ?? "") ||
+      address !== (initialValues?.address ?? "") ||
+      city !== (initialValues?.city ?? "") ||
+      country !== (initialValues?.country ?? "") ||
+      taxOffice !== (initialValues?.tax_office ?? "") ||
+      taxNumber !== (initialValues?.tax_number ?? "") ||
+      notes !== (initialValues?.notes ?? "") ||
+      isActive !== (initialValues?.is_active ?? true),
+    [
+      address,
+      city,
+      companyName,
+      contactName,
+      country,
+      email,
+      initialValues,
+      isActive,
+      notes,
+      phone,
+      taxNumber,
+      taxOffice,
+    ]
+  );
+  useUnsavedChangesWarning(hasUnsavedChanges || saving);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

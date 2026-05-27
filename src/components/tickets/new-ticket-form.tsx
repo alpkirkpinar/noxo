@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { pushBrowserNotification } from "@/lib/browser-notifications";
 
 type CustomerItem = {
@@ -59,6 +60,8 @@ export default function NewTicketForm({
   const [priority, setPriority] = useState<TicketPriority>("medium");
   const [submitting, setSubmitting] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const hasUnsavedChanges = Boolean(customerId || machineId || assignedTo || title || description || priority !== "medium");
+  useUnsavedChangesWarning(hasUnsavedChanges || submitting);
 
   const filteredMachines = useMemo(() => {
     if (!customerId) return [];

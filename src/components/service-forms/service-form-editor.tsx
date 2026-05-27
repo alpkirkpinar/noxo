@@ -7,6 +7,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import SignatureCanvas from "react-signature-canvas";
 import { PDFDocument, PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { createClient } from "@/lib/supabase/client";
 import {
   enqueueOfflineServiceForm,
@@ -380,9 +381,10 @@ export default function ServiceFormEditor({
   const serviceDate =
     initialForm?.service_date ? String(initialForm.service_date).slice(0, 10) : new Date().toISOString().slice(0, 10)
   ;
+  const initialFieldValues = useMemo(() => normalizeExistingValues(initialFields), [initialFields]);
 
   const [templateFields, setTemplateFields] = useState<TemplateField[]>([]);
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>(normalizeExistingValues(initialFields));
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(initialFieldValues);
   const [pdfUrl, setPdfUrl] = useState("");
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(getInitialZoom);
@@ -408,6 +410,13 @@ export default function ServiceFormEditor({
   const [exportingPdf, setExportingPdf] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
+  const hasUnsavedChanges = useMemo(
+    () =>
+      templateId !== (initialForm?.template_id ?? "") ||
+      JSON.stringify(fieldValues) !== JSON.stringify(initialFieldValues),
+    [fieldValues, initialFieldValues, initialForm?.template_id, templateId]
+  );
+  useUnsavedChangesWarning(hasUnsavedChanges || saving);
 
   const selectedTemplate = useMemo(
     () => localTemplates.find((x) => x.id === templateId) ?? null,

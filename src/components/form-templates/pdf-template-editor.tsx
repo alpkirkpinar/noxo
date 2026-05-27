@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Document, Page, pdfjs } from "react-pdf";
 import { createClient } from "@/lib/supabase/client";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -526,6 +527,15 @@ export default function PdfTemplateEditor({
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
+  const hasUnsavedChanges = useMemo(
+    () =>
+      templateCode !== (initialTemplate?.template_code ?? "") ||
+      templateName !== (initialTemplate?.template_name ?? "") ||
+      pdfFile !== null ||
+      JSON.stringify(fields) !== JSON.stringify(normalizedInitialFields),
+    [fields, initialTemplate?.template_code, initialTemplate?.template_name, normalizedInitialFields, pdfFile, templateCode, templateName]
+  );
+  useUnsavedChangesWarning(hasUnsavedChanges || saving);
 
   const overlayRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const fieldTypeMenuRef = useRef<HTMLDivElement | null>(null);

@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import CompactFilterActionBar from "@/components/ui/compact-filter-action-bar";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import PageLoadingSkeleton from "@/components/ui/page-loading-skeleton";
 import { useDismissFloatingLayer } from "@/hooks/use-dismiss-floating-layer";
 import { useTouchContextMenu } from "@/hooks/use-touch-context-menu";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 type CurrencyCode = "TRY" | "USD" | "EUR";
 
@@ -312,6 +314,42 @@ function sortIndicator(active: boolean, direction: SortDirection) {
   return direction === "asc" ? " ↑" : " ↓";
 }
 
+function serializeOfferDraft(draft: {
+  offerNo: string;
+  customerId: string;
+  offerDate: string;
+  validUntil: string;
+  salesRep: string;
+  salesRepEmail: string;
+  salesRepPhone: string;
+  notes: string;
+  rows: OfferRow[];
+}) {
+  return JSON.stringify({
+    offerNo: draft.offerNo,
+    customerId: draft.customerId,
+    offerDate: draft.offerDate,
+    validUntil: draft.validUntil,
+    salesRep: draft.salesRep,
+    salesRepEmail: draft.salesRepEmail,
+    salesRepPhone: draft.salesRepPhone,
+    notes: draft.notes,
+    rows: draft.rows.map((row) => ({
+      item_id: row.item_id,
+      item_code: row.item_code,
+      item_name: row.item_name,
+      description: row.description,
+      quantity: row.quantity,
+      multiplier: row.multiplier,
+      unit: row.unit,
+      base_unit_price: row.base_unit_price,
+      offer_unit_price: row.offer_unit_price,
+      currency: row.currency,
+      line_total: row.line_total,
+    })),
+  });
+}
+
 export default function OffersPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -352,6 +390,7 @@ export default function OffersPage() {
   });
   const [notes, setNotes] = useState(DEFAULT_NOTES);
   const [rows, setRows] = useState<OfferRow[]>([emptyOfferRow()]);
+  const [initialOfferDraftSnapshot, setInitialOfferDraftSnapshot] = useState<string | null>(null);
 
   const [activeSuggestionRowId, setActiveSuggestionRowId] = useState<string | null>(null);
   const [pendingNewItemRowId, setPendingNewItemRowId] = useState<string | null>(null);
@@ -378,6 +417,26 @@ export default function OffersPage() {
     setContextMenu({ x, y, offerId });
   });
   useDismissFloatingLayer([contextMenuRef], () => setContextMenu(null));
+  const currentOfferDraftSnapshot = useMemo(
+    () =>
+      serializeOfferDraft({
+        offerNo,
+        customerId,
+        offerDate,
+        validUntil,
+        salesRep,
+        salesRepEmail,
+        salesRepPhone,
+        notes,
+        rows,
+      }),
+    [customerId, offerDate, offerNo, notes, rows, salesRep, salesRepEmail, salesRepPhone, validUntil]
+  );
+  const hasUnsavedOfferChanges =
+    showNewOfferModal &&
+    initialOfferDraftSnapshot !== null &&
+    currentOfferDraftSnapshot !== initialOfferDraftSnapshot;
+  useUnsavedChangesWarning(showNewOfferModal && (hasUnsavedOfferChanges || saving));
 
   useEffect(() => {
     void initialize();
@@ -553,19 +612,14 @@ export default function OffersPage() {
     }
 
     resetMessages();
-    setOfferNo(generateOfferNo());
-    setCustomerId("");
-    setOfferDate(new Date().toISOString().slice(0, 10));
-
-    const date = new Date();
-    date.setDate(date.getDate() + 14);
-    setValidUntil(date.toISOString().slice(0, 10));
-
-    setSalesRep(salesRepDefaults.fullName);
-    setSalesRepEmail(salesRepDefaults.email);
-    setSalesRepPhone(salesRepDefaults.phone);
-    setNotes(DEFAULT_NOTES);
-    const prefillRows = (() => {
+    const nextOfferNo = generateOfferNo();
+    const nextOfferDate = new Date().toISOString().slice(0, 10);
+    const nextValidUntil = (() => {
+      const date = new Date();
+      date.setDate(date.getDate() + 14);
+      return date.toISOString().slice(0, 10);
+    })();
+    const nextRows = (() => {
       if (typeof window === "undefined") return null;
 
       const raw = window.localStorage.getItem("noxo_offer_prefill_items");
@@ -584,8 +638,30 @@ export default function OffersPage() {
         return null;
       }
     })();
+    const resolvedRows = nextRows ?? [emptyOfferRow()];
 
-    setRows(prefillRows ?? [emptyOfferRow()]);
+    setOfferNo(nextOfferNo);
+    setCustomerId("");
+    setOfferDate(nextOfferDate);
+    setValidUntil(nextValidUntil);
+    setSalesRep(salesRepDefaults.fullName);
+    setSalesRepEmail(salesRepDefaults.email);
+    setSalesRepPhone(salesRepDefaults.phone);
+    setNotes(DEFAULT_NOTES);
+    setRows(resolvedRows);
+    setInitialOfferDraftSnapshot(
+      serializeOfferDraft({
+        offerNo: nextOfferNo,
+        customerId: "",
+        offerDate: nextOfferDate,
+        validUntil: nextValidUntil,
+        salesRep: salesRepDefaults.fullName,
+        salesRepEmail: salesRepDefaults.email,
+        salesRepPhone: salesRepDefaults.phone,
+        notes: DEFAULT_NOTES,
+        rows: resolvedRows,
+      })
+    );
     setOfferModalMode("create");
     setEditingOfferId(null);
     setActiveSuggestionRowId(null);
@@ -708,6 +784,19 @@ export default function OffersPage() {
     setSalesRepPhone(phoneLine.replace("Telefon:", "").trim());
     setNotes(filteredNotes || DEFAULT_NOTES);
     setRows(loadedRows);
+    setInitialOfferDraftSnapshot(
+      serializeOfferDraft({
+        offerNo: offer.offer_no ?? "",
+        customerId: offer.customer_id ?? "",
+        offerDate: offer.offer_date ?? "",
+        validUntil: offer.valid_until ?? "",
+        salesRep: salesRepLine.replace(salesRepTag, "").trim(),
+        salesRepEmail: emailLine.replace("E-mail:", "").trim(),
+        salesRepPhone: phoneLine.replace("Telefon:", "").trim(),
+        notes: filteredNotes || DEFAULT_NOTES,
+        rows: loadedRows,
+      })
+    );
     setOfferModalMode("edit");
     setEditingOfferId(targetOfferId);
     setActiveSuggestionRowId(null);
@@ -718,6 +807,7 @@ export default function OffersPage() {
 
   function closeNewOfferModal() {
     setShowNewOfferModal(false);
+    setInitialOfferDraftSnapshot(null);
     setOfferModalMode("create");
     setEditingOfferId(null);
     setActiveSuggestionRowId(null);
@@ -1213,6 +1303,10 @@ export default function OffersPage() {
   const sortableHeaderClass =
     "cursor-pointer whitespace-nowrap px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200";
 
+  if (loading) {
+    return <PageLoadingSkeleton columns={5} />;
+  }
+
   return (
     <div className="space-y-6">
       {errorText ? (
@@ -1327,13 +1421,7 @@ export default function OffersPage() {
             </thead>
 
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={selectionMode ? 6 : 5} className="px-4 py-12 text-center text-sm text-slate-500">
-                    {TR.loading}
-                  </td>
-                </tr>
-              ) : filteredOffers.length === 0 ? (
+              {filteredOffers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500">
                     {TR.noRecords}

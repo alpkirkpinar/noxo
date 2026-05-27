@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { computeNextMaintenanceDate } from "@/lib/machines";
 
 type CustomerItem = {
@@ -77,6 +78,38 @@ export default function MachineForm({
   const [status, setStatus] = useState(initialValues?.status ?? "active");
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const hasUnsavedChanges = useMemo(
+    () =>
+      customerId !== (initialValues?.customer_id ?? "") ||
+      machineName !== (initialValues?.machine_name ?? "") ||
+      brand !== (initialValues?.brand ?? "") ||
+      model !== (initialValues?.model ?? "") ||
+      serialNumber !== (initialValues?.serial_number ?? "") ||
+      installationDate !== dateValue(initialValues?.installation_date) ||
+      warrantyEndDate !== dateValue(initialValues?.warranty_end_date) ||
+      maintenancePeriodDays !==
+        (initialValues?.maintenance_period_days != null ? String(initialValues.maintenance_period_days) : "") ||
+      lastMaintenanceDate !== dateValue(initialValues?.last_maintenance_date) ||
+      locationText !== (initialValues?.location_text ?? "") ||
+      notes !== (initialValues?.notes ?? "") ||
+      status !== (initialValues?.status ?? "active"),
+    [
+      brand,
+      customerId,
+      initialValues,
+      installationDate,
+      lastMaintenanceDate,
+      locationText,
+      machineName,
+      maintenancePeriodDays,
+      model,
+      notes,
+      serialNumber,
+      status,
+      warrantyEndDate,
+    ]
+  );
+  useUnsavedChangesWarning(hasUnsavedChanges || saving);
 
   const computedNextMaintenanceDate = computeNextMaintenanceDate({
     maintenancePeriodDays: Number(maintenancePeriodDays) || null,
