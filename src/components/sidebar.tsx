@@ -357,7 +357,7 @@ export default function Sidebar({
         </div>
       </aside>
 
-      <nav className="fixed inset-x-2 bottom-2 z-[30] rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#22345d_0%,#1b2746_100%)] px-1.5 py-1.5 text-white shadow-2xl ring-1 ring-white/20 landscape:pr-14 sm:inset-x-3 sm:bottom-3 sm:rounded-3xl sm:px-2 sm:py-2 sm:pr-16 2xl:hidden">
+      <nav className="fixed inset-x-2 bottom-2 z-[30] rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#22345d_0%,#1b2746_100%)] px-1.5 py-1.5 text-white ring-1 ring-white/20 landscape:pr-14 sm:inset-x-3 sm:bottom-3 sm:rounded-3xl sm:px-2 sm:py-2 sm:pr-16 2xl:hidden">
         <div
           ref={mobileNavRef}
           className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 pr-9 [-ms-overflow-style:none] [scrollbar-width:none] sm:justify-evenly sm:gap-2 sm:overflow-x-visible sm:pb-0 sm:pr-0 [&::-webkit-scrollbar]:hidden"
