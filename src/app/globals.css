@@ -115,19 +115,21 @@ select:-webkit-autofill {
 }
 
 .floating-actions {
+  --floating-nav-offset: 4.375rem;
   right: 0.75rem;
-  bottom: calc(5.75rem + 4dvh);
+  bottom: calc(var(--floating-nav-offset) + 4dvh);
 }
 
 @media (min-width: 640px) {
   .floating-actions {
+    --floating-nav-offset: 5.75rem;
     right: 1rem;
   }
 }
 
 @media (orientation: landscape) {
   .floating-actions {
-    bottom: calc(5.75rem + 3dvh);
+    bottom: calc(var(--floating-nav-offset) + 3dvh);
   }
 }
 

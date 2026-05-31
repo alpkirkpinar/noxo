@@ -528,20 +528,7 @@ export default function DashboardCalendar({
                           {dayEvents.slice(0, 2).map((event) => (
                             <div
                               key={`${iso}-${event.id}`}
-                              role="button"
-                              tabIndex={0}
-                              onClick={(clickEvent) => {
-                                clickEvent.stopPropagation()
-                                openEditForm(event)
-                              }}
-                              onKeyDown={(keyEvent) => {
-                                if (keyEvent.key === "Enter" || keyEvent.key === " ") {
-                                  keyEvent.preventDefault()
-                                  keyEvent.stopPropagation()
-                                  openEditForm(event)
-                                }
-                              }}
-                              className="block w-full cursor-pointer truncate rounded-md border px-1 py-0.5 text-left text-[9px] font-medium text-white shadow-sm transition-opacity hover:opacity-90 sm:rounded-xl sm:px-2 sm:py-1 sm:text-[10px]"
+                              className="block w-full truncate rounded-md border px-1 py-0.5 text-left text-[9px] font-medium text-white shadow-sm sm:rounded-xl sm:px-2 sm:py-1 sm:text-[10px]"
                               style={{
                                 backgroundColor: event.creator_color,
                                 borderColor: event.creator_color,
